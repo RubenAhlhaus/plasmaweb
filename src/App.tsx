@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from './store';
 import { useLcncguiConfigLoader } from './hooks/useLcncguiConfigLoader';
@@ -8,6 +8,7 @@ import { RightSidebar } from './components/RightSidebar';
 import { HomeScreen } from './screens/HomeScreen';
 import { PlaceholderScreen } from './screens/PlaceholderScreen';
 import { ProgramScreen } from './screens/ProgramScreen';
+import { PlasmaMainScreen } from './screens/PlasmaMainScreen';
 import { ToolsScreen } from './screens/ToolsScreen';
 import { VirtualButtonSidebar } from './components/VirtualButtonSidebar';
 import { useJogEventSubscription } from './hooks/useJogCommand';
@@ -26,6 +27,7 @@ import { SpindleFeedDialogsHost } from './components/SpindleFeedDialogsHost';
 import { ToolChangeDialogHost } from './components/ToolChangeDialogHost';
 import {
   SIDEBAR_INDEX_HOME,
+  SIDEBAR_INDEX_PLASMA,
   SIDEBAR_INDEX_MACROS,
   SIDEBAR_INDEX_PROGRAM,
   SIDEBAR_INDEX_PROBING,
@@ -46,6 +48,8 @@ function AppContent() {
   const activeMenuIndex = useAppStore((s) => s.activeMenuIndex);
   const setActiveMenuIndex = useAppStore((s) => s.setActiveMenuIndex);
   const showVirtualSidebar = useAppStore((s) => s.showVirtualSidebar);
+  const plasmaAvailable = useAppStore((s) => s.plasmaAvailable);
+  const plasmaScreenShownRef = useRef(false);
 
   useBackendWebSocket();
   useJogEventSubscription();
@@ -59,6 +63,16 @@ function AppContent() {
   useEffect(() => {
     installLcncguiE2eBridge();
   }, []);
+
+  // On a plasma machine the MAIN screen is the landing screen, the same way QtPlasmaC opens
+  // on its MAIN tab. Only the first snapshot moves the user; later ones must not yank the
+  // screen away from wherever they navigated.
+  useEffect(() => {
+    if (plasmaAvailable && !plasmaScreenShownRef.current) {
+      plasmaScreenShownRef.current = true;
+      setActiveMenuIndex(SIDEBAR_INDEX_PLASMA);
+    }
+  }, [plasmaAvailable, setActiveMenuIndex]);
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-gradient-to-br from-background via-slate-900/95 to-background">
@@ -96,6 +110,7 @@ function AppContent() {
             {activeMenuIndex === SIDEBAR_INDEX_PROGRAM && <ProgramScreen />}
             {activeMenuIndex === SIDEBAR_INDEX_TOOLS && <ToolsScreen />}
             {activeMenuIndex === SIDEBAR_INDEX_PROBING && <PlaceholderScreen titleKey="nav.probing" />}
+            {activeMenuIndex === SIDEBAR_INDEX_PLASMA && <PlasmaMainScreen />}
             {activeMenuIndex === SIDEBAR_INDEX_SETTINGS && (
               <Suspense fallback={<ScreenLoadingFallback />}>
                 <SettingsScreen />

@@ -1,0 +1,59 @@
+{
+  "unavailable": "Die Plasma-Ebene ist auf dieser Maschine nicht aktiv.",
+  "units": {
+    "volts": "V"
+  },
+  "readout": {
+    "arcVoltage": "Lichtbogenspannung",
+    "targetVoltage": "Sollspannung",
+    "zHeight": "Z-Höhe",
+    "cutFeedRate": "Schnittvorschub"
+  },
+  "state": {
+    "title": "Zustand"
+  },
+  "led": {
+    "torchOn": "Brenner an",
+    "arcOk": "Lichtbogen OK",
+    "thcActive": "THC aktiv",
+    "sensorActive": "Sensor",
+    "up": "Auf",
+    "down": "Ab",
+    "cornerLocked": "Ecken-Lock",
+    "voidLocked": "Void-Lock",
+    "float": "Float",
+    "ohmic": "Ohmsch",
+    "breakaway": "Abrisssicherung"
+  },
+  "heightOverride": {
+    "label": "Höhenkorrektur",
+    "increase": "Höhenkorrektur um ein Volt erhöhen",
+    "decrease": "Höhenkorrektur um ein Volt verringern",
+    "reset": "Zurücksetzen"
+  },
+  "toggle": {
+    "torchEnable": "Brenner freigeben",
+    "thcEnable": "THC freigeben",
+    "autoVolts": "Auto-Volt",
+    "cornerLock": "Ecken-Lock",
+    "voidLock": "Void-Lock",
+    "mesh": "Streckmetall"
+  },
+  "cycle": {
+    "start": "Start",
+    "pause": "Pause",
+    "stop": "Stopp",
+    "torchPulse": "Brennerpuls"
+  },
+  "statistics": {
+    "title": "Statistik",
+    "cutTime": "Schnittzeit",
+    "torchTime": "Brennerzeit",
+    "runTime": "Laufzeit",
+    "rapidTime": "Eilgangzeit",
+    "probeTime": "Tastzeit",
+    "pausedTime": "Pausenzeit",
+    "pierceCount": "Einstiche",
+    "cutLength": "Schnittlänge"
+  }
+}

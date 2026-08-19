@@ -1,0 +1,59 @@
+{
+  "unavailable": "The plasma layer is not active on this machine.",
+  "units": {
+    "volts": "V"
+  },
+  "readout": {
+    "arcVoltage": "Arc voltage",
+    "targetVoltage": "Target voltage",
+    "zHeight": "Z height",
+    "cutFeedRate": "Cut feed rate"
+  },
+  "state": {
+    "title": "State"
+  },
+  "led": {
+    "torchOn": "Torch on",
+    "arcOk": "Arc OK",
+    "thcActive": "THC active",
+    "sensorActive": "Sensor",
+    "up": "Up",
+    "down": "Down",
+    "cornerLocked": "Corner locked",
+    "voidLocked": "Void locked",
+    "float": "Float",
+    "ohmic": "Ohmic",
+    "breakaway": "Breakaway"
+  },
+  "heightOverride": {
+    "label": "Height override",
+    "increase": "Raise height override by one volt",
+    "decrease": "Lower height override by one volt",
+    "reset": "Reset"
+  },
+  "toggle": {
+    "torchEnable": "Torch enable",
+    "thcEnable": "THC enable",
+    "autoVolts": "Auto volts",
+    "cornerLock": "Corner lock",
+    "voidLock": "Void lock",
+    "mesh": "Mesh mode"
+  },
+  "cycle": {
+    "start": "Cycle start",
+    "pause": "Pause",
+    "stop": "Stop",
+    "torchPulse": "Torch pulse"
+  },
+  "statistics": {
+    "title": "Statistics",
+    "cutTime": "Cut time",
+    "torchTime": "Torch time",
+    "runTime": "Run time",
+    "rapidTime": "Rapid time",
+    "probeTime": "Probe time",
+    "pausedTime": "Paused time",
+    "pierceCount": "Pierce count",
+    "cutLength": "Cut length"
+  }
+}

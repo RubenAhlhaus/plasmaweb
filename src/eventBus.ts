@@ -5,6 +5,9 @@ type EventHandler<Payload> = (payload: Payload) => void;
 /** Entry points that mirror virtual sidebar softkeys (click, keyboard shortcut, or HAL panel). */
 export type VirtualSidebarLikeSource = 'virtualSidebar' | 'hotkey' | 'hal';
 
+/** Cycle start/pause/stop also have on-screen buttons on the plasma MAIN screen. */
+export type ProgramControlSource = VirtualSidebarLikeSource | 'plasmaScreen';
+
 type FrontendEventMap = {
   'jog.move': {
     axis: 'x' | 'y' | 'z';
@@ -63,13 +66,13 @@ type FrontendEventMap = {
     source: VirtualSidebarLikeSource;
   };
   'ui.program.pause': {
-    source: VirtualSidebarLikeSource;
+    source: ProgramControlSource;
   };
   'ui.program.stop': {
-    source: VirtualSidebarLikeSource;
+    source: ProgramControlSource;
   };
   'ui.program.cycleStart': {
-    source: VirtualSidebarLikeSource;
+    source: ProgramControlSource;
   };
   'ui.macros.generateProgram': {
     source: 'macrosScreen';

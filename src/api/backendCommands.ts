@@ -11,7 +11,14 @@ export function generateCommandId(): string {
   return `cmd-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-export type CommandCategory = 'app' | 'hal' | 'machine' | 'motion' | 'program' | 'tool';
+export type CommandCategory =
+  | 'app'
+  | 'hal'
+  | 'machine'
+  | 'motion'
+  | 'plasma'
+  | 'program'
+  | 'tool';
 
 export interface CommandEnvelope<Params extends object = Record<string, unknown>> {
   type: 'command';

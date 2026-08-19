@@ -3,6 +3,8 @@ import type {
   LinuxCncStatusRoot,
   ConnectionStatus,
   IniRuntimeConfig,
+  PlasmaPinValues,
+  PlasmaState,
 } from '@/store/types';
 import { TaskState } from '@/store/types';
 
@@ -128,6 +130,38 @@ export interface LinuxCncErrorWsMessage {
   message: string;
 }
 
+// Declared as `type` for the same assignability reason as the coordinate payload above.
+export type PlasmaPinsSnapshotPayload = {
+  pins?: Partial<PlasmaPinValues>;
+  state?: PlasmaState;
+  missingPins?: string[];
+};
+
+export type PlasmaPinsChangedPayload = {
+  pins?: Partial<PlasmaPinValues>;
+};
+
+export interface PlasmaPinsSnapshotEventMessage {
+  type: 'machine_event';
+  protocolVersion?: 1;
+  event: 'plasma.pins.snapshot';
+  payload: PlasmaPinsSnapshotPayload;
+}
+
+export interface PlasmaPinsChangedEventMessage {
+  type: 'machine_event';
+  protocolVersion?: 1;
+  event: 'plasma.pins.changed';
+  payload: PlasmaPinsChangedPayload;
+}
+
+export interface PlasmaStateChangedEventMessage {
+  type: 'machine_event';
+  protocolVersion?: 1;
+  event: 'plasma.state.changed';
+  payload: PlasmaState;
+}
+
 export type BackendMessage =
   | LinuxCncStatusMessage
   | MachineEventMessage
@@ -195,6 +229,57 @@ export function isPanelSidebarTriggerEventMessage(
     !!msg.payload &&
     typeof msg.payload.buttonId === 'number'
   );
+}
+
+export function isPlasmaPinsSnapshotEventMessage(
+  msg: BackendMessage,
+): msg is PlasmaPinsSnapshotEventMessage {
+  return (
+    msg.type === 'machine_event' &&
+    msg.event === 'plasma.pins.snapshot' &&
+    typeof msg.payload === 'object' &&
+    !!msg.payload
+  );
+}
+
+export function isPlasmaPinsChangedEventMessage(
+  msg: BackendMessage,
+): msg is PlasmaPinsChangedEventMessage {
+  return (
+    msg.type === 'machine_event' &&
+    msg.event === 'plasma.pins.changed' &&
+    typeof msg.payload === 'object' &&
+    !!msg.payload
+  );
+}
+
+export function isPlasmaStateChangedEventMessage(
+  msg: BackendMessage,
+): msg is PlasmaStateChangedEventMessage {
+  return (
+    msg.type === 'machine_event' &&
+    msg.event === 'plasma.state.changed' &&
+    typeof msg.payload === 'object' &&
+    !!msg.payload
+  );
+}
+
+/**
+ * A pin diff carries only what changed, so unknown components are dropped rather than
+ * merged: a typo'd component name must not create a third pin bucket in the store.
+ */
+export function mapPlasmaPinsDiff(
+  payload: PlasmaPinsChangedPayload,
+): Partial<PlasmaPinValues> {
+  const pins = payload.pins ?? {};
+  const diff: Partial<PlasmaPinValues> = {};
+  if (pins.plasmac && typeof pins.plasmac === 'object') {
+    diff.plasmac = pins.plasmac;
+  }
+  if (pins.qtplasmac && typeof pins.qtplasmac === 'object') {
+    diff.qtplasmac = pins.qtplasmac;
+  }
+  return diff;
 }
 
 export function mapStatusMessageToStoreUpdates(

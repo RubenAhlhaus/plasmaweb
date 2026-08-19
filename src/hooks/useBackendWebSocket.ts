@@ -4,6 +4,10 @@ import {
   isMotionCoordinatesChangedEventMessage,
   mapCoordinatesChangedEventToStoreUpdates,
   isMachineIniConfigLoadedEventMessage,
+  isPlasmaPinsChangedEventMessage,
+  isPlasmaPinsSnapshotEventMessage,
+  isPlasmaStateChangedEventMessage,
+  mapPlasmaPinsDiff,
   isPanelSidebarTriggerEventMessage,
   isToolChangeRequestedEventMessage,
   mapIniConfigLoadedEventToStoreUpdates,
@@ -29,6 +33,10 @@ export function useBackendWebSocket() {
   const resetUnhomedJogDialogForAxis = useAppStore((s) => s.resetUnhomedJogDialogForAxis);
   const setBackendWebSocket = useAppStore((s) => s.setBackendWebSocket);
   const setIniRuntimeConfig = useAppStore((s) => s.setIniRuntimeConfig);
+  const setPlasmaSnapshot = useAppStore((s) => s.setPlasmaSnapshot);
+  const mergePlasmaPins = useAppStore((s) => s.mergePlasmaPins);
+  const setPlasmaState = useAppStore((s) => s.setPlasmaState);
+  const resetPlasma = useAppStore((s) => s.resetPlasma);
   const showErrorToast = useAppStore((s) => s.showErrorToast);
   const setLastWsCommandResult = useAppStore((s) => s.setLastWsCommandResult);
   const setPendingToolChange = useAppStore((s) => s.setPendingToolChange);
@@ -205,6 +213,15 @@ export function useBackendWebSocket() {
             const state = useAppStore.getState();
             setIniRuntimeConfig(mapIniConfigLoadedEventToStoreUpdates(msg, state.iniRuntimeConfig));
           }
+          if (isPlasmaPinsSnapshotEventMessage(msg)) {
+            setPlasmaSnapshot(msg.payload);
+          }
+          if (isPlasmaPinsChangedEventMessage(msg)) {
+            mergePlasmaPins(mapPlasmaPinsDiff(msg.payload));
+          }
+          if (isPlasmaStateChangedEventMessage(msg)) {
+            setPlasmaState(msg.payload);
+          }
           if (isToolChangeRequestedEventMessage(msg)) {
             const p = msg.payload;
             setPendingToolChange({
@@ -228,6 +245,9 @@ export function useBackendWebSocket() {
         coordinateBatcher.flushNow();
         setConnectionStatus('disconnected');
         setPendingToolChange(null);
+        // Pin values go stale the moment the socket drops, and a diff only means something
+        // on top of a snapshot — the next connect sends a fresh one.
+        resetPlasma();
         wsRef.current = null;
         setBackendWebSocket(null);
         reconnectTimeoutRef.current = setTimeout(connect, 3000);
@@ -269,5 +289,9 @@ export function useBackendWebSocket() {
     showErrorToast,
     setLastWsCommandResult,
     setPendingToolChange,
+    setPlasmaSnapshot,
+    mergePlasmaPins,
+    setPlasmaState,
+    resetPlasma,
   ]);
 }

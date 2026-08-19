@@ -17,6 +17,8 @@ import hooksEn from '@/locales/en/hooks.json';
 import hooksDe from '@/locales/de/hooks.json';
 import componentsEn from '@/locales/en/components.json';
 import componentsDe from '@/locales/de/components.json';
+import plasmaEn from '@/locales/en/plasma.json';
+import plasmaDe from '@/locales/de/plasma.json';
 
 const initialLng: SupportedLocale = readStoredLocale() ?? 'en';
 
@@ -41,6 +43,7 @@ export const i18nReady = i18n.use(initReactI18next).init({
       program: programEn,
       hooks: hooksEn,
       components: componentsEn,
+      plasma: plasmaEn,
     },
     de: {
       common: commonDe,
@@ -50,12 +53,13 @@ export const i18nReady = i18n.use(initReactI18next).init({
       program: programDe,
       hooks: hooksDe,
       components: componentsDe,
+      plasma: plasmaDe,
     },
   },
   lng: initialLng,
   fallbackLng: 'en',
   defaultNS: 'common',
-  ns: ['common', 'settings', 'macros', 'tools', 'program', 'hooks', 'components'],
+  ns: ['common', 'settings', 'macros', 'tools', 'program', 'hooks', 'components', 'plasma'],
   interpolation: { escapeValue: false },
   react: { useSuspense: false },
 });

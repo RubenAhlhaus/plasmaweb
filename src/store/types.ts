@@ -522,4 +522,43 @@ export interface MachineSlice {
   setPendingToolChange: (value: PendingToolChange | null) => void;
 }
 
-export type BoundStore = UISlice & MachineSlice;
+/** One HAL pin value as it arrives over the wire. */
+export type PlasmaPinValue = boolean | number;
+
+/** Pin values per component, keyed by the dashed HAL pin name without its prefix. */
+export interface PlasmaPinValues {
+  plasmac: Record<string, PlasmaPinValue>;
+  qtplasmac: Record<string, PlasmaPinValue>;
+}
+
+/** Decoded `plasmac.state-out` / `stop-type-out` (see backend/plasma/state.py). */
+export interface PlasmaState {
+  state: number | null;
+  stateName: string | null;
+  stateDescription: string | null;
+  stopType: number | null;
+  stopTypeName: string | null;
+  isCutting: boolean;
+}
+
+/** Payload of `plasma.pins.snapshot` and of the `plasma.get_snapshot` result. */
+export interface PlasmaSnapshot {
+  pins: Partial<PlasmaPinValues>;
+  state?: PlasmaState;
+  /** `plasmac.*` pins this LinuxCNC build does not have (2.9.4 lacks 18 of them). */
+  missingPins?: string[];
+}
+
+export interface PlasmaSlice {
+  /** True once a plasma snapshot arrived; false on machines without the plasma HAL layer. */
+  plasmaAvailable: boolean;
+  plasmaPins: PlasmaPinValues;
+  plasmaState: PlasmaState;
+  plasmaMissingPins: string[];
+  setPlasmaSnapshot: (snapshot: PlasmaSnapshot) => void;
+  mergePlasmaPins: (diff: Partial<PlasmaPinValues>) => void;
+  setPlasmaState: (state: PlasmaState) => void;
+  resetPlasma: () => void;
+}
+
+export type BoundStore = UISlice & MachineSlice & PlasmaSlice;
