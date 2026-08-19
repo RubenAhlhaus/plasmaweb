@@ -12,7 +12,21 @@ app, and the terminal's host app (Cursor) does not have it. Symptom: `ping`/`nc`
 *System Settings → Privacy & Security → Local Network* for the terminal app to get `ssh`,
 `scp` and browser access to the guest.
 
-Until then use the **UTM guest agent**, which needs no network at all:
+**Update (2026-08-20): the permission is granted, so ssh works.** A dedicated key lives at
+`~/.ssh/linuxcnc_vm` (authorized for `ruben` on the VM), and the backend binds
+`127.0.0.1:8765` inside the guest by design, so reach it through a tunnel rather than
+changing the machine's config:
+
+```bash
+ssh -i ~/.ssh/linuxcnc_vm ruben@192.168.64.2                      # shell, halcmd, logs
+ssh -i ~/.ssh/linuxcnc_vm -N -L 8765:127.0.0.1:8765 ruben@192.168.64.2 &   # UI on the host
+```
+
+With that tunnel up, the Playwright MCP drives the real UI headlessly at kiosk size
+(1280x800) against the running machine.
+
+The **UTM guest agent** below still works and needs no network at all — useful when the
+VM's desktop session is locked or the network is down:
 
 ```bash
 UTM=/Applications/UTM.app/Contents/MacOS/utmctl
