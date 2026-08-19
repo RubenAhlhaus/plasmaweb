@@ -56,6 +56,9 @@ export type MachineIniConfigLoadedEventPayload = {
   angular_units?: string | null;
   program_units?: number | null;
   traj_coordinates?: string | null;
+  kins_kinematics?: string | null;
+  kins_coordinates?: string | null;
+  joint_home_sequences?: unknown;
   display_lathe?: boolean;
   user_macros?: Array<{ name?: string; fileName?: string; path?: string }>;
   source?: string;
@@ -353,6 +356,12 @@ export function mapIniConfigLoadedEventToStoreUpdates(
         }))
     : [];
 
+  const homeSequences = Array.isArray(payload.joint_home_sequences)
+    ? payload.joint_home_sequences
+        .filter((v): v is string | number => typeof v === 'string' || typeof v === 'number')
+        .map((v) => String(v).trim())
+    : [];
+
   return {
     jog_increments_spec:
       typeof payload.jog_increments_spec === 'string' && payload.jog_increments_spec.trim().length > 0
@@ -362,6 +371,15 @@ export function mapIniConfigLoadedEventToStoreUpdates(
     angular_units: typeof payload.angular_units === 'string' ? payload.angular_units : null,
     program_units: typeof payload.program_units === 'number' ? payload.program_units : null,
     traj_coordinates: traj,
+    kins_kinematics:
+      typeof payload.kins_kinematics === 'string' && payload.kins_kinematics.trim()
+        ? payload.kins_kinematics.trim()
+        : null,
+    kins_coordinates:
+      typeof payload.kins_coordinates === 'string' && payload.kins_coordinates.trim()
+        ? payload.kins_coordinates.trim()
+        : null,
+    joint_home_sequences: homeSequences,
     display_lathe: typeof payload.display_lathe === 'boolean' ? payload.display_lathe : false,
     user_macros: userMacros,
     source: typeof payload.source === 'string' ? payload.source : current.source,

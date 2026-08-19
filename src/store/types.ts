@@ -322,6 +322,18 @@ export interface IniRuntimeConfig {
   program_units?: ProgramUnits | number | null;
   /** Raw string from INI [TRAJ] COORDINATES, e.g. "X Y Z" — tool UI fallback when no axis_mask. */
   traj_coordinates?: string | null;
+  /**
+   * Raw INI [KINS] KINEMATICS, e.g. "trivkins coordinates=xyyz". Authoritative source for
+   * axis→joint mapping (see lib/axisJointMap.ts); [TRAJ] COORDINATES lists axes, not joints.
+   */
+  kins_kinematics?: string | null;
+  /** Raw INI [KINS] COORDINATES — used when KINEMATICS carries no `coordinates=` token. */
+  kins_coordinates?: string | null;
+  /**
+   * INI [JOINT_n] HOME_SEQUENCE, joint index = array position. A negative value means the
+   * joint homes as a synchronised set (gantry), which forbids joint-mode jogging of it.
+   */
+  joint_home_sequences?: string[];
   /** From INI [DISPLAY] LATHE — controls lathe-specific tool fields. */
   display_lathe?: boolean;
   /**

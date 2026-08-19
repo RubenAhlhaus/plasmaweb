@@ -135,3 +135,87 @@ describe('useHomingCommands', () => {
     expect(mockWs.sentMessages).toHaveLength(0);
   });
 });
+
+describe('useHomingCommands on an XYYZ gantry', () => {
+  afterEach(() => {
+    useAppStore.getState().setIniRuntimeConfig({
+      kins_kinematics: null,
+      kins_coordinates: null,
+      joint_home_sequences: [],
+    });
+  });
+
+  function sentJoint(ws: WebSocket): unknown {
+    const messages = (ws as unknown as MockWebSocket).sentMessages;
+    const payload = JSON.parse(messages[0]) as Record<string, unknown>;
+    return (payload.params as Record<string, unknown>).joint;
+  }
+
+  it('homes Z as joint 3, not joint 2', () => {
+    const mockWs = new MockWebSocket();
+    useAppStore.getState().setBackendWebSocket(mockWs as unknown as WebSocket);
+    useAppStore.getState().setIniRuntimeConfig({
+      kins_kinematics: 'trivkins coordinates=xyyz',
+    });
+    setManualMachineOn();
+
+    const { result } = renderHook(() => useHomingCommands());
+
+    act(() => {
+      result.current.handleHoming('z', 'home');
+    });
+
+    expect(sentJoint(mockWs as unknown as WebSocket)).toBe(3);
+  });
+
+  it('homes the first joint of a duplicated axis and lets LinuxCNC sync the set', () => {
+    const mockWs = new MockWebSocket();
+    useAppStore.getState().setBackendWebSocket(mockWs as unknown as WebSocket);
+    useAppStore.getState().setIniRuntimeConfig({
+      kins_kinematics: 'trivkins coordinates=xyyz',
+      joint_home_sequences: ['1', '-2', '-2', '0'],
+    });
+    setManualMachineOn();
+
+    const { result } = renderHook(() => useHomingCommands());
+
+    act(() => {
+      result.current.handleHoming('y', 'home');
+    });
+
+    expect(sentJoint(mockWs as unknown as WebSocket)).toBe(1);
+    expect((mockWs as unknown as MockWebSocket).sentMessages).toHaveLength(1);
+  });
+
+  it('sends nothing for an axis the machine does not have', () => {
+    const mockWs = new MockWebSocket();
+    useAppStore.getState().setBackendWebSocket(mockWs as unknown as WebSocket);
+    useAppStore.getState().setIniRuntimeConfig({ kins_kinematics: 'trivkins coordinates=xz' });
+    setManualMachineOn();
+
+    const { result } = renderHook(() => useHomingCommands());
+
+    act(() => {
+      result.current.handleHoming('y', 'home');
+    });
+
+    expect((mockWs as unknown as MockWebSocket).sentMessages).toHaveLength(0);
+  });
+
+  it('still sends joint -1 for Home All', () => {
+    const mockWs = new MockWebSocket();
+    useAppStore.getState().setBackendWebSocket(mockWs as unknown as WebSocket);
+    useAppStore.getState().setIniRuntimeConfig({
+      kins_kinematics: 'trivkins coordinates=xyyz',
+    });
+    setManualMachineOn();
+
+    const { result } = renderHook(() => useHomingCommands());
+
+    act(() => {
+      result.current.handleHoming('all', 'home');
+    });
+
+    expect(sentJoint(mockWs as unknown as WebSocket)).toBe(-1);
+  });
+});

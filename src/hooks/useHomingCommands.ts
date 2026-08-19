@@ -2,6 +2,7 @@ import type { HomingAction, HomingAxis } from '@/api/homingTypes';
 import { useSendCommand } from '@/api/backendCommands';
 import { useAppStore } from '@/store';
 import { TaskMode, TaskState } from '@/store/types';
+import { jointCoordinatesFromIni, primaryJointIndexForAxis } from '@/lib/axisJointMap';
 
 export function useHomingCommands() {
   const sendCommand = useSendCommand();
@@ -26,22 +27,18 @@ export function useHomingCommands() {
       return;
     }
 
-    let joint: number;
-    switch (axis) {
-      case 'all':
-        joint = -1;
-        break;
-      case 'x':
-        joint = 0;
-        break;
-      case 'y':
-        joint = 1;
-        break;
-      case 'z':
-        joint = 2;
-        break;
-      default:
-        return;
+    if (axis === 'all') {
+      sendCommand('motion', action, { joint: -1 });
+      return;
+    }
+
+    // Joint index, not axis index: on a gantry (e.g. trivkins coordinates=xyyz) Y owns two
+    // joints, which puts Z on joint 3. Homing the first joint of a set is enough — LinuxCNC
+    // brings the rest along via their negative HOME_SEQUENCE.
+    const jointCoordinates = jointCoordinatesFromIni(useAppStore.getState().iniRuntimeConfig);
+    const joint = primaryJointIndexForAxis(jointCoordinates, axis);
+    if (joint === null) {
+      return;
     }
 
     sendCommand('motion', action, { joint });

@@ -158,6 +158,12 @@ working.
 - **Exit criterion:** the vendored GUI drives the qtplasmac sim config with zero plasma
   code written. Any breakage here (4-joint XYYZ kins, 3 spindles, external offsets) is
   found before plasma work starts.
+- **Done, ahead of the VM run:** the axis→joint mapping. lcncgui hard-coded X→0, Y→1, Z→2
+  for homing, pre-home jogging and homed-state display, which is wrong on the sim's
+  `trivkins coordinates=xyyz` (Z is joint 3, Y owns joints 1 and 2). Now derived from
+  `[KINS]` via `src/lib/axisJointMap.ts`, with joint-mode jogging refused on a
+  synchronised axis — the same rule QtPlasmaC applies. The backend's INI reader also
+  follows `#INCLUDE`, which every QtPlasmaC config needs.
 
 ### M1 — Live dashboard + run control  ← chosen MVP
 

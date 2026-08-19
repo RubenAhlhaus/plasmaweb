@@ -6,7 +6,7 @@ import shutil
 import configparser
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, MutableMapping, Optional
 
@@ -166,30 +166,117 @@ def _display_lathe_truthy(val: Any) -> bool:
         return False
 
 
-def _read_traj_coordinates_line_scan(ini_path: str) -> Optional[str]:
+#: ``#INCLUDE`` nesting limit — guards against an include cycle.
+_INI_INCLUDE_MAX_DEPTH = 8
+
+
+def _scan_ini_options(
+    ini_path: str,
+    wanted: Mapping[str, Collection[str]],
+    *,
+    _depth: int = 0,
+) -> Dict[str, Dict[str, list[str]]]:
     """
-    Read ``[TRAJ] COORDINATES`` without ConfigParser (duplicate INI keys elsewhere break it)
-    and without relying on ``linuxcnc.ini().find`` (some builds return empty for COORDINATES).
+    Read selected INI options without ConfigParser and without the ``linuxcnc`` module.
+
+    Needed because ConfigParser rejects the duplicate keys LinuxCNC INIs use (multiple
+    ``HALFILE``, ``POSTGUI_HALFILE``, ``PROGRAM_EXTENSION``), and because some builds return
+    empty from ``linuxcnc.ini().find`` for a few keys.
+
+    Follows ``#INCLUDE`` (LinuxCNC's own include directive), which QtPlasmaC configs rely on
+    to keep ``[KINS]``, ``[TRAJ]`` and ``[JOINT_n]`` in a shared ``*_ini.inc`` file — a flat
+    line scan of the top-level INI finds none of them.
+
+    Section and option names are matched case-insensitively; values keep their order, so
+    duplicate keys are preserved.
     """
+    found: Dict[str, Dict[str, list[str]]] = {
+        section: {option: [] for option in options} for section, options in wanted.items()
+    }
+    if _depth > _INI_INCLUDE_MAX_DEPTH:
+        return found
+
+    wanted_upper = {
+        section.upper(): {option.upper(): option for option in options}
+        for section, options in wanted.items()
+    }
+    section_by_upper = {section.upper(): section for section in wanted}
+
     try:
         with open(ini_path, encoding="utf-8", errors="replace") as f:
-            in_traj = False
-            for line in f:
-                main = line.split(";", 1)[0].strip()
-                if not main:
-                    continue
-                if main.startswith("[") and main.endswith("]"):
-                    sec = main[1:-1].strip().lower()
-                    in_traj = sec == "traj"
-                    continue
-                if in_traj and "=" in main:
-                    key, val = main.split("=", 1)
-                    if key.strip().lower() == "coordinates":
-                        v = val.strip().strip('"').strip("'")
-                        return v if v else None
+            lines = f.readlines()
     except OSError:
-        return None
-    return None
+        return found
+
+    ini_dir = os.path.dirname(os.path.abspath(ini_path))
+    current: Optional[str] = None
+    for line in lines:
+        stripped = line.strip()
+        if stripped.upper().startswith("#INCLUDE"):
+            include_name = stripped[len("#INCLUDE"):].strip().strip('"').strip("'")
+            if not include_name:
+                continue
+            include_path = (
+                include_name
+                if os.path.isabs(include_name)
+                else os.path.join(ini_dir, include_name)
+            )
+            for section, options in _scan_ini_options(
+                include_path, wanted, _depth=_depth + 1
+            ).items():
+                for option, values in options.items():
+                    found[section][option].extend(values)
+            continue
+
+        main = stripped.split(";", 1)[0].strip()
+        if not main:
+            continue
+        if main.startswith("[") and main.endswith("]"):
+            current = main[1:-1].strip().upper()
+            continue
+        if current is None or current not in wanted_upper or "=" not in main:
+            continue
+        key, val = main.split("=", 1)
+        option = wanted_upper[current].get(key.strip().upper())
+        if option is None:
+            continue
+        value = val.strip().strip('"').strip("'")
+        if value:
+            found[section_by_upper[current]][option].append(value)
+
+    return found
+
+
+def _first_ini_option(
+    scanned: Mapping[str, Mapping[str, list[str]]], section: str, option: str
+) -> Optional[str]:
+    values = scanned.get(section, {}).get(option, [])
+    return values[0] if values else None
+
+
+def _read_traj_coordinates_line_scan(ini_path: str) -> Optional[str]:
+    """Read ``[TRAJ] COORDINATES``, following ``#INCLUDE``. See :func:`_scan_ini_options`."""
+    scanned = _scan_ini_options(ini_path, {"TRAJ": {"COORDINATES"}})
+    return _first_ini_option(scanned, "TRAJ", "COORDINATES")
+
+
+def _read_joint_home_sequences(ini_path: str, max_joints: int = 16) -> list[str]:
+    """
+    ``[JOINT_n] HOME_SEQUENCE`` for joints 0..n, ordered by joint index.
+
+    Stops at the first joint section that declares no HOME_SEQUENCE, so the list length is
+    the joint count as far as homing is concerned. A negative value means the joint homes as
+    part of a synchronised set (LinuxCNC homing docs).
+    """
+    sections = {f"JOINT_{n}": {"HOME_SEQUENCE"} for n in range(max_joints)}
+    scanned = _scan_ini_options(ini_path, sections)
+    sequences: list[str] = []
+    for n in range(max_joints):
+        value = _first_ini_option(scanned, f"JOINT_{n}", "HOME_SEQUENCE")
+        if value is None:
+            break
+        sequences.append(value)
+    return sequences
 
 
 def _serialize_spindle_list(stat: Any) -> list[Dict[str, Any]]:
@@ -1114,6 +1201,25 @@ class LinuxCncGateway:
         Python's configparser rejects.
         """
         loaded_fields = 0
+
+        # Axis→joint mapping ([KINS] coordinates) and synchronised-homing detection
+        # ([JOINT_n] HOME_SEQUENCE). Read with the include-aware scanner rather than through
+        # linuxcnc.ini(): QtPlasmaC configs keep both behind an #INCLUDE, and the scanner is
+        # correct whether or not the linuxcnc module is importable.
+        scanned_kins = _scan_ini_options(ini_path, {"KINS": {"KINEMATICS", "COORDINATES"}})
+        kins_kinematics = _first_ini_option(scanned_kins, "KINS", "KINEMATICS")
+        if kins_kinematics:
+            result["kins_kinematics"] = kins_kinematics
+            loaded_fields += 1
+        kins_coordinates = _first_ini_option(scanned_kins, "KINS", "COORDINATES")
+        if kins_coordinates:
+            result["kins_coordinates"] = kins_coordinates
+            loaded_fields += 1
+        home_sequences = _read_joint_home_sequences(ini_path)
+        if home_sequences:
+            result["joint_home_sequences"] = home_sequences
+            loaded_fields += 1
+
         if linuxcnc is not None:
             try:
                 inifile = linuxcnc.ini(ini_path)
@@ -1165,46 +1271,46 @@ class LinuxCncGateway:
 
                 return loaded_fields
 
-        parser = configparser.ConfigParser(interpolation=None)
-        parser.optionxform = str.lower
-        try:
-            parser.read(ini_path, encoding="utf-8")
-        except Exception:
-            return 0
+        # No linuxcnc module (off-machine dev, CI): scan the INI ourselves. ConfigParser is
+        # not usable here — it rejects LinuxCNC's duplicate keys and ignores #INCLUDE, which
+        # QtPlasmaC configs put [TRAJ] and [DISPLAY] behind.
+        scanned = _scan_ini_options(
+            ini_path,
+            {
+                "DISPLAY": {"INCREMENTS", "LATHE"},
+                "TRAJ": {"LINEAR_UNITS", "ANGULAR_UNITS", "COORDINATES"},
+            },
+        )
 
-        if parser.has_option("DISPLAY", "INCREMENTS"):
-            raw = parser.get("DISPLAY", "INCREMENTS", fallback="").strip()
-            if raw:
-                result["jog_increments_spec"] = raw
-                loaded_fields += 1
+        raw_inc = _first_ini_option(scanned, "DISPLAY", "INCREMENTS")
+        if raw_inc:
+            result["jog_increments_spec"] = raw_inc
+            loaded_fields += 1
 
-        if parser.has_option("TRAJ", "LINEAR_UNITS"):
-            raw = parser.get("TRAJ", "LINEAR_UNITS", fallback="").strip().lower()
-            if raw:
-                result["linear_units"] = raw
-                if raw in ("mm", "cm"):
-                    result["program_units"] = 2
-                elif raw in ("inch", "in"):
-                    result["program_units"] = 1
-                loaded_fields += 1
+        raw_lin = _first_ini_option(scanned, "TRAJ", "LINEAR_UNITS")
+        if raw_lin:
+            raw = raw_lin.lower()
+            result["linear_units"] = raw
+            if raw in ("mm", "cm"):
+                result["program_units"] = 2
+            elif raw in ("inch", "in"):
+                result["program_units"] = 1
+            loaded_fields += 1
 
-        if parser.has_option("TRAJ", "ANGULAR_UNITS"):
-            raw = parser.get("TRAJ", "ANGULAR_UNITS", fallback="").strip().lower()
-            if raw:
-                result["angular_units"] = raw
-                loaded_fields += 1
+        raw_ang = _first_ini_option(scanned, "TRAJ", "ANGULAR_UNITS")
+        if raw_ang:
+            result["angular_units"] = raw_ang.lower()
+            loaded_fields += 1
 
-        if parser.has_option("TRAJ", "COORDINATES"):
-            raw = parser.get("TRAJ", "COORDINATES", fallback="").strip()
-            if raw:
-                result["traj_coordinates"] = raw
-                loaded_fields += 1
+        raw_coords = _first_ini_option(scanned, "TRAJ", "COORDINATES")
+        if raw_coords:
+            result["traj_coordinates"] = raw_coords
+            loaded_fields += 1
 
-        if parser.has_option("DISPLAY", "LATHE"):
-            raw = parser.get("DISPLAY", "LATHE", fallback="").strip()
-            if raw:
-                result["display_lathe"] = _display_lathe_truthy(raw)
-                loaded_fields += 1
+        raw_lathe = _first_ini_option(scanned, "DISPLAY", "LATHE")
+        if raw_lathe:
+            result["display_lathe"] = _display_lathe_truthy(raw_lathe)
+            loaded_fields += 1
 
         if not (result.get("traj_coordinates") and str(result["traj_coordinates"]).strip()):
             scanned = _read_traj_coordinates_line_scan(ini_path)
@@ -1224,6 +1330,8 @@ class LinuxCncGateway:
         - angular_units
         - program_units
         - traj_coordinates (optional, from [TRAJ] COORDINATES)
+        - kins_kinematics / kins_coordinates (optional, from [KINS]) — axis→joint mapping
+        - joint_home_sequences (list of [JOINT_n] HOME_SEQUENCE, joint index = position)
         - display_lathe (bool, from [DISPLAY] LATHE)
         - user_macros (list of {name, fileName, path} from [MACROS] + SUBROUTINE_PATH)
         - source
@@ -1239,6 +1347,9 @@ class LinuxCncGateway:
                 "angular_units": None,
                 "program_units": None,
                 "traj_coordinates": None,
+                "kins_kinematics": None,
+                "kins_coordinates": None,
+                "joint_home_sequences": [],
                 "display_lathe": False,
                 "user_macros": [],
                 "source": "default",

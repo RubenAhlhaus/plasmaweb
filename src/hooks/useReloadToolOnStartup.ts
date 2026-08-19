@@ -10,6 +10,7 @@ import {
 import { saveToolInSpindlePreference } from '@/lib/userPreferencesApi';
 import { useAppStore } from '@/store';
 import { getUnhomedAxes } from '@/utils/homing';
+import { useJointCoordinates } from '@/hooks/useJointCoordinates';
 
 /** Homed-session restore lifecycle (one attempt in flight / completed per session). */
 type RestorePhase = 'idle' | 'in_flight' | 'completed';
@@ -85,10 +86,12 @@ export function useReloadToolOnStartup(): void {
     void saveToolInSpindlePreference(decision.toolNumber);
   }, [toolInSpindle]);
 
+  const jointCoordinates = useJointCoordinates();
+
   // Restore after all axes are homed (at most one successful / in-flight attempt per session).
   useEffect(() => {
     const allAxesHomed =
-      getUnhomedAxes({ motion: { homed: motionHomed }, joints }).length === 0;
+      getUnhomedAxes({ motion: { homed: motionHomed }, joints }, jointCoordinates).length === 0;
 
     if (!allAxesHomed) {
       restorePhaseRef.current = 'idle';
@@ -148,5 +151,6 @@ export function useReloadToolOnStartup(): void {
     sendCommand,
     storedToolNumber,
     toolInSpindle,
+    jointCoordinates,
   ]);
 }

@@ -3,6 +3,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@/store';
 import { formatMachineCoordinate } from '@/lib/formatCoordinates';
 import { isAxisHomed } from '@/utils/homing';
+import { useJointCoordinates } from '@/hooks/useJointCoordinates';
 import { Card } from './ui/card';
 
 interface CoordinatesDisplayProps {
@@ -28,6 +29,7 @@ export const CoordinatesDisplay = memo(function CoordinatesDisplay({
       joints: s.linuxCncStatus.joints,
     })),
   );
+  const jointCoordinates = useJointCoordinates();
   const homingStatus = useMemo(
     () => ({ motion: { homed: motionHomed }, joints }),
     [motionHomed, joints],
@@ -41,7 +43,7 @@ export const CoordinatesDisplay = memo(function CoordinatesDisplay({
       onClick={onClick}
     >
       <div>
-        <div className={getRowClass(isAxisHomed(homingStatus, 'x'))}>
+        <div className={getRowClass(isAxisHomed(homingStatus, 'x', jointCoordinates))}>
           <span className="text-red-400 text-2xl font-semibold">X</span>
           <span
             data-e2e="coord-x"
@@ -50,7 +52,7 @@ export const CoordinatesDisplay = memo(function CoordinatesDisplay({
             {formatMachineCoordinate(x)}
           </span>
         </div>
-        <div className={getRowClass(isAxisHomed(homingStatus, 'y'))}>
+        <div className={getRowClass(isAxisHomed(homingStatus, 'y', jointCoordinates))}>
           <span className="text-green-400 text-2xl font-semibold">Y</span>
           <span
             data-e2e="coord-y"
@@ -59,7 +61,7 @@ export const CoordinatesDisplay = memo(function CoordinatesDisplay({
             {formatMachineCoordinate(y)}
           </span>
         </div>
-        <div className={getRowClass(isAxisHomed(homingStatus, 'z'))}>
+        <div className={getRowClass(isAxisHomed(homingStatus, 'z', jointCoordinates))}>
           <span className="text-blue-400 text-2xl font-semibold">Z</span>
           <span
             data-e2e="coord-z"

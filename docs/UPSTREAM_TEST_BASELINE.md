@@ -9,12 +9,32 @@ here as new.**
 macOS 25.4 (darwin), Python 3.14.3, Node 22.12.0, no LinuxCNC (`linuxcnc` / `hal`
 modules unavailable).
 
-## Frontend — clean
+## Frontend
 
 | Suite | Result |
 |---|---|
 | `npm run build` | passes (1 chunk >500 kB warning, upstream) |
-| `npm test -- --run` | **81 files, 474 tests, 0 failures** |
+| `npm test -- --run` | **81 files, 474 tests, 0 failures** at the vendoring commit |
+| `npm run lint` | **2 errors** — inherited, see below |
+| `npx tsc --noEmit` | fails inside `node_modules` only — see below |
+
+### Inherited lint errors
+
+`src/lib/feedOverridePresetAction.ts:58` — two `no-irregular-whitespace` errors. Present in
+the pristine upstream tree; nothing to do with this project's code. `npm run lint` is
+therefore non-zero on a clean checkout: check that the error *count* is still 2 and that no
+error points at a file outside `feedOverridePresetAction.ts`.
+
+### `tsc` and node_modules
+
+The repo pins TypeScript ~4.5 (upstream) but resolves current dependency typings, so
+`npx tsc --noEmit` reports parse errors inside `node_modules/@types/babel__traverse` and
+`node_modules/@vitest/**`. There is no `typecheck` npm script upstream, so this is not a
+regression. Type-check our own code with:
+
+```bash
+npx tsc --noEmit -p tsconfig.json 2>&1 | grep '^src/'   # must be empty
+```
 
 ## Backend — 5 pre-existing failures
 

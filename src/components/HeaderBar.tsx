@@ -11,6 +11,7 @@ import { useAppStore } from '@/store';
 import { TaskMode, TaskState } from '@/store/types';
 import { eventBus } from '@/eventBus';
 import { getUnhomedAxes } from '@/utils/homing';
+import { useJointCoordinates } from '@/hooks/useJointCoordinates';
 import { isProgramFileExecuting } from '@/lib/programFileExecuting';
 import { isProgramInterpreterPaused } from '@/utils/isProgramInterpreterPaused';
 import { suppressUnhandledRejection } from '@/lib/suppressUnhandledRejection';
@@ -125,9 +126,10 @@ export function HeaderBar() {
     taskState === 0 ||
     taskState == null;
   const taskOnDisplay = taskState === TaskState.STATE_ON ? taskModeWhenOn(taskMode, (k) => t(k)) : null;
+  const jointCoordinates = useJointCoordinates();
   const unhomedAxes = useMemo(
-    () => getUnhomedAxes({ motion: { homed: motionHomed }, joints }),
-    [motionHomed, joints],
+    () => getUnhomedAxes({ motion: { homed: motionHomed }, joints }, jointCoordinates),
+    [motionHomed, joints, jointCoordinates],
   );
   const unhomedAxesLabel = unhomedAxes.map((axis) => axis.toUpperCase()).join(', ');
   const showUnhomedIndicator = connectionStatus === 'connected' && unhomedAxes.length > 0;
