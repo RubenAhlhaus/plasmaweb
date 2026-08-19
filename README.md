@@ -59,6 +59,10 @@ python -m backend.main # backend (needs the linuxcnc module)
 pytest backend/tests
 ```
 
+Five backend tests fail off-machine and are inherited from upstream — see
+[`docs/UPSTREAM_TEST_BASELINE.md`](docs/UPSTREAM_TEST_BASELINE.md) before treating a
+red suite as new.
+
 ## Running on a machine
 
 Install per [`docs/installation.md`](docs/installation.md), then in the machine INI:
