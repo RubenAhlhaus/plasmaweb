@@ -69,11 +69,13 @@ export function PlasmaMainScreen() {
     );
   }
 
+  // min-h + leading-tight rather than a fixed height: "Cycle start" and "Torch pulse" wrap
+  // to two lines in German and in narrow kiosk widths.
   const cycleButtonClass =
-    'flex-1 rounded-lg border border-white/10 bg-slate-900/60 px-3 py-3 text-sm font-semibold uppercase tracking-wide text-foreground transition-colors hover:border-white/25';
+    'flex min-h-[3.25rem] flex-1 items-center justify-center rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-center text-sm font-semibold uppercase leading-tight tracking-wide text-foreground transition-colors hover:border-white/25';
 
   return (
-    <div className="grid h-full min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]" data-e2e="plasma-main">
+    <div className="grid h-full min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_25rem]" data-e2e="plasma-main">
       <div className="flex min-h-0 flex-col gap-4 overflow-y-auto">
         <CoordinatesDisplay />
 
@@ -232,8 +234,14 @@ export function PlasmaMainScreen() {
 
       <div ref={jogPanelRef} className="flex min-h-0 flex-col gap-4 overflow-y-auto">
         <div className="flex items-start gap-3">
-          <IncrementSelector size={jogSize} />
-          <DirectionalControl size={jogSize} />
+          {/* The selector is a fixed-width column of increments; letting it shrink clips
+              the labels, so the jog pad takes the remaining space instead. */}
+          <div className="flex-shrink-0">
+            <IncrementSelector size={jogSize} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <DirectionalControl size={jogSize} />
+          </div>
         </div>
         <PlasmaStatisticsPanel />
       </div>

@@ -240,7 +240,25 @@ Two version facts worth keeping: the sim VM runs LinuxCNC **2.9.4** while
 missing pin as absent — reads skip it, writes are refused with `pin_missing` — and
 `torch_pulse` degrades to start/stop without hold or early abort.
 
-Still open for M1: the frontend MAIN screen.
+**Frontend half: done and verified on the sim VM.** `src/screens/PlasmaMainScreen.tsx`
+plus `src/components/plasma/*`, a `plasmaSlice` in the store, the three plasma events in
+`statusMapping`, and `usePlasmaCommands` / `usePlasmaPins`.
+
+| Checked in the VM's browser | Result |
+|---|---|
+| Screen renders from live pins | DRO, arc/target voltage, Z height (95.00 after homing), cut feed rate, the 11 LEDs, height override, toggles, cycle row and the statistics panel |
+| Click TORCH ENABLE | `plasmac.torch-enable` reads TRUE in HAL, and the button turns active only *after* the pin diff comes back — no optimistic state anywhere |
+| Missing pin | rendered as unavailable rather than as a real zero/off |
+| Non-plasma machine | the screen and its sidebar entry never appear; the vendored UI is untouched |
+
+Cycle start/pause/stop reuse the existing `ui.program.*` event bus, so they run through the
+same `program.auto` / `machine.abort` path as the sidebar buttons rather than duplicating it.
+
+What M1's exit criterion still needs, and why it is not done here: the sim's arc voltage
+only moves while a cut runs (`sim-torch` outputs zero at idle, and the panel's offset slider
+is an output pin, not something a test can drive). Watching arc voltage, the THC LEDs and
+torch-on follow a *running* cut, plus pause/stop/abort behaviour, wants a program running on
+the sim — the natural first task of the next session.
 
 ### M2 — Materials, parameters, settings persistence
 
