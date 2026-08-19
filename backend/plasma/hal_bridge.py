@@ -1,0 +1,373 @@
+"""The plasma HAL bridge: one dedicated thread that owns all HAL I/O.
+
+Why a thread and not asyncio: the ``hal`` module is a blocking C extension and LinuxCNC's
+own timing is unforgiving. Reads and writes happen in this thread only; the event loop sees
+nothing but immutable snapshot dicts handed over through a callback.
+
+Startup order is load-bearing (see ``bin/lcncgui`` and BUILD_PLAN.md):
+
+1. :meth:`HalBridge.create_component` — export ``qtplasmac`` and its 91 pins
+2. :meth:`HalBridge.ready` — ``comp.ready()``; only now may ``net qtplasmac.*`` lines run
+3. the launcher loads ``[HAL] POSTGUI_HALFILE``
+4. :meth:`HalBridge.start` — begin polling
+
+The write path never implements control logic: it applies setpoints and one-shot requests.
+Anything reactive stays in the realtime ``plasmac`` component and the ``.hal`` wiring.
+"""
+
+from __future__ import annotations
+
+import logging
+import queue
+import threading
+import time
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Protocol, Tuple
+
+from backend.plasma.pins import (
+    PLASMAC_COMPONENT,
+    PLASMAC_PINS,
+    QTPLASMAC_COMPONENT,
+    QTPLASMAC_PINS,
+    PlasmaPin,
+    hal_name,
+    is_writable,
+    plasmac_pin,
+    qtplasmac_pin,
+)
+
+logger = logging.getLogger(__name__)
+
+#: Snapshot layout: ``{"plasmac": {pin: value}, "qtplasmac": {pin: value}}``.
+Snapshot = Dict[str, Dict[str, Any]]
+
+DEFAULT_POLL_INTERVAL_S = 0.05
+
+
+class PinWriteRejected(RuntimeError):
+    """A write was refused before it reached HAL. Carries a machine-readable ``code``."""
+
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+        self.message = message
+
+
+class HalRuntime(Protocol):
+    """The slice of the ``hal`` module the bridge uses, so tests can substitute it."""
+
+    def component(self, name: str) -> Any: ...
+
+    def newpin(self, comp: Any, name: str, pin_type: str, direction: str) -> None: ...
+
+    def ready(self, comp: Any) -> None: ...
+
+    def get_value(self, name: str) -> Any: ...
+
+    def set_p(self, name: str, value: str) -> None: ...
+
+    def pin_names(self) -> Tuple[str, ...]: ...
+
+    def pin_has_writer(self, name: str) -> bool: ...
+
+
+class NativeHalRuntime:
+    """Adapter over LinuxCNC's ``hal`` module. Imported lazily so macOS/CI can import us."""
+
+    _TYPES = {"bit": "HAL_BIT", "float": "HAL_FLOAT", "s32": "HAL_S32", "u32": "HAL_U32"}
+    _DIRECTIONS = {"in": "HAL_IN", "out": "HAL_OUT"}
+
+    def __init__(self) -> None:
+        import hal  # noqa: PLC0415 — optional dependency, only present on the machine
+
+        self._hal = hal
+
+    def component(self, name: str) -> Any:
+        return self._hal.component(name)
+
+    def newpin(self, comp: Any, name: str, pin_type: str, direction: str) -> None:
+        comp.newpin(
+            name,
+            getattr(self._hal, self._TYPES[pin_type]),
+            getattr(self._hal, self._DIRECTIONS[direction]),
+        )
+
+    def ready(self, comp: Any) -> None:
+        comp.ready()
+
+    def get_value(self, name: str) -> Any:
+        return self._hal.get_value(name)
+
+    def set_p(self, name: str, value: str) -> None:
+        self._hal.set_p(name, value)
+
+    def pin_names(self) -> Tuple[str, ...]:
+        # get_info_pins() needs a component to exist first, which create_component ensures.
+        return tuple(info["NAME"] for info in self._hal.get_info_pins())
+
+    def pin_has_writer(self, name: str) -> bool:
+        return bool(self._hal.pin_has_writer(name))
+
+
+def format_hal_value(pin: PlasmaPin, value: Any) -> str:
+    """Render a Python value the way ``hal.set_p`` expects it for this pin type."""
+    if pin.type == "bit":
+        if isinstance(value, str):
+            truthy = value.strip().lower() in ("1", "true", "yes", "on")
+        else:
+            truthy = bool(value)
+        return "1" if truthy else "0"
+    if pin.type == "float":
+        return repr(float(value))
+    number = int(float(value))
+    if pin.type == "u32" and number < 0:
+        raise PinWriteRejected("value_out_of_range", f"{pin.name} is u32; got {value}")
+    return str(number)
+
+
+class HalBridge:
+    """Owns the ``qtplasmac`` component and polls ``plasmac.*`` at a fixed interval.
+
+    ``on_change`` is called from the bridge thread with ``(snapshot, diff)`` whenever a
+    polled value changed — hand it a ``loop.call_soon_threadsafe`` wrapper, never do real
+    work in it.
+    """
+
+    def __init__(
+        self,
+        runtime: HalRuntime,
+        on_change: Optional[Callable[[Snapshot, Snapshot], None]] = None,
+        poll_interval_s: float = DEFAULT_POLL_INTERVAL_S,
+        component_name: str = QTPLASMAC_COMPONENT,
+    ) -> None:
+        self._runtime = runtime
+        self._on_change = on_change
+        self._poll_interval_s = poll_interval_s
+        self._component_name = component_name
+
+        self._comp: Any = None
+        self._ready = False
+        self._thread: Optional[threading.Thread] = None
+        self._stop = threading.Event()
+        self._writes: "queue.Queue[Tuple[str, str, Any]]" = queue.Queue()
+
+        self._lock = threading.Lock()
+        self._snapshot: Snapshot = {PLASMAC_COMPONENT: {}, self._component_name: {}}
+        self._missing: Tuple[str, ...] = ()
+        self._read_plasmac: Tuple[PlasmaPin, ...] = ()
+        self._write_errors: List[str] = []
+
+    # ---- lifecycle -----------------------------------------------------------------
+
+    def create_component(self) -> None:
+        """Export ``qtplasmac`` with all 91 pins. Must run before ``hal.ready()``."""
+        if self._comp is not None:
+            raise RuntimeError("component already created")
+        self._comp = self._runtime.component(self._component_name)
+        for pin in QTPLASMAC_PINS:
+            self._runtime.newpin(self._comp, pin.name, pin.type, pin.direction)
+        logger.info(
+            "plasma: exported HAL component %s with %d pins",
+            self._component_name,
+            len(QTPLASMAC_PINS),
+        )
+
+    def ready(self) -> None:
+        """``comp.ready()``, then work out which ``plasmac.*`` pins this build actually has."""
+        if self._comp is None:
+            raise RuntimeError("create_component() must run first")
+        self._runtime.ready(self._comp)
+        self._ready = True
+
+        existing = set(self._runtime.pin_names())
+        present, missing = [], []
+        for pin in PLASMAC_PINS:
+            (present if hal_name(PLASMAC_COMPONENT, pin) in existing else missing).append(pin)
+        self._read_plasmac = tuple(present)
+        self._missing = tuple(hal_name(PLASMAC_COMPONENT, pin) for pin in missing)
+        if self._missing:
+            logger.info(
+                "plasma: this LinuxCNC build has no %s — those pins stay absent",
+                ", ".join(self._missing),
+            )
+
+    def start(self) -> None:
+        if not self._ready:
+            raise RuntimeError("ready() must run before start()")
+        if self._thread is not None and self._thread.is_alive():
+            return
+        self._stop.clear()
+        self._thread = threading.Thread(
+            target=self._run, name="plasma-hal-bridge", daemon=True
+        )
+        self._thread.start()
+
+    def stop(self, timeout_s: float = 2.0) -> None:
+        self._stop.set()
+        thread = self._thread
+        if thread is not None:
+            thread.join(timeout=timeout_s)
+            if thread.is_alive():
+                logger.warning("plasma: HAL bridge thread did not stop within %ss", timeout_s)
+        self._thread = None
+
+    # ---- reads ---------------------------------------------------------------------
+
+    @property
+    def missing_pins(self) -> Tuple[str, ...]:
+        """``plasmac.*`` pins the pin table knows but this LinuxCNC build does not export."""
+        return self._missing
+
+    def snapshot(self) -> Snapshot:
+        """Latest full snapshot — what a newly connected WebSocket client gets."""
+        with self._lock:
+            return {component: dict(values) for component, values in self._snapshot.items()}
+
+    def poll_once(self) -> Snapshot:
+        """Read every pin once, publish the diff, and return it. Also the unit-test seam."""
+        current: Snapshot = {
+            PLASMAC_COMPONENT: self._read_component_pins(),
+            self._component_name: self._read_own_pins(),
+        }
+        with self._lock:
+            diff = _diff_snapshots(self._snapshot, current)
+            self._snapshot = current
+        if diff and self._on_change is not None:
+            self._on_change(
+                {component: dict(values) for component, values in current.items()}, diff
+            )
+        return diff
+
+    def _read_component_pins(self) -> Dict[str, Any]:
+        values: Dict[str, Any] = {}
+        for pin in self._read_plasmac:
+            try:
+                values[pin.name] = self._runtime.get_value(hal_name(PLASMAC_COMPONENT, pin))
+            except Exception:  # a pin can vanish if the comp is unloaded under us
+                logger.debug("plasma: read failed for %s", pin.name, exc_info=True)
+        return values
+
+    def _read_own_pins(self) -> Dict[str, Any]:
+        values: Dict[str, Any] = {}
+        if self._comp is None:
+            return values
+        for pin in QTPLASMAC_PINS:
+            try:
+                values[pin.name] = self._comp[pin.name]
+            except Exception:
+                logger.debug("plasma: read failed for own pin %s", pin.name, exc_info=True)
+        return values
+
+    # ---- writes --------------------------------------------------------------------
+
+    def request_write(self, component: str, name: str, value: Any) -> None:
+        """Queue a pin write. Policy violations raise here, in the caller's context.
+
+        The policy check is deliberately at enqueue time: a rejected write must surface as
+        an error on the command that asked for it, not as a log line in the bridge thread.
+        """
+        pin = self._resolve_writable(component, name)
+        self._writes.put((component, pin.name, format_hal_value(pin, value)))
+
+    def _resolve_writable(self, component: str, name: str) -> PlasmaPin:
+        if component == PLASMAC_COMPONENT:
+            try:
+                pin = plasmac_pin(name)
+            except KeyError:
+                raise PinWriteRejected("unknown_pin", f"no such pin: {component}.{name}")
+        elif component == self._component_name:
+            try:
+                pin = qtplasmac_pin(name)
+            except KeyError:
+                raise PinWriteRejected("unknown_pin", f"no such pin: {component}.{name}")
+        else:
+            raise PinWriteRejected("unknown_component", f"not a plasma component: {component}")
+
+        if not is_writable(pin):
+            raise PinWriteRejected(
+                "pin_not_writable",
+                f"{component}.{pin.name} is {pin.policy}; the backend only writes setpoints "
+                "and its own outputs",
+            )
+        if component == PLASMAC_COMPONENT:
+            if hal_name(component, pin) in self._missing:
+                raise PinWriteRejected(
+                    "pin_missing", f"{component}.{pin.name} does not exist in this LinuxCNC build"
+                )
+            # A setpoint that HAL already drives belongs to the machine's wiring; writing it
+            # would fight another writer, and HAL would refuse anyway.
+            try:
+                if self._runtime.pin_has_writer(hal_name(component, pin)):
+                    raise PinWriteRejected(
+                        "pin_has_hal_writer",
+                        f"{component}.{pin.name} is driven by a HAL signal on this machine",
+                    )
+            except PinWriteRejected:
+                raise
+            except Exception:
+                logger.debug("plasma: pin_has_writer check failed for %s", pin.name, exc_info=True)
+        return pin
+
+    def _apply_pending_writes(self) -> None:
+        while True:
+            try:
+                component, name, value = self._writes.get_nowait()
+            except queue.Empty:
+                return
+            try:
+                if component == self._component_name and self._comp is not None:
+                    self._comp[name] = _coerce_own_pin_value(qtplasmac_pin(name), value)
+                else:
+                    self._runtime.set_p(f"{component}.{name}", value)
+            except Exception as exc:
+                logger.warning("plasma: write %s.%s = %s failed: %s", component, name, value, exc)
+                self._write_errors.append(f"{component}.{name}")
+
+    # ---- thread body ---------------------------------------------------------------
+
+    def _run(self) -> None:
+        logger.info("plasma: HAL bridge polling every %.0f ms", self._poll_interval_s * 1000)
+        while not self._stop.is_set():
+            started = time.monotonic()
+            try:
+                self._apply_pending_writes()
+                self.poll_once()
+            except Exception:
+                logger.exception("plasma: HAL bridge iteration failed")
+            elapsed = time.monotonic() - started
+            self._stop.wait(max(0.0, self._poll_interval_s - elapsed))
+        logger.info("plasma: HAL bridge stopped")
+
+
+def _coerce_own_pin_value(pin: PlasmaPin, formatted: str) -> Any:
+    """Own-component pins are assigned Python values, not ``set_p`` strings."""
+    if pin.type == "bit":
+        return formatted == "1"
+    if pin.type == "float":
+        return float(formatted)
+    return int(formatted)
+
+
+def _diff_snapshots(previous: Snapshot, current: Snapshot) -> Snapshot:
+    """Per-component dict of the values that changed (or appeared) in ``current``."""
+    diff: Snapshot = {}
+    for component, values in current.items():
+        before = previous.get(component, {})
+        changed = {
+            name: value for name, value in values.items() if name not in before or before[name] != value
+        }
+        if changed:
+            diff[component] = changed
+    return diff
+
+
+def rising_edges(previous: Mapping[str, Any], current: Mapping[str, Any], names: Iterable[str]) -> Tuple[str, ...]:
+    """Names in ``names`` that went false → true between the two readings.
+
+    The ``ext_*`` panel inputs are momentary: a control panel button is a rising edge, not a
+    state. Same pattern as ``services/panel_hal_publisher.py``.
+    """
+    edges = []
+    for name in names:
+        if not previous.get(name) and current.get(name):
+            edges.append(name)
+    return tuple(edges)
