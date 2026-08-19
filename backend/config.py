@@ -15,6 +15,14 @@ FRONTEND_DIST_DIR: Path = (
 )
 STATUS_POLL_INTERVAL_S: float = 1.0
 
+# Plasma layer (QtPlasmaC parity). Exports the `qtplasmac` HAL component and polls
+# `plasmac.*`; inactive when this process has no LinuxCNC `hal` module.
+PLASMA_ENABLED: bool = os.environ.get(
+    "LCNCGUI_PLASMA_ENABLED", "1"
+).strip().lower() in ("1", "true", "yes", "on")
+# 20 Hz. Measured on the qtplasmac sim: reading all 177 plasmac pins costs 0.57 ms.
+PLASMA_POLL_INTERVAL_S: float = float(os.environ.get("LCNCGUI_PLASMA_POLL_S", "0.05"))
+
 # Poll-Intervall für MDI/AUTO→Manuell, sobald Interpreter und Motion frei sind
 # (MdiManualRevertPoller in backend/services/mdi_manual_revert.py).
 MDI_MANUAL_REVERT_POLL_INTERVAL_S: float = 0.25

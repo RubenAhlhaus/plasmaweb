@@ -158,6 +158,10 @@ class HalBridge:
 
     # ---- lifecycle -----------------------------------------------------------------
 
+    def set_on_change(self, callback: Optional[Callable[[Snapshot, Snapshot], None]]) -> None:
+        """Install (or clear) the change callback. Called from the event loop, not the thread."""
+        self._on_change = callback
+
     def create_component(self) -> None:
         """Export ``qtplasmac`` with all 91 pins. Must run before ``hal.ready()``."""
         if self._comp is not None:

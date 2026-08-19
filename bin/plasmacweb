@@ -11,11 +11,9 @@
 # default and the name LinuxCNC calls. All LCNCGUI_* environment variables
 # documented in `bin/lcncgui --help` apply here too.
 #
-# NOTE (milestone M1): bin/lcncgui loads [HAL] POSTGUI_HALFILE *before* starting
-# the backend (bin/lcncgui, run_postgui_halfiles in main). QtPlasmaC configs net
-# against `qtplasmac.*` pins, which the backend itself must create and mark ready
-# first, so that order has to be inverted once backend/plasma/hal_bridge.py
-# exists. Until then the upstream order is correct and untouched.
+# HAL ordering: bin/lcncgui starts the backend first and loads [HAL] POSTGUI_HALFILE
+# once HTTP answers, because QtPlasmaC configs net against `qtplasmac.*` pins that
+# backend/plasma/hal_bridge.py exports and marks ready during import.
 
 set -euo pipefail
 

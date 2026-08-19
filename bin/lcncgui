@@ -456,9 +456,6 @@ main() {
 
   trap cleanup EXIT INT TERM
 
-  # POSTGUI before UI — HALFILEs are already loaded when LinuxCNC starts DISPLAY.
-  run_postgui_halfiles || exit 1
-
   ensure_http_port_available
 
   cd "$LCNCGUI_ROOT"
@@ -469,6 +466,11 @@ main() {
   UVICORN_PID=$!
 
   wait_for_http || exit 1
+
+  # POSTGUI after the backend is up, before the UI. QtPlasmaC configs contain
+  # `net ... qtplasmac.*` lines, and those pins only exist once the backend has exported
+  # its HAL component and called ready() — which has happened by the time HTTP answers.
+  run_postgui_halfiles || exit 1
 
   local -a browser_args=()
   case "$browser" in

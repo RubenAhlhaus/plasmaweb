@@ -40,6 +40,15 @@ from backend.handlers.program import (
     handle_program_write,
 )
 from backend.handlers.app import handle_app_exit
+from backend.handlers.plasma import (
+    handle_plasma_get_snapshot,
+    handle_plasma_height_override,
+    handle_plasma_set_enable,
+    handle_plasma_set_param,
+    handle_plasma_thc_enable,
+    handle_plasma_torch_enable,
+    handle_plasma_torch_pulse,
+)
 from backend.handlers.hal import handle_hal_set_jog_wheel_scale, handle_hal_softkey_pulse
 from backend.handlers.machine import (
     handle_machine_abort,
@@ -69,6 +78,8 @@ from backend.config import (
     WEBSOCKET_PATH,
 )
 from backend.application.context import AppContext
+from backend.plasma.startup import create_plasma_stack
+from backend.services.plasma_publisher import PlasmaPublisher
 from backend.application.command_bus import CommandBus
 from backend.api.hal_tools import create_hal_tools_router
 from backend.api.user_preferences import create_user_preferences_router
@@ -96,7 +107,18 @@ BACKEND_PUBLIC_DIR = BACKEND_DIR / "public"
 manager = ConnectionManager()
 gateway = LinuxCncGateway()
 command_bus = CommandBus()
-app_context = AppContext(manager=manager, gateway=gateway)
+
+# The qtplasmac HAL component must exist before [HAL] POSTGUI_HALFILE runs, and the
+# launcher runs those halfiles once HTTP answers — so this happens during import, not in
+# the lifespan handler. Both are None off the machine (no hal module).
+plasma_bridge, plasma_service = create_plasma_stack()
+
+app_context = AppContext(manager=manager, gateway=gateway, plasma=plasma_service)
+plasma_publisher = (
+    PlasmaPublisher(manager=manager, service=plasma_service)
+    if plasma_service is not None
+    else None
+)
 status_publisher = StatusPublisher(
     manager=manager,
     gateway=gateway,
@@ -188,6 +210,14 @@ command_bus.register(
 )
 command_bus.register("app", "exit", handle_app_exit)
 
+command_bus.register("plasma", "get_snapshot", handle_plasma_get_snapshot)
+command_bus.register("plasma", "set_param", handle_plasma_set_param)
+command_bus.register("plasma", "set_enable", handle_plasma_set_enable)
+command_bus.register("plasma", "torch_enable", handle_plasma_torch_enable)
+command_bus.register("plasma", "thc_enable", handle_plasma_thc_enable)
+command_bus.register("plasma", "height_override", handle_plasma_height_override)
+command_bus.register("plasma", "torch_pulse", handle_plasma_torch_pulse)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -197,6 +227,9 @@ async def lifespan(app: FastAPI):
     mdi_manual_revert_poller.start()
     toolchange_hal_publisher.start()
     panel_hal_publisher.start()
+    if plasma_publisher is not None and plasma_bridge is not None:
+        plasma_publisher.start()
+        plasma_bridge.start()
     yield
     await status_publisher.stop()
     await coordinates_change_publisher.stop()
@@ -204,6 +237,10 @@ async def lifespan(app: FastAPI):
     await mdi_manual_revert_poller.stop()
     await toolchange_hal_publisher.stop()
     await panel_hal_publisher.stop()
+    if plasma_bridge is not None:
+        plasma_bridge.stop()
+    if plasma_publisher is not None:
+        await plasma_publisher.stop()
     gateway.shutdown_blocking_executor()
 
 

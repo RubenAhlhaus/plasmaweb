@@ -62,6 +62,13 @@ def create_ws_router(
         }
         await manager.send_json(websocket, initial_event)
 
+        # A pin diff only makes sense against a full snapshot, so every new client gets one
+        # before the publisher starts sending plasma.pins.changed.
+        if app_context.plasma is not None:
+            from backend.services.plasma_publisher import snapshot_event
+
+            await manager.send_json(websocket, snapshot_event(app_context.plasma))
+
         try:
             while True:
                 data_text = await websocket.receive_text()
