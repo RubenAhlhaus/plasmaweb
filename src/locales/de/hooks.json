@@ -1,0 +1,44 @@
+{
+  "mdi": {
+    "tooltip": {
+      "estop_active": "MDI ist nicht moeglich, solange der Not-Aus aktiv ist.",
+      "machine_off": "MDI ist nicht moeglich, solange die Maschine ausgeschaltet ist.",
+      "interpreter_busy": "MDI ist nicht moeglich, solange ein Programm laeuft.",
+      "task_mode_unknown": "MDI ist kurz nicht moeglich: Task-Modus noch nicht bekannt (Status wird geladen).",
+      "task_mode_not_manual_or_mdi": "MDI ist nur im manuellen oder MDI-Modus moeglich (nicht im Programm-Modus).",
+      "default": "MDI ist derzeit nicht moeglich."
+    },
+    "hintFragment": {
+      "estop_active": "Not-Aus aktiv",
+      "machine_off": "Maschine aus (zuerst einschalten)",
+      "interpreter_busy": "Programm läuft",
+      "task_mode_unknown": "Task-Modus unbekannt",
+      "task_mode_not_manual_or_mdi": "Programm-Modus (Automatik)",
+      "default": "Maschinenzustand"
+    },
+    "friendly": {
+      "spindle": "Die Drehzahl",
+      "feed": "Der Vorschub",
+      "estop_active": "{{what}} kann nicht geändert werden, solange der Not-Aus aktiv ist.",
+      "machine_off": "{{what}} kann nicht geändert werden, solange die Maschine aus ist. Bitte zuerst einschalten.",
+      "interpreter_busy": "{{what}} kann hier nicht geändert werden, solange ein Programm läuft.",
+      "task_mode_unknown": "{{what}} kann nicht geändert werden, solange der Task-Modus (Manuell/MDI/Programm) noch nicht bekannt ist — bitte kurz warten.",
+      "task_mode_not_manual_or_mdi": "{{what}} kann nicht geändert werden. Bitte zuerst in den manuellen oder MDI-Modus wechseln.",
+      "default": "{{what}} kann gerade nicht geändert werden.",
+      "multi": "{{what}} kann nicht geändert werden ({{reasons}})."
+    }
+  },
+  "jog": {
+    "tooltip": {
+      "estop_active": "Joggen ist nicht möglich, solange der Not-Aus aktiv ist.",
+      "machine_off": "Joggen ist nicht möglich, solange die Maschine ausgeschaltet ist.",
+      "not_manual_mode": "Joggen ist nur im manuellen Modus möglich.",
+      "default": "Joggen ist derzeit nicht möglich."
+    }
+  },
+  "wsErrors": {
+    "unknownLinuxcnc": "Unbekannter LinuxCNC-Fehler",
+    "unknownBackend": "Unbekannter Backend-Fehler",
+    "unknownCommand": "Unbekannter Kommandofehler"
+  }
+}

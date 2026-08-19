@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# lcncgui-shutdown — power off the controller (GUI exit with shutdown).
+#
+# Tries session poweroff first; install.sh can grant passwordless sudo for --as-root.
+
+set -euo pipefail
+
+_poweroff_tools_available() {
+  command -v loginctl >/dev/null 2>&1 \
+    || command -v systemctl >/dev/null 2>&1 \
+    || command -v shutdown >/dev/null 2>&1
+}
+
+_poweroff() {
+  if command -v loginctl >/dev/null 2>&1; then
+    loginctl poweroff 2>/dev/null && return 0
+  fi
+  if command -v systemctl >/dev/null 2>&1; then
+    systemctl poweroff 2>/dev/null && return 0
+  fi
+  if command -v shutdown >/dev/null 2>&1; then
+    shutdown -h now 2>/dev/null && return 0
+  fi
+  return 1
+}
+
+if [[ "${1:-}" == "--dry-run" ]]; then
+  if ! _poweroff_tools_available; then
+    exit 1
+  fi
+  if command -v loginctl >/dev/null 2>&1; then
+    if loginctl list-sessions --no-legend 2>/dev/null | awk -v u="$(id -un)" '$3==u {found=1} END{exit !found}'; then
+      exit 0
+    fi
+  fi
+  SELF="$(readlink -f "${BASH_SOURCE[0]}")"
+  if command -v sudo >/dev/null 2>&1 && sudo -n "$SELF" --as-root --dry-run 2>/dev/null; then
+    exit 0
+  fi
+  exit 1
+fi
+
+if [[ "${1:-}" == "--as-root" ]]; then
+  if [[ "${2:-}" == "--dry-run" ]]; then
+    _poweroff_tools_available || exit 1
+    exit 0
+  fi
+  _poweroff || {
+    echo "lcncgui-shutdown: poweroff failed" >&2
+    exit 1
+  }
+  exit 0
+fi
+
+if _poweroff; then
+  exit 0
+fi
+
+SELF="$(readlink -f "${BASH_SOURCE[0]}")"
+if command -v sudo >/dev/null 2>&1 && sudo -n "$SELF" --as-root 2>/dev/null; then
+  exit 0
+fi
+
+echo "lcncgui-shutdown: no permission to power off." >&2
+echo "Run once as root: sudo ./install.sh --setup-shutdown" >&2
+exit 1

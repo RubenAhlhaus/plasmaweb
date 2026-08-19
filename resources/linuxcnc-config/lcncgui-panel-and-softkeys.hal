@@ -1,0 +1,87 @@
+# lcncgui panel + softkeys — combined HAL (single loadrt dbounce)
+#
+# Source from a HALFILE (e.g. custom.hal), NOT from POSTGUI_HALFILE.
+# Use this when you need BOTH external panel pins and softkey pulse/feedback.
+# Do NOT also source lcncgui-panel.hal or lcncgui-softkeys.hal (duplicate loadrt).
+#
+#   source /opt/lcncgui/resources/linuxcnc-config/lcncgui-panel-and-softkeys.hal
+#
+# Softkeys only → lcncgui-softkeys.hal
+# Panel only    → lcncgui-panel.hal
+#
+# dbounce delay is in servo periods (u32); 50 ≈ 50 ms at a 1 ms servo thread.
+
+loadrt oneshot names=lcncgui-sk-14,lcncgui-sk-15,lcncgui-sk-16
+setp lcncgui-sk-14.width 0.1
+setp lcncgui-sk-15.width 0.1
+setp lcncgui-sk-16.width 0.1
+addf lcncgui-sk-14 servo-thread
+addf lcncgui-sk-15 servo-thread
+addf lcncgui-sk-16 servo-thread
+
+loadrt dbounce names=\
+lcncgui-panel-machine-toggle,\
+lcncgui-panel-homing,\
+lcncgui-panel-cycle-start,\
+lcncgui-panel-estop,\
+lcncgui-panel-axis-x,\
+lcncgui-panel-axis-y,\
+lcncgui-panel-axis-z,\
+lcncgui-panel-flood,\
+lcncgui-panel-spindle-reverse,\
+lcncgui-panel-spindle-stop,\
+lcncgui-panel-spindle-forward,\
+lcncgui-panel-program-pause,\
+lcncgui-panel-program-stop,\
+lcncgui-panel-softkey-14,\
+lcncgui-panel-softkey-15,\
+lcncgui-panel-softkey-16,\
+lcncgui-sk-14-fb,\
+lcncgui-sk-15-fb,\
+lcncgui-sk-16-fb
+
+setp lcncgui-panel-machine-toggle.delay 50
+setp lcncgui-panel-homing.delay 50
+setp lcncgui-panel-cycle-start.delay 50
+setp lcncgui-panel-estop.delay 50
+setp lcncgui-panel-axis-x.delay 50
+setp lcncgui-panel-axis-y.delay 50
+setp lcncgui-panel-axis-z.delay 50
+setp lcncgui-panel-flood.delay 50
+setp lcncgui-panel-spindle-reverse.delay 50
+setp lcncgui-panel-spindle-stop.delay 50
+setp lcncgui-panel-spindle-forward.delay 50
+setp lcncgui-panel-program-pause.delay 50
+setp lcncgui-panel-program-stop.delay 50
+setp lcncgui-panel-softkey-14.delay 50
+setp lcncgui-panel-softkey-15.delay 50
+setp lcncgui-panel-softkey-16.delay 50
+setp lcncgui-sk-14-fb.delay 50
+setp lcncgui-sk-15-fb.delay 50
+setp lcncgui-sk-16-fb.delay 50
+
+addf lcncgui-panel-machine-toggle servo-thread
+addf lcncgui-panel-homing servo-thread
+addf lcncgui-panel-cycle-start servo-thread
+addf lcncgui-panel-estop servo-thread
+addf lcncgui-panel-axis-x servo-thread
+addf lcncgui-panel-axis-y servo-thread
+addf lcncgui-panel-axis-z servo-thread
+addf lcncgui-panel-flood servo-thread
+addf lcncgui-panel-spindle-reverse servo-thread
+addf lcncgui-panel-spindle-stop servo-thread
+addf lcncgui-panel-spindle-forward servo-thread
+addf lcncgui-panel-program-pause servo-thread
+addf lcncgui-panel-program-stop servo-thread
+addf lcncgui-panel-softkey-14 servo-thread
+addf lcncgui-panel-softkey-15 servo-thread
+addf lcncgui-panel-softkey-16 servo-thread
+addf lcncgui-sk-14-fb servo-thread
+addf lcncgui-sk-15-fb servo-thread
+addf lcncgui-sk-16-fb servo-thread
+
+loadrt constant names=\
+lcncgui-panel-status-machine-on,\
+lcncgui-panel-status-estop,\
+lcncgui-panel-status-paused,\
+lcncgui-panel-status-flood

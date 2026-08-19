@@ -1,0 +1,65 @@
+{
+  "placeholder": {
+    "emptyArea": "Dieser Bereich ist noch leer."
+  },
+  "screenLoading": "Laden…",
+  "nav": {
+    "home": "Start",
+    "macros": "Makros",
+    "program": "Programm",
+    "tools": "Werkzeuge",
+    "probing": "Antasten",
+    "settings": "Einstellungen"
+  },
+  "header": {
+    "estopActive": "Notaus aktiv",
+    "estopActiveTooltip": "Notaus aktiv",
+    "machineOff": "Maschine ausgeschaltet",
+    "machineOffTooltip": "Maschine ausgeschaltet",
+    "disconnected": "Verbindung getrennt",
+    "disconnectedTooltip": "Verbindung getrennt",
+    "unhomedAxes": {
+      "label": "Referenz fehlt ({{axes}})",
+      "tooltip": "Tippen zum Referenzfahren.",
+      "openHomingAria": "Referenzfahren öffnen — Achsen nicht gehome: {{axes}}"
+    },
+    "exit": "Beenden",
+    "exitAria": "Beenden",
+    "exitDialogTitle": "Beenden",
+    "closeWindow": "Fenster schließen",
+    "closeWindowShutdown": "Fenster schließen und herunterfahren",
+    "cancel": "Abbrechen",
+    "taskMode": {
+      "manual": { "label": "Manuell", "title": "Manueller Modus" },
+      "auto": { "label": "Programm", "title": "Programm-Modus (Automatik)" },
+      "mdi": { "label": "MDI", "title": "MDI-Modus" },
+      "fallback": { "label": "Maschine eingeschaltet", "title": "Maschine eingeschaltet" }
+    },
+    "programRunning": {
+      "label": "Programm läuft…",
+      "title": "Ein Programm wird gerade interpretiert (läuft oder wartet)"
+    },
+    "programPaused": {
+      "label": "Programm pausiert…",
+      "title": "Die Programminterpretation ist pausiert"
+    },
+    "errors": {
+      "noConnection": "Keine Verbindung zum Backend.",
+      "exitRejected": "Backend hat das Beenden abgelehnt.",
+      "shutdownUnavailable": "Herunterfahren nicht möglich. Einmalig als root ausführen: sudo ./install.sh --setup-shutdown",
+      "backendStopped": "Backend wurde beendet. Sie können diesen Tab jetzt schließen.",
+      "exitTimeout": "Zeitüberschreitung beim Beenden.",
+      "exitFailed": "Beenden fehlgeschlagen."
+    }
+  },
+  "language": {
+    "label": "Sprache",
+    "en": "Englisch",
+    "de": "Deutsch"
+  },
+  "configLoader": {
+    "loading": "Konfiguration wird geladen…",
+    "errorTitle": "Konfiguration fehlerhaft",
+    "errorHelp": "Erwartet wird die Datei lcncgui-config.json unter derselben Origin wie diese Seite (Vite-Dev: im Repo unter public/; gebaute oder packagierte App: gleicher Dateiname neben der ausgelieferten UI). Vorlage im Repo: public/lcncgui-config.example.json. Nach Änderungen die Seite neu laden. Details: docs/frontend-web-start.md."
+  }
+}

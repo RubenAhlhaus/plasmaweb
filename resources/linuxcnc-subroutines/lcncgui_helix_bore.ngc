@@ -1,0 +1,39 @@
+; lcncgui - Helix bore (simplified)
+; Call: o<lcncgui_helix_bore> call [#1] ... [#11]
+;
+; #1 X, #2 Y, #3 safeZ, #4 cut start Z, #5 bottom Z, #6 diameter (mm)
+; #7 helix pitch per revolution, #8 feed XY, #9 (reserved), #10 coolant (>0.5 = M8 before cut, M9 after retract)
+; #11 1 = G3, -1 = G2
+;
+; Spindle control (M3 S...) should be done in the main program before this call.
+; Initial approach: raise to #3 only if below, then XY, then Z (see README).
+
+o<lcncgui_helix_bore> sub
+  G90
+  o90 if [#<_z> LT #3]
+    G0 Z#3
+  o90 endif
+  G0 X#1 Y#2
+  G0 Z#3
+  o100 if [#10 GT 0.5]
+    M8
+  o100 endif
+  #<_r> = [#6 / 2.0]
+  ; Do not use #<_z> — it is a predefined read-only current-position param.
+  #<_pathz> = #4
+  G0 X[#1 + #<_r>] Y#2
+  G1 Z#<_pathz> F[#8 * 0.5]
+  o101 while [#<_pathz> GT #5]
+    o102 if [#11 GT 0.5]
+      G3 X[#1 + #<_r>] Y#2 I[-#<_r>] Z[#<_pathz> - #7] F#8
+    o102 else
+      G2 X[#1 + #<_r>] Y#2 I[-#<_r>] Z[#<_pathz> - #7] F#8
+    o102 endif
+    #<_pathz> = [#<_pathz> - #7]
+  o101 endwhile
+  G1 Z#5 F[#8 * 0.25]
+  G0 Z#3
+  o103 if [#10 GT 0.5]
+    M9
+  o103 endif
+o<lcncgui_helix_bore> endsub

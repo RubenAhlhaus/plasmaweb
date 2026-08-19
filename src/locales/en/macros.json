@@ -1,0 +1,290 @@
+{
+  "categories": {
+    "drilling": "Drilling",
+    "milling": "Milling",
+    "machine": "Machine"
+  },
+  "definitions": {
+    "nested-pattern-block": {
+      "title": "Drill pattern",
+      "subtitle": "Nested — phases × positions"
+    },
+    "bohren-normal": {
+      "title": "Drilling",
+      "subtitle": "Standard drilling"
+    },
+    "bohrfraesen": {
+      "title": "Helical boring",
+      "subtitle": "Helix"
+    },
+    "planfraesen": {
+      "title": "Face milling",
+      "subtitle": "Face a surface"
+    }
+  },
+  "sections": {
+    "tool": "Tool",
+    "heights": "Heights",
+    "positions": "Positions",
+    "options": "Options",
+    "hole": "Hole",
+    "area": "Area",
+    "doc": "Depth of cut"
+  },
+  "paramLabels": {
+    "tool": "Tool",
+    "toolId": "Tool",
+    "presetId": "Cut preset",
+    "name": "Name",
+    "surfaceZ": "Part surface Z",
+    "surfaceZMm": "Part surface Z (mm)",
+    "targetZ": "Target Z (mm)",
+    "feed": "Feed (mm/min)",
+    "feedXY": "Feed XY (mm/min)",
+    "feedZ": "Feed Z (mm/min)",
+    "spindle": "Spindle speed (rpm)",
+    "safeZMm": "Safe height Z (mm)",
+    "depth": "Depth (mm)",
+    "depthDrill": "Drill depth (mm) (B)",
+    "threadDepth": "Thread depth (mm)",
+    "radius": "Radius (mm)",
+    "diameter": "Diameter (mm)",
+    "nominalDiameter": "Nominal diameter (mm)",
+    "nominalDiameterBore": "Hole diameter (mm)",
+    "roughingDiameter": "Roughing diameter (mm)",
+    "helixAngle": "Helix angle (°)",
+    "helixPlungeAngle": "Helix plunge angle (°)",
+    "holeCenterX": "Hole center X (mm)",
+    "holeCenterY": "Hole center Y (mm)",
+    "holeDepth": "Hole depth (mm)",
+    "helixPitch": "Helix pitch (mm/rev)",
+    "helixFeedPerRev": "Helix feed/rev",
+    "millingDirection": "Milling direction",
+    "millingSide": "Milling side",
+    "direction": "Direction",
+    "width": "Width (mm)",
+    "height": "Height (mm)",
+    "stepDown": "Z step-down (mm)",
+    "stepOver": "Stepover (mm)",
+    "sideStep": "Lateral stepover (mm)",
+    "strategy": "Strategy",
+    "pocketType": "Pocket type",
+    "startX": "Start X (mm)",
+    "startY": "Start Y (mm)",
+    "endX": "End X (mm)",
+    "endY": "End Y (mm)",
+    "x": "X (mm)",
+    "y": "Y (mm)",
+    "centerX": "Center X (mm)",
+    "centerY": "Center Y (mm)",
+    "columns": "Columns",
+    "rows": "Rows",
+    "spacingX": "Spacing X (mm)",
+    "spacingY": "Spacing Y (mm)",
+    "rotationAngle": "Rotation angle (°)",
+    "pitchCircleDiameter": "Bolt circle diameter (mm)",
+    "startAngle": "Start angle (°)",
+    "endAngle": "End angle (°)",
+    "count": "Count",
+    "stepAngle": "Indexing angle (°)",
+    "processType": "Process",
+    "tappingMode": "Tapping mode",
+    "pitch": "Thread pitch",
+    "threadHand": "Thread hand",
+    "threadDiameter": "Thread major Ø (mm)",
+    "coreHoleDiameter": "Core hole Ø (mm)",
+    "dwellTop": "Dwell at top (s)",
+    "dwellBottom": "Dwell at bottom (s)",
+    "peckDepth": "Peck increment (mm)",
+    "chipBreakRetract": "Chip-break retract (mm)",
+    "fullRetract": "Full retract",
+    "centerCut": "Center cut",
+    "multiplePasses": "Multiple passes",
+    "areaStartX": "Area start X (mm)",
+    "areaStartY": "Area start Y (mm)",
+    "areaWidth": "Area width (mm)",
+    "areaWidthPlan": "Area width (mm) (A)",
+    "areaHeight": "Area height (mm)",
+    "areaHeightPlan": "Area height (mm) (B)",
+    "cutterOverhangMm": "Cutter overhang (mm)",
+    "pattern": "Toolpath pattern",
+    "pathType": "Path type",
+    "zTop": "Top Z",
+    "chamferWidth": "Chamfer width (mm)",
+    "chamferDepth": "Chamfer depth (mm)",
+    "insideOutside": "Inside/outside",
+    "singleEdgeOnly": "Single edge only",
+    "passes": "Number of passes",
+    "contentType": "Content type",
+    "text": "Text",
+    "originX": "Origin X (mm)",
+    "originY": "Origin Y (mm)",
+    "fontHeight": "Font height (mm)",
+    "charSpacing": "Character spacing",
+    "lineSpacing": "Line spacing",
+    "rotation": "Rotation (°)",
+    "alignment": "Alignment",
+    "singleLineFont": "Single-line font",
+    "mirror": "Mirror",
+    "slotWidth": "Slot width (mm)",
+    "vorschubHoeheMmDrill": "Approach height above surface (mm) (A)",
+    "vorschubHoeheMmPlan": "Approach height (mm)",
+    "einstechtiefeMm": "Plunge depth (mm) (C)",
+    "coolantOn": "Coolant",
+    "patternType": "Pattern type",
+    "customPatternPoints": "Custom positions (JSON)"
+  },
+  "selectOptions": {
+    "processType": {
+      "threadMilling": "Thread milling",
+      "rigidTapping": "Rigid tapping",
+      "floatingTap": "Floating tap holder"
+    },
+    "tappingMode": {
+      "rigid": "Rigid",
+      "floating": "With compensation"
+    },
+    "threadHand": {
+      "RH": "Right-hand",
+      "LH": "Left-hand"
+    },
+    "pocketType": {
+      "rectangle": "Rectangle",
+      "circle": "Circle"
+    },
+    "strategy": {
+      "roughing": "Roughing",
+      "finishing": "Finishing",
+      "both": "Roughing + finishing"
+    },
+    "millingDirection": {
+      "climb": "Climb",
+      "conventional": "Conventional"
+    },
+    "millingSide": {
+      "inside": "Inside",
+      "outside": "Outside"
+    },
+    "direction": {
+      "CW": "CW",
+      "CCW": "CCW",
+      "climb": "Climb",
+      "conventional": "Conventional"
+    },
+    "pattern": {
+      "zigzag": "Zigzag",
+      "oneway": "One way"
+    },
+    "pathType": {
+      "edge": "Edge",
+      "hole": "Hole"
+    },
+    "insideOutside": {
+      "inside": "Inside",
+      "outside": "Outside"
+    },
+    "contentType": {
+      "text": "Text",
+      "contour": "Contour"
+    },
+    "alignment": {
+      "left": "Left",
+      "center": "Center",
+      "right": "Right"
+    },
+    "patternType": {
+      "custom": "Custom (JSON)",
+      "round": "Round (bolt circle)",
+      "rectangular": "Rectangular (grid)"
+    }
+  },
+  "validation": {
+    "selectTool": "Please select a tool.",
+    "fillField": "Please fill in \"{{field}}\".",
+    "invalidExpression": "Invalid expression for \"{{field}}\". Check the input (e.g. 5-3 or 10+0.5).",
+    "plungeDepthPositive": "Plunge depth (mm) must be greater than 0.",
+    "invalidPlungeExpression": "Invalid expression for \"plunge depth (mm)\". Check the input (e.g. 5-3 or 10+0.5).",
+    "helixAngleRange": "Helix angle must be between 0° and 90° (excluding 0° and 90°).",
+    "helixPitchInvalid": "Could not compute a valid pitch per revolution from hole diameter and helix angle.",
+    "targetZBelowSurface": "Target Z must be below part surface Z."
+  },
+  "patternValidation": {
+    "fillField": "Please fill in \"{{field}}\".",
+    "invalidExpression": "Invalid expression for \"{{field}}\". Check the input (e.g. 5-3 or 10+0.5).",
+    "invalidPatternType": "Invalid pattern type.",
+    "minOnePosition": "Please specify at least one X/Y position.",
+    "positionsInvalidJson": "Position list is invalid. Please check the input.",
+    "pitchDiameterPositive": "Pitch circle diameter must be greater than 0.",
+    "coordMm": "Coordinate (mm)",
+    "coordX": "X (mm)",
+    "coordY": "Y (mm)"
+  },
+  "patternLabels": {
+    "name": "Name",
+    "surfaceZ": "Part surface Z",
+    "centerX": "Center X (mm)",
+    "centerY": "Center Y (mm)",
+    "count": "Number of positions",
+    "pitchCircleDiameter": "Circle diameter (mm)",
+    "startAngle": "Start angle (°)",
+    "startX": "Start X (mm)",
+    "startY": "Start Y (mm)",
+    "columns": "Count in X",
+    "rows": "Count in Y",
+    "spacingX": "Spacing X (mm)",
+    "spacingY": "Spacing Y (mm)",
+    "rotationAngle": "Rotation angle (°)"
+  },
+  "dialog": {
+    "selectTool": "Select tool",
+    "selectPreset": "Select preset",
+    "emptyPreset": "None",
+    "pickField": "Select {{label}}",
+    "switchOn": "{{label}} on",
+    "switchOff": "{{label}} off",
+    "add": "Add {{name}}",
+    "edit": "Edit {{name}}",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "ok": "OK",
+    "coolant": "Coolant",
+    "coolantOn": "Coolant on",
+    "coolantOff": "Coolant off",
+    "fullRetract": "Full retract",
+    "fullRetractOn": "Full retract on",
+    "fullRetractOff": "Full retract off",
+    "fullRetractRequiresPeck": "Only available when plunge depth is less than drill depth.",
+    "fromPatternHint": "X/Y positions and part surface Z come from the parent drill pattern and are not entered here."
+  },
+  "patternUi": {
+    "tabs": {
+      "custom": "Custom layout",
+      "round": "Circular layout",
+      "rectangular": "Grid layout"
+    },
+    "previewAria": "Drill pattern preview; spacings in millimetres as in the input fields.",
+    "arrangementAria": "Layout",
+    "deleteRow": "Delete row",
+    "addPosition": "Add position",
+    "patternPreviewDefaultAria": "Drill pattern preview (1:1 scale in mm)",
+    "noPreview": "No preview",
+    "startAngleHint": "0° = directly above the centre (+Y); angles increase counter-clockwise (90° = −X)."
+  },
+  "hints": {
+    "bohren-normal": "Drill macro diagram: approach height (A), drill depth (B), plunge depth (C)",
+    "planfraesen": "Face milling diagram for area A/B, start X/Y and cutter overhang",
+    "bohrfraesen": "Helical boring diagram: center X/Y, hole diameter and depth (helix angle not marked)"
+  },
+  "queue": {
+    "patternFallback": "Pattern block"
+  },
+  "screen": {
+    "deleteTitle": "Remove entry?",
+    "deleteChild": "This macro will be removed from the nested block.",
+    "deletePattern": "The nested block and all contained macros will be removed.",
+    "deleteRoot": "This entry will be removed from the program list.",
+    "goToProgram": "Go to program",
+    "generating": "Generating program…",
+    "userMacroNoParams": "This machine macro has no editable parameters. It is added only to the program list (not into drill patterns); generation inserts o<name> call with no arguments."
+  }
+}

@@ -1,0 +1,290 @@
+{
+  "categories": {
+    "drilling": "Bohren",
+    "milling": "Fräsen",
+    "machine": "Maschine"
+  },
+  "definitions": {
+    "nested-pattern-block": {
+      "title": "Bohrmuster",
+      "subtitle": "Verschachtelt — Phasen × Positionen"
+    },
+    "bohren-normal": {
+      "title": "Bohren",
+      "subtitle": "Normal bohren"
+    },
+    "bohrfraesen": {
+      "title": "Bohrfräsen",
+      "subtitle": "Helix"
+    },
+    "planfraesen": {
+      "title": "Planfräsen",
+      "subtitle": "Fläche planen"
+    }
+  },
+  "sections": {
+    "tool": "Werkzeug",
+    "heights": "Höhen",
+    "positions": "Positionen",
+    "options": "Optionen",
+    "hole": "Bohrung",
+    "area": "Fläche",
+    "doc": "Zustellung"
+  },
+  "paramLabels": {
+    "tool": "Werkzeug",
+    "toolId": "Werkzeug",
+    "presetId": "Schnitt-Preset",
+    "name": "Name",
+    "surfaceZ": "Werkstückoberfläche Z",
+    "surfaceZMm": "Werkstückoberfläche Z (mm)",
+    "targetZ": "Zielhöhe Z (mm)",
+    "feed": "Vorschub (mm/min)",
+    "feedXY": "Vorschub XY (mm/min)",
+    "feedZ": "Vorschub Z (mm/min)",
+    "spindle": "Drehzahl (1/min)",
+    "safeZMm": "Sicherheitshöhe Z (mm)",
+    "depth": "Tiefe (mm)",
+    "depthDrill": "Bohrtiefe (mm) (B)",
+    "threadDepth": "Gewindetiefe (mm)",
+    "radius": "Radius (mm)",
+    "diameter": "Durchmesser (mm)",
+    "nominalDiameter": "Nenndurchmesser (mm)",
+    "nominalDiameterBore": "Bohrungsdurchmesser (mm)",
+    "roughingDiameter": "Schruppdurchmesser (mm)",
+    "helixAngle": "Helixwinkel (°)",
+    "helixPlungeAngle": "Helixwinkel Eintauchen (°)",
+    "holeCenterX": "Mitte Bohrung X (mm)",
+    "holeCenterY": "Mitte Bohrung Y (mm)",
+    "holeDepth": "Bohrungstiefe (mm)",
+    "helixPitch": "Helixsteigung (mm/U)",
+    "helixFeedPerRev": "Helix-Vorschub/U",
+    "millingDirection": "Fräsrichtung",
+    "millingSide": "Frässeite",
+    "direction": "Richtung",
+    "width": "Breite (mm)",
+    "height": "Höhe (mm)",
+    "stepDown": "Zustellung Z (mm)",
+    "stepOver": "Seitliche Zustellung (mm)",
+    "sideStep": "Seitliche Bahnzustellung (mm)",
+    "strategy": "Strategie",
+    "pocketType": "Taschen-Typ",
+    "startX": "Start X (mm)",
+    "startY": "Start Y (mm)",
+    "endX": "Ende X (mm)",
+    "endY": "Ende Y (mm)",
+    "x": "X (mm)",
+    "y": "Y (mm)",
+    "centerX": "Mitte X (mm)",
+    "centerY": "Mitte Y (mm)",
+    "columns": "Spalten",
+    "rows": "Zeilen",
+    "spacingX": "Abstand X (mm)",
+    "spacingY": "Abstand Y (mm)",
+    "rotationAngle": "Drehwinkel (°)",
+    "pitchCircleDiameter": "Lochkreisdurchmesser (mm)",
+    "startAngle": "Startwinkel (°)",
+    "endAngle": "Endwinkel (°)",
+    "count": "Anzahl",
+    "stepAngle": "Teilungswinkel (°)",
+    "processType": "Verfahren",
+    "tappingMode": "Tapping-Modus",
+    "pitch": "Gewindesteigung",
+    "threadHand": "Gewinderichtung",
+    "threadDiameter": "Gewindedurchmesser (mm)",
+    "coreHoleDiameter": "Kernlochdurchmesser (mm)",
+    "dwellTop": "Verweilzeit oben (s)",
+    "dwellBottom": "Verweilzeit unten (s)",
+    "peckDepth": "Zustelltiefe (mm)",
+    "chipBreakRetract": "Rückzug Spanbrechen (mm)",
+    "fullRetract": "Vollrückzug",
+    "centerCut": "Mittig fräsen",
+    "multiplePasses": "Mehrere Bahnen",
+    "areaStartX": "Fläche Start X (mm)",
+    "areaStartY": "Fläche Start Y (mm)",
+    "areaWidth": "Fläche Breite (mm)",
+    "areaWidthPlan": "Fläche Breite (mm) (A)",
+    "areaHeight": "Fläche Höhe (mm)",
+    "areaHeightPlan": "Fläche Höhe (mm) (B)",
+    "cutterOverhangMm": "Fräser-Überlauf (mm)",
+    "pattern": "Bahnmuster",
+    "pathType": "Pfadtyp",
+    "zTop": "Oberkante Z",
+    "chamferWidth": "Fasenbreite (mm)",
+    "chamferDepth": "Fasentiefe (mm)",
+    "insideOutside": "Innen/Außen",
+    "singleEdgeOnly": "Nur Einzelkante",
+    "passes": "Anzahl Durchgänge",
+    "contentType": "Inhaltstyp",
+    "text": "Text",
+    "originX": "Ursprung X (mm)",
+    "originY": "Ursprung Y (mm)",
+    "fontHeight": "Schrifthöhe (mm)",
+    "charSpacing": "Zeichenabstand",
+    "lineSpacing": "Zeilenabstand",
+    "rotation": "Rotation (°)",
+    "alignment": "Ausrichtung",
+    "singleLineFont": "Einlinien-Schrift",
+    "mirror": "Spiegeln",
+    "slotWidth": "Nutbreite (mm)",
+    "vorschubHoeheMmDrill": "Vorschubhöhe über Oberfläche (mm)",
+    "vorschubHoeheMmPlan": "Vorschubhöhe (mm)",
+    "einstechtiefeMm": "Einstechtiefe (mm) (C)",
+    "coolantOn": "Kühlmittel",
+    "patternType": "Anordnungs-Typ",
+    "customPatternPoints": "Positionen (JSON)"
+  },
+  "selectOptions": {
+    "processType": {
+      "threadMilling": "Gewindefräsen",
+      "rigidTapping": "Rigid Tapping",
+      "floatingTap": "Tapping mit Ausgleich"
+    },
+    "tappingMode": {
+      "rigid": "Rigid",
+      "floating": "Mit Ausgleich"
+    },
+    "threadHand": {
+      "RH": "Rechtsgewinde",
+      "LH": "Linksgewinde"
+    },
+    "pocketType": {
+      "rectangle": "Rechteck",
+      "circle": "Kreis"
+    },
+    "strategy": {
+      "roughing": "Schruppen",
+      "finishing": "Schlichten",
+      "both": "Schruppen + Schlichten"
+    },
+    "millingDirection": {
+      "climb": "Gleichlauf",
+      "conventional": "Gegenlauf"
+    },
+    "millingSide": {
+      "inside": "Innen",
+      "outside": "Außen"
+    },
+    "direction": {
+      "CW": "CW",
+      "CCW": "CCW",
+      "climb": "Gleichlauf",
+      "conventional": "Gegenlauf"
+    },
+    "pattern": {
+      "zigzag": "Zickzack",
+      "oneway": "Einweg"
+    },
+    "pathType": {
+      "edge": "Kante",
+      "hole": "Bohrung"
+    },
+    "insideOutside": {
+      "inside": "Innen",
+      "outside": "Außen"
+    },
+    "contentType": {
+      "text": "Text",
+      "contour": "Kontur"
+    },
+    "alignment": {
+      "left": "Links",
+      "center": "Zentriert",
+      "right": "Rechts"
+    },
+    "patternType": {
+      "custom": "Frei (JSON)",
+      "round": "Rund (Lochkreis)",
+      "rectangular": "Rechteckig (Gitter)"
+    }
+  },
+  "validation": {
+    "selectTool": "Bitte ein Werkzeug auswählen.",
+    "fillField": "Bitte „{{field}}“ ausfüllen.",
+    "invalidExpression": "Ungültiger Ausdruck bei „{{field}}“. Bitte Eingabe prüfen (z. B. 5−3 oder 10+0,5).",
+    "plungeDepthPositive": "Einstechtiefe (mm) muss größer als 0 sein.",
+    "invalidPlungeExpression": "Ungültiger Ausdruck bei „Einstechtiefe (mm)“. Bitte Eingabe prüfen (z. B. 5−3 oder 10+0,5).",
+    "helixAngleRange": "Helixwinkel muss zwischen 0° und 90° liegen (ohne 0° und 90°).",
+    "helixPitchInvalid": "Aus Bohrungsdurchmesser und Helixwinkel ließ sich keine gültige Steigung pro Umdrehung berechnen.",
+    "targetZBelowSurface": "Zielhöhe Z muss unter der Werkstückoberfläche Z liegen."
+  },
+  "patternValidation": {
+    "fillField": "Bitte „{{field}}“ ausfüllen.",
+    "invalidExpression": "Ungültiger Ausdruck bei „{{field}}“. Bitte Eingabe prüfen (z. B. 5−3 oder 10+0,5).",
+    "invalidPatternType": "Ungültiger Anordnungs-Typ.",
+    "minOnePosition": "Bitte mindestens eine X/Y-Position angeben.",
+    "positionsInvalidJson": "Positionsliste ist ungültig. Bitte Eingaben prüfen.",
+    "pitchDiameterPositive": "Kreisdurchmesser muss größer als 0 sein.",
+    "coordMm": "Koordinate (mm)",
+    "coordX": "X (mm)",
+    "coordY": "Y (mm)"
+  },
+  "patternLabels": {
+    "name": "Name",
+    "surfaceZ": "Werkstückoberfläche Z",
+    "centerX": "Mitte X (mm)",
+    "centerY": "Mitte Y (mm)",
+    "count": "Anzahl der Positionen",
+    "pitchCircleDiameter": "Kreisdurchmesser (mm)",
+    "startAngle": "Startwinkel (°)",
+    "startX": "Start X (mm)",
+    "startY": "Start Y (mm)",
+    "columns": "Anzahl in X",
+    "rows": "Anzahl in Y",
+    "spacingX": "Abstand X (mm)",
+    "spacingY": "Abstand Y (mm)",
+    "rotationAngle": "Drehwinkel (°)"
+  },
+  "dialog": {
+    "selectTool": "Werkzeug wählen",
+    "selectPreset": "Preset wählen",
+    "emptyPreset": "Keins",
+    "pickField": "{{label}} wählen",
+    "switchOn": "{{label}} an",
+    "switchOff": "{{label}} aus",
+    "add": "{{name}} hinzufügen",
+    "edit": "{{name}} bearbeiten",
+    "delete": "Löschen",
+    "cancel": "Abbrechen",
+    "ok": "OK",
+    "coolant": "Kühlmittel",
+    "coolantOn": "Kühlmittel an",
+    "coolantOff": "Kühlmittel aus",
+    "fullRetract": "Vollrückzug",
+    "fullRetractOn": "Vollrückzug an",
+    "fullRetractOff": "Vollrückzug aus",
+    "fullRetractRequiresPeck": "Nur verfügbar, wenn die Einstechtiefe kleiner als die Bohrtiefe ist.",
+    "fromPatternHint": "X/Y-Positionen und die Werkstückoberfläche Z kommen vom übergeordneten Bohrmuster und werden hier nicht eingegeben."
+  },
+  "patternUi": {
+    "tabs": {
+      "custom": "Eigene Anordnung",
+      "round": "Runde Anordnung",
+      "rectangular": "Eckige Anordnung"
+    },
+    "previewAria": "Vorschau Bohrmuster, Abstände in Millimetern wie in den Eingabefeldern",
+    "arrangementAria": "Anordnung",
+    "deleteRow": "Zeile löschen",
+    "addPosition": "Position hinzufügen",
+    "patternPreviewDefaultAria": "Vorschau Bohrmuster (Maßstab 1:1 in mm)",
+    "noPreview": "Keine Vorschau",
+    "startAngleHint": "0° = direkt über dem Mittelpunkt (+Y); Winkel gegen den Uhrzeigersinn (90° = −X)."
+  },
+  "hints": {
+    "bohren-normal": "Bohrmakro-Hinweisgrafik: Vorschubhöhe (A), Bohrtiefe (B), Einstechtiefe (C)",
+    "planfraesen": "Planfräsen-Hinweisgrafik für Fläche A/B, Start X/Y und Fräser-Überlauf",
+    "bohrfraesen": "Bohrfräsen-Hinweisgrafik: Mittelpunkt X/Y, Bohrungsdurchmesser und Tiefe (ohne Helixwinkel-Markierung)"
+  },
+  "queue": {
+    "patternFallback": "Musterblock"
+  },
+  "screen": {
+    "deleteTitle": "Eintrag löschen?",
+    "deleteChild": "Dieses Makro wird aus dem verschachtelten Block entfernt.",
+    "deletePattern": "Der verschachtelte Block und alle darin enthaltenen Makros werden entfernt.",
+    "deleteRoot": "Dieser Eintrag wird aus der Programmliste entfernt.",
+    "goToProgram": "Zum Programm",
+    "generating": "Programm wird erzeugt…",
+    "userMacroNoParams": "Dieses Maschinenmakro hat keine editierbaren Parameter. Es wird nur in die Programmliste (nicht in Bohrmuster) eingefügt; beim Erzeugen erscheint o<Name> call ohne Argumente."
+  }
+}

@@ -1,0 +1,502 @@
+#!/usr/bin/env bash
+# lcncgui — LinuxCNC [DISPLAY] launcher (backend + kiosk browser).
+#
+# LinuxCNC runs:  lcncgui -ini "/path/to/machine.ini"
+# INI_FILE_NAME is usually already exported by the linuxcnc startup script.
+
+set -euo pipefail
+
+LCNCGUI_ROOT="${LCNCGUI_ROOT:-}"
+HTTP_HOST="${LCNCGUI_HOST:-127.0.0.1}"
+HTTP_PORT="${LCNCGUI_PORT:-8765}"
+BROWSER="${LCNCGUI_BROWSER:-}"
+WAIT_TIMEOUT_S="${LCNCGUI_WAIT_TIMEOUT_S:-60}"
+
+UVICORN_PID=""
+BROWSER_PID=""
+
+usage() {
+  cat <<'EOF'
+Usage: lcncgui [-ini INIFILE] [extra args ignored]
+
+Starts the lcncgui backend (HTTP + WebSocket) and opens the web UI in a browser.
+Used as the LinuxCNC [DISPLAY] program, e.g.:
+
+  [DISPLAY]
+  DISPLAY = lcncgui
+
+Environment:
+  LCNCGUI_ROOT          Install directory (default: parent of bin/)
+  LCNCGUI_HOST          HTTP bind address (default: 127.0.0.1)
+  LCNCGUI_PORT          HTTP port (default: 8765)
+  LCNCGUI_BROWSER       Browser executable (auto-detect if unset)
+  LCNCGUI_KIOSK         1 = kiosk/fullscreen (default), 0 = normal window
+  LCNCGUI_WAIT_TIMEOUT_S  Seconds to wait for backend HTTP (default: 60)
+  LCNCGUI_CHROMIUM_PROFILE  Chromium profile dir for persistent UI settings (default: ~/.local/share/lcncgui/chromium-profile)
+  LCNCGUI_USER_PREFERENCES  User preferences JSON (default: ~/.local/share/lcncgui/user-preferences.json)
+  LCNCGUI_TOOLCHANGE_*  See docs/installation.md (HAL tool change)
+
+On start, loads [HAL] POSTGUI_HALFILE from the INI (same as gmoccapy). See docs/features/16_POSTGUI_HALFILE.md.
+EOF
+}
+
+resolve_root() {
+  if [[ -n "$LCNCGUI_ROOT" ]]; then
+    LCNCGUI_ROOT="$(readlink -f "$LCNCGUI_ROOT")"
+    return
+  fi
+  local self
+  self="$(readlink -f "${BASH_SOURCE[0]}")"
+  LCNCGUI_ROOT="$(readlink -f "$(dirname "$self")/..")"
+}
+
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -ini)
+        if [[ $# -lt 2 ]]; then
+          echo "lcncgui: missing value for -ini" >&2
+          exit 1
+        fi
+        export INI_FILE_NAME="$(readlink -f "$2")"
+        shift 2
+        ;;
+      -h|--help)
+        usage
+        exit 0
+        ;;
+      *)
+        shift
+        ;;
+    esac
+  done
+}
+
+find_python() {
+  if [[ -n "${LCNCGUI_PYTHON:-}" ]] && "$LCNCGUI_PYTHON" -c "import linuxcnc" 2>/dev/null; then
+    echo "$LCNCGUI_PYTHON"
+    return
+  fi
+  local venv_py="${LCNCGUI_ROOT}/venv/bin/python"
+  if [[ -x "$venv_py" ]] && "$venv_py" -c "import linuxcnc" 2>/dev/null; then
+    echo "$venv_py"
+    return
+  fi
+  local py
+  for py in python3 python; do
+    if command -v "$py" >/dev/null 2>&1 && "$py" -c "import linuxcnc" 2>/dev/null; then
+      echo "$py"
+      return
+    fi
+  done
+  echo "lcncgui: no Python with 'linuxcnc' module found (run install.sh?)" >&2
+  exit 1
+}
+
+find_browser() {
+  if [[ -n "$BROWSER" ]]; then
+    if command -v "$BROWSER" >/dev/null 2>&1; then
+      echo "$BROWSER"
+      return
+    fi
+    echo "lcncgui: LCNCGUI_BROWSER=$BROWSER not found" >&2
+    exit 1
+  fi
+  local candidate
+  for candidate in chromium chromium-browser google-chrome google-chrome-stable firefox; do
+    if command -v "$candidate" >/dev/null 2>&1; then
+      echo "$candidate"
+      return
+    fi
+  done
+  echo "lcncgui: no supported browser found (install chromium or set LCNCGUI_BROWSER)" >&2
+  exit 1
+}
+
+chromium_profile_dir() {
+  if [[ -n "${LCNCGUI_CHROMIUM_PROFILE:-}" ]]; then
+    echo "$LCNCGUI_CHROMIUM_PROFILE"
+    return
+  fi
+  local data_home="${XDG_DATA_HOME:-${HOME}/.local/share}"
+  echo "${data_home}/lcncgui/chromium-profile"
+}
+
+shutdown_marker_file() {
+  local data_home="${XDG_DATA_HOME:-${HOME}/.local/share}"
+  echo "${data_home}/lcncgui/shutdown-requested"
+}
+
+shutdown_log_file() {
+  local data_home="${XDG_DATA_HOME:-${HOME}/.local/share}"
+  echo "${data_home}/lcncgui/shutdown.log"
+}
+
+is_linuxcnc_parent_pid() {
+  local pid="$1"
+  local comm cmdline
+  [[ -n "$pid" ]] || return 1
+  comm="$(tr -d '\0' < "/proc/${pid}/comm" 2>/dev/null || true)"
+  case "$comm" in
+    linuxcnc|linuxcncsvr) return 0 ;;
+  esac
+  cmdline="$(tr '\0' ' ' < "/proc/${pid}/cmdline" 2>/dev/null || true)"
+  [[ "$cmdline" == *linuxcnc* ]]
+}
+
+run_system_poweroff() {
+  local helper="$1"
+  local marker="$2"
+  local log_file="$3"
+  rm -f "$marker"
+  if ! "$helper" >>"$log_file" 2>&1; then
+    echo "lcncgui: poweroff failed (see ${log_file})" >&2
+    return 1
+  fi
+  return 0
+}
+
+maybe_shutdown_system() {
+  local marker helper linuxcnc_pid log_file
+  marker="$(shutdown_marker_file)"
+  [[ -f "$marker" ]] || return 0
+
+  helper="${LCNCGUI_ROOT:-}/bin/lcncgui-shutdown"
+  log_file="$(shutdown_log_file)"
+  mkdir -p "$(dirname "$log_file")"
+
+  if [[ ! -x "$helper" ]]; then
+    echo "lcncgui: shutdown requested but ${helper} is missing or not executable" >&2
+    return 0
+  fi
+
+  # Defer poweroff until LinuxCNC (parent DISPLAY process) has exited cleanly.
+  linuxcnc_pid="${PPID:-}"
+  if [[ -n "$linuxcnc_pid" && "$linuxcnc_pid" != "1" ]] \
+    && kill -0 "$linuxcnc_pid" 2>/dev/null \
+    && is_linuxcnc_parent_pid "$linuxcnc_pid"; then
+    echo "lcncgui: system shutdown scheduled after LinuxCNC exit (PID ${linuxcnc_pid})" | tee -a "$log_file" >&2
+    (
+      deadline_epoch=$(( $(date +%s) + 60 ))
+      while kill -0 "$linuxcnc_pid" 2>/dev/null; do
+        if (( $(date +%s) >= deadline_epoch )); then
+          echo "lcncgui: timed out waiting for LinuxCNC exit (PID ${linuxcnc_pid}); proceeding with poweroff" >>"$log_file"
+          break
+        fi
+        sleep 0.25
+      done
+      sleep 0.5
+      run_system_poweroff "$helper" "$marker" "$log_file"
+    ) >>"$log_file" 2>&1 &
+    disown 2>/dev/null || true
+    return 0
+  fi
+
+  echo "lcncgui: shutting down system" | tee -a "$log_file" >&2
+  run_system_poweroff "$helper" "$marker" "$log_file" || true
+}
+
+user_preferences_file() {
+  if [[ -n "${LCNCGUI_USER_PREFERENCES:-}" ]]; then
+    echo "$LCNCGUI_USER_PREFERENCES"
+    return
+  fi
+  local data_home="${XDG_DATA_HOME:-${HOME}/.local/share}"
+  echo "${data_home}/lcncgui/user-preferences.json"
+}
+
+resolve_kiosk_mode() {
+  if [[ -n "${LCNCGUI_KIOSK+x}" ]]; then
+    echo "$LCNCGUI_KIOSK"
+    return
+  fi
+
+  local py
+  py="${LCNCGUI_ROOT}/venv/bin/python"
+  if [[ ! -x "$py" ]]; then
+    py="$(command -v python3 2>/dev/null || command -v python 2>/dev/null || true)"
+  fi
+  if [[ -z "$py" ]]; then
+    echo "lcncgui: warning: no Python found; defaulting to kiosk mode (set LCNCGUI_KIOSK=0 for windowed)" >&2
+    echo "1"
+    return
+  fi
+
+  LCNCGUI_CONFIG="${LCNCGUI_ROOT}/dist/lcncgui-config.json" \
+  LCNCGUI_USER_PREFERENCES="$(user_preferences_file)" \
+  bash -c "cd \"${LCNCGUI_ROOT}\" && exec \"$py\" -m backend.launcher_prefs" 2>/dev/null || echo "1"
+}
+
+http_port_listening() {
+  if command -v ss >/dev/null 2>&1; then
+    ss -tln "sport = :${HTTP_PORT}" 2>/dev/null | grep -q LISTEN
+    return $?
+  fi
+  if command -v nc >/dev/null 2>&1; then
+    nc -z "$HTTP_HOST" "$HTTP_PORT" 2>/dev/null
+    return $?
+  fi
+  return 1
+}
+
+pids_on_http_port() {
+  if command -v fuser >/dev/null 2>&1; then
+    fuser -n tcp "$HTTP_PORT" 2>/dev/null | tr ' ' '\n' | sed '/^$/d'
+    return 0
+  fi
+  if command -v ss >/dev/null 2>&1; then
+    ss -tlnp "sport = :${HTTP_PORT}" 2>/dev/null \
+      | sed -n 's/.*pid=\([0-9]*\).*/\1/p' \
+      | sort -u
+    return 0
+  fi
+  return 1
+}
+
+http_probe() {
+  local url="http://${HTTP_HOST}:${HTTP_PORT}/"
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsS -o /dev/null -m 2 "$url" 2>/dev/null
+    return $?
+  fi
+  local py
+  py="$(command -v python3 2>/dev/null || command -v python 2>/dev/null || true)"
+  if [[ -n "$py" ]]; then
+    HTTP_PROBE_URL="$url" "$py" -c 'import os, sys, urllib.request
+try:
+    urllib.request.urlopen(os.environ["HTTP_PROBE_URL"], timeout=2)
+except Exception:
+    sys.exit(1)
+'
+    return $?
+  fi
+  echo "lcncgui: need curl or python3 to probe HTTP readiness" >&2
+  return 1
+}
+
+is_lcncgui_backend_pid() {
+  local pid="$1"
+  local args cwd
+  args="$(ps -p "$pid" -o args= 2>/dev/null || true)"
+  [[ "$args" == *"uvicorn"* && "$args" == *"backend.main"* ]] || return 1
+  if [[ -n "$LCNCGUI_ROOT" ]]; then
+    cwd="$(readlink -f "/proc/${pid}/cwd" 2>/dev/null || true)"
+    [[ "$cwd" == "$LCNCGUI_ROOT" || "$args" == *"${LCNCGUI_ROOT}"* ]] || return 1
+  fi
+  return 0
+}
+
+ensure_http_port_available() {
+  if ! http_port_listening; then
+    return 0
+  fi
+
+  echo "lcncgui: port ${HTTP_PORT} is already in use" >&2
+  local pid
+  local stopped=0
+  while read -r pid; do
+    [[ -z "$pid" ]] && continue
+    if is_lcncgui_backend_pid "$pid"; then
+      echo "lcncgui: stopping stale backend (PID ${pid})" >&2
+      kill "$pid" 2>/dev/null || true
+      stopped=1
+    fi
+  done < <(pids_on_http_port)
+
+  if [[ "$stopped" -eq 1 ]]; then
+    local i
+    for i in 1 2 3 4 5 6 7 8 9 10; do
+      if ! http_port_listening; then
+        return 0
+      fi
+      sleep 0.2
+    done
+  fi
+
+  if http_port_listening; then
+    echo "lcncgui: port ${HTTP_PORT} is still busy. Stop the other process first, e.g.:" >&2
+    echo "  pkill -f 'uvicorn backend.main'" >&2
+    echo "  fuser -k ${HTTP_PORT}/tcp    # kills whatever holds the port" >&2
+    echo "  ss -tlnp | grep ${HTTP_PORT}   # see which process" >&2
+    exit 1
+  fi
+}
+
+cleanup() {
+  local pid
+  if [[ -n "$BROWSER_PID" ]] && kill -0 "$BROWSER_PID" 2>/dev/null; then
+    kill "$BROWSER_PID" 2>/dev/null || true
+    wait "$BROWSER_PID" 2>/dev/null || true
+  fi
+  if [[ -n "$UVICORN_PID" ]] && kill -0 "$UVICORN_PID" 2>/dev/null; then
+    kill "$UVICORN_PID" 2>/dev/null || true
+    wait "$UVICORN_PID" 2>/dev/null || true
+  fi
+}
+
+wait_for_http() {
+  local url="http://${HTTP_HOST}:${HTTP_PORT}/"
+  local deadline=$((SECONDS + WAIT_TIMEOUT_S))
+  while (( SECONDS < deadline )); do
+    if http_probe; then
+      return 0
+    fi
+    if [[ -n "$UVICORN_PID" ]] && ! kill -0 "$UVICORN_PID" 2>/dev/null; then
+      echo "lcncgui: backend exited before HTTP became ready (port ${HTTP_PORT} in use?)" >&2
+      echo "lcncgui: stop stale backends: pkill -f 'uvicorn backend.main'  or  ss -tlnp | grep ${HTTP_PORT}" >&2
+      return 1
+    fi
+    sleep 0.25
+  done
+  echo "lcncgui: timed out waiting for ${url}" >&2
+  echo "lcncgui: check port ${HTTP_PORT} (ss -tlnp | grep ${HTTP_PORT}) and backend logs above" >&2
+  return 1
+}
+
+# Load [HAL] POSTGUI_HALFILE entries (gmoccapy-compatible). Required so machine
+# postgui nets (e.g. pendant.hal → z-btn) exist when DISPLAY=lcncgui.
+run_postgui_halfiles() {
+  local ini python config_dir list f path rc
+  ini="${INI_FILE_NAME:-}"
+  if [[ -z "$ini" || ! -f "$ini" ]]; then
+    echo "lcncgui: warning: INI_FILE_NAME unset; skipping POSTGUI_HALFILE" >&2
+    return 0
+  fi
+
+  python="$(find_python)"
+  config_dir="${CONFIG_DIR:-}"
+  if [[ -z "$config_dir" ]]; then
+    config_dir="$(dirname "$ini")"
+  fi
+  config_dir="$(readlink -f "$config_dir")"
+
+  list="$(
+    INI_FILE_NAME="$ini" "$python" - <<'PY'
+from linuxcnc import ini
+import os
+
+inipath = os.environ["INI_FILE_NAME"]
+files = ini(inipath).findall("HAL", "POSTGUI_HALFILE") or []
+for name in files:
+    name = (name or "").strip()
+    if name:
+        print(name)
+PY
+  )"
+
+  if [[ -z "${list}" ]]; then
+    return 0
+  fi
+
+  while IFS= read -r f; do
+    [[ -z "$f" ]] && continue
+    if [[ "$f" = /* ]]; then
+      path="$f"
+    else
+      path="${config_dir}/${f}"
+    fi
+    if [[ ! -f "$path" ]]; then
+      echo "lcncgui: POSTGUI_HALFILE not found: ${path}" >&2
+      return 1
+    fi
+    echo "lcncgui: loading POSTGUI_HALFILE ${path}" >&2
+    (
+      cd "$config_dir"
+      case "${path,,}" in
+        *.tcl)
+          if ! command -v haltcl >/dev/null 2>&1; then
+            echo "lcncgui: haltcl not found (needed for ${path})" >&2
+            exit 1
+          fi
+          exec haltcl -i "$ini" "$path"
+          ;;
+        *)
+          if ! command -v halcmd >/dev/null 2>&1; then
+            echo "lcncgui: halcmd not found (needed for ${path})" >&2
+            exit 1
+          fi
+          exec halcmd -i "$ini" -f "$path"
+          ;;
+      esac
+    )
+    rc=$?
+    if [[ "$rc" -ne 0 ]]; then
+      echo "lcncgui: POSTGUI_HALFILE failed (exit ${rc}): ${path}" >&2
+      return "$rc"
+    fi
+  done <<< "$list"
+  return 0
+}
+
+main() {
+  if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+    usage
+    exit 0
+  fi
+
+  parse_args "$@"
+  resolve_root
+  export LCNCGUI_ROOT
+  export LCNCGUI_DISPLAY_LAUNCH=1
+  export LCNCGUI_HOST="$HTTP_HOST"
+  export LCNCGUI_PORT="$HTTP_PORT"
+  export LCNCGUI_FRONTEND_DIST="${LCNCGUI_ROOT}/dist"
+
+  if [[ ! -f "${LCNCGUI_ROOT}/dist/index.html" ]]; then
+    echo "lcncgui: missing ${LCNCGUI_ROOT}/dist/index.html — run install.sh from a release build" >&2
+    exit 1
+  fi
+
+  local python browser app_url chromium_profile kiosk
+  python="$(find_python)"
+  browser="$(find_browser)"
+  app_url="http://${HTTP_HOST}:${HTTP_PORT}/"
+  chromium_profile="$(chromium_profile_dir)"
+  kiosk="$(resolve_kiosk_mode)"
+
+  trap cleanup EXIT INT TERM
+
+  # POSTGUI before UI — HALFILEs are already loaded when LinuxCNC starts DISPLAY.
+  run_postgui_halfiles || exit 1
+
+  ensure_http_port_available
+
+  cd "$LCNCGUI_ROOT"
+  "$python" -m uvicorn backend.main:app \
+    --host "$HTTP_HOST" \
+    --port "$HTTP_PORT" \
+    --log-level info &
+  UVICORN_PID=$!
+
+  wait_for_http || exit 1
+
+  local -a browser_args=()
+  case "$browser" in
+    chromium|chromium-browser|google-chrome|google-chrome-stable)
+      mkdir -p "$chromium_profile"
+      browser_args+=(--class=lcncgui --user-data-dir="$chromium_profile")
+      if [[ "$kiosk" == "1" ]]; then
+        browser_args+=(--kiosk --no-first-run --disable-infobars "$app_url")
+      else
+        browser_args+=(--new-window "$app_url")
+      fi
+      ;;
+    firefox)
+      if [[ "$kiosk" == "1" ]]; then
+        browser_args+=(-kiosk "$app_url")
+      else
+        browser_args+=(-new-window "$app_url")
+      fi
+      ;;
+  esac
+
+  "$browser" "${browser_args[@]}" &
+  BROWSER_PID=$!
+
+  wait "$BROWSER_PID" || true
+  BROWSER_PID=""
+  maybe_shutdown_system
+  exit 0
+}
+
+main "$@"

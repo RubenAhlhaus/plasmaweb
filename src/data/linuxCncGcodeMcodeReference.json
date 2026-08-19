@@ -1,0 +1,2221 @@
+{
+  "version": 1,
+  "source": "https://linuxcnc.org/docs/html/gcode/g-code.html and m-code.html",
+  "g": {
+    "G0": {
+      "title": "Coordinated Motion at Rapid Rate",
+      "description": "Rapid traverse to the programmed point at maximum rapid rate (or slower). Typically used for positioning. Path may be rounded at direction changes depending on trajectory settings. Axis words are optional; omitted axes keep their current position.",
+      "summary": "Positions all programmed axes in one rapid move at traverse speed.",
+      "syntax": "G0 (X, Y, Z, A, B, C, U, V, W — optional)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G1",
+          "hint": "Feed move instead of rapid"
+        },
+        {
+          "kind": "g",
+          "code": "G53",
+          "hint": "Machine coordinates (non-modal, same line as G0/G1)"
+        }
+      ]
+    },
+    "G1": {
+      "title": "Coordinated Motion at Feed Rate",
+      "description": "Straight-line motion at the current feed rate. Requires a feed rate to have been set (F word). Used for cutting and any feed-rate-controlled motion.",
+      "summary": "Moves in a straight line at the current feed rate.",
+      "syntax": "G1 (X, Y, Z, …) F",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G0",
+          "hint": "Rapid / positioning"
+        },
+        {
+          "kind": "g",
+          "code": "G94",
+          "hint": "Feed per minute (typical with F)"
+        },
+        {
+          "kind": "g",
+          "code": "G95",
+          "hint": "Feed per revolution (not for threading — use G33/G76)"
+        }
+      ]
+    },
+    "G2": {
+      "title": "Clockwise Helical Motion at Feed Rate",
+      "description": "Circular or helical arc clockwise (as viewed from the positive end of the axis perpendicular to the active plane). Use center format (I, J, K) or radius format (R). Requires feed rate. Plane is selected with G17–G19.",
+      "summary": "Helical or circular arc clockwise in the active plane at feed rate.",
+      "syntax": "G2 (X, Y, Z, I, J, P, F) or G2 (X, Y, Z, R, P, F)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G3",
+          "hint": "Counterclockwise arc"
+        },
+        {
+          "kind": "g",
+          "code": "G17",
+          "hint": "XY plane (default for arcs)"
+        },
+        {
+          "kind": "g",
+          "code": "G18",
+          "hint": "ZX plane"
+        },
+        {
+          "kind": "g",
+          "code": "G19",
+          "hint": "YZ plane"
+        },
+        {
+          "kind": "g",
+          "code": "G91.1",
+          "hint": "I/J/K incremental from arc start (default)"
+        },
+        {
+          "kind": "g",
+          "code": "G90.1",
+          "hint": "I/J/K absolute"
+        }
+      ]
+    },
+    "G3": {
+      "title": "Counterclockwise Helical Motion at Feed Rate",
+      "description": "Circular or helical arc counterclockwise (as viewed from the positive end of the axis perpendicular to the active plane). Same parameters as G2 but opposite arc direction.",
+      "summary": "Helical or circular arc counterclockwise in the active plane at feed rate.",
+      "syntax": "G3 (X, Y, Z, I, J, P, F) or G3 (X, Y, Z, R, P, F)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G2",
+          "hint": "Clockwise arc"
+        },
+        {
+          "kind": "g",
+          "code": "G17",
+          "hint": "XY plane"
+        },
+        {
+          "kind": "g",
+          "code": "G18",
+          "hint": "ZX plane"
+        },
+        {
+          "kind": "g",
+          "code": "G19",
+          "hint": "YZ plane"
+        },
+        {
+          "kind": "g",
+          "code": "G91.1",
+          "hint": "I/J/K incremental"
+        },
+        {
+          "kind": "g",
+          "code": "G90.1",
+          "hint": "I/J/K absolute"
+        }
+      ]
+    },
+    "G4": {
+      "title": "Dwell",
+      "description": "Pauses all axes for P seconds (floating point). Does not affect spindle, coolant, or I/O.",
+      "summary": "Dwells with all axes stopped for the given time.",
+      "syntax": "G4 P"
+    },
+    "G5": {
+      "title": "Cubic Spline",
+      "description": "Creates a cubic B-spline in the XY plane. First segment requires I, J; P and Q are required on every G5 block. Active plane must be G17.",
+      "summary": "Cuts a cubic B-spline segment in the XY plane.",
+      "syntax": "G5 X Y I J P Q"
+    },
+    "G5.1": {
+      "title": "Quadratic B-Spline",
+      "description": "Creates a quadratic B-spline in the XY plane using X, Y, I, and J. Active plane must be G17.",
+      "summary": "Cuts a quadratic B-spline in the XY plane.",
+      "syntax": "G5.1 X Y I J"
+    },
+    "G5.2": {
+      "title": "NURBS — Open Block",
+      "description": "Opens a NURBS data block (experimental). Control points and weights follow until G5.3 closes the block.",
+      "summary": "Opens a NURBS block (experimental).",
+      "syntax": "G5.2 (P, X, Y, L, …) … G5.3"
+    },
+    "G5.3": {
+      "title": "NURBS — Close Block",
+      "description": "Closes the NURBS block opened with G5.2.",
+      "summary": "Closes the NURBS block opened with G5.2.",
+      "syntax": "G5.3"
+    },
+    "G7": {
+      "title": "Lathe Diameter Mode",
+      "description": "X moves on a lathe are interpreted in diameter: e.g. X1 moves the tool to 0.5 from center for a 1\" diameter.",
+      "summary": "Interprets lathe X moves as diameter.",
+      "syntax": "G7",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G8",
+          "hint": "Radius mode on lathe"
+        }
+      ]
+    },
+    "G8": {
+      "title": "Lathe Radius Mode",
+      "description": "X moves on a lathe are interpreted as radius from center. Default at power-up.",
+      "summary": "Interprets lathe X moves as radius from center.",
+      "syntax": "G8",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G7",
+          "hint": "Diameter mode"
+        }
+      ]
+    },
+    "G10": {
+      "title": "Setup — Tool Table / Coordinates",
+      "description": "Data setting: G10 L0 reloads tool table; L1/L10/L11 set tool table entries; L2/L20 set coordinate system origins (G54–G59.3). L word selects the operation.",
+      "summary": "Writes tool table or coordinate system data; L selects the operation.",
+      "syntax": "G10 L0 | G10 L1 P … | G10 L2 P … | G10 L10/L11 P … | G10 L20 P …",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G54",
+          "hint": "WCS 1 (G10 L2/L20 sets offsets)"
+        },
+        {
+          "kind": "g",
+          "code": "G55",
+          "hint": "Other systems G56–G59.3 similar"
+        }
+      ]
+    },
+    "G17": {
+      "title": "Plane Select — XY",
+      "description": "Selects the XY plane for arcs and canned cycles; circular motion is about the Z axis.",
+      "summary": "Selects the XY plane for arcs and canned cycles.",
+      "syntax": "G17",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G18",
+          "hint": "Other arc plane"
+        },
+        {
+          "kind": "g",
+          "code": "G19",
+          "hint": "Other arc plane"
+        },
+        {
+          "kind": "g",
+          "code": "G2",
+          "hint": "Arc in active plane"
+        }
+      ]
+    },
+    "G18": {
+      "title": "Plane Select — ZX",
+      "description": "Selects the ZX plane; circular motion is about the Y axis.",
+      "summary": "Selects the ZX plane for arcs and canned cycles.",
+      "syntax": "G18",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G17",
+          "hint": "XY plane"
+        },
+        {
+          "kind": "g",
+          "code": "G19",
+          "hint": "YZ plane"
+        }
+      ]
+    },
+    "G19": {
+      "title": "Plane Select — YZ",
+      "description": "Selects the YZ plane; circular motion is about the X axis.",
+      "summary": "Selects the YZ plane for arcs and canned cycles.",
+      "syntax": "G19",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G17",
+          "hint": "XY plane"
+        },
+        {
+          "kind": "g",
+          "code": "G18",
+          "hint": "ZX plane"
+        }
+      ]
+    },
+    "G17.1": {
+      "title": "Plane Select — UV",
+      "description": "Selects the UV plane (additional coordinate triplet). Arcs are not supported in UVW family planes.",
+      "summary": "Selects the UV plane (no arcs).",
+      "syntax": "G17.1"
+    },
+    "G18.1": {
+      "title": "Plane Select — WU",
+      "description": "Selects the WU plane. Arcs are not supported.",
+      "summary": "Selects the WU plane (no arcs).",
+      "syntax": "G18.1"
+    },
+    "G19.1": {
+      "title": "Plane Select — VW",
+      "description": "Selects the VW plane. Arcs are not supported.",
+      "summary": "Selects the VW plane (no arcs).",
+      "syntax": "G19.1"
+    },
+    "G20": {
+      "title": "Units — Inches",
+      "description": "Length units are inches for subsequent G-code.",
+      "summary": "Uses inches for length units.",
+      "syntax": "G20",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G21",
+          "hint": "Millimeters instead of inches"
+        }
+      ]
+    },
+    "G21": {
+      "title": "Units — Millimeters",
+      "description": "Length units are millimeters for subsequent G-code.",
+      "summary": "Uses millimeters for length units.",
+      "syntax": "G21",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G20",
+          "hint": "Inches instead of millimeters"
+        }
+      ]
+    },
+    "G28": {
+      "title": "Go to Predefined Position (G28)",
+      "description": "Rapid move to stored position in parameters 5161–5169 (machine coordinates), optionally via an intermediate point if axes are programmed. Requires homing and G28.1 to store positions.",
+      "summary": "Rapids via optional axes to the stored machine G28 position.",
+      "syntax": "G28 (X, Y, Z, … optional intermediate) or G28",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G28.1",
+          "hint": "Store reference position for G28"
+        }
+      ]
+    },
+    "G28.1": {
+      "title": "Store G28 Position",
+      "description": "Stores the current absolute machine position into G28 reference parameters.",
+      "summary": "Stores the current absolute position as the G28 reference.",
+      "syntax": "G28.1",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G28",
+          "hint": "Go to stored G28 position"
+        }
+      ]
+    },
+    "G30": {
+      "title": "Go to Predefined Position (G30)",
+      "description": "Same idea as G28 but uses parameters 5181–5189. May be used for tool change position if configured in INI.",
+      "summary": "Rapids via optional axes to the stored machine G30 position.",
+      "syntax": "G30 (X, Y, Z, … optional intermediate) or G30",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G30.1",
+          "hint": "Store reference position for G30"
+        }
+      ]
+    },
+    "G30.1": {
+      "title": "Store G30 Position",
+      "description": "Stores the current absolute machine position into G30 reference parameters.",
+      "summary": "Stores the current absolute position as the G30 reference.",
+      "syntax": "G30.1",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G30",
+          "hint": "Go to stored G30 position"
+        }
+      ]
+    },
+    "G33": {
+      "title": "Spindle-Synchronized Motion",
+      "description": "Linear motion synchronized to spindle rotation; K is distance per revolution. Requires spindle index, at-speed, and revs feedback per integrator manual.",
+      "summary": "Moves linearly in sync with spindle rotation; K is distance per revolution.",
+      "syntax": "G33 (X, Y, Z, K, $)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G33.1",
+          "hint": "Rigid tapping"
+        },
+        {
+          "kind": "m",
+          "code": "M3",
+          "hint": "Spindle must be running"
+        },
+        {
+          "kind": "g",
+          "code": "G76",
+          "hint": "Multi-pass threading on lathe"
+        }
+      ]
+    },
+    "G33.1": {
+      "title": "Rigid Tapping",
+      "description": "Tapping cycle with synchronized Z motion and spindle reversal; returns to the start position. For Z-only tapping, preposition XY and use only Z on the G33.1 line.",
+      "summary": "Rigid tapping: synchronized in-feed, spindle reverse, and return.",
+      "syntax": "G33.1 (X, Y, Z, K, I, $)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G33",
+          "hint": "Spindle sync without tap retract cycle"
+        },
+        {
+          "kind": "m",
+          "code": "M3",
+          "hint": "Spindle must be running"
+        }
+      ]
+    },
+    "G38.2": {
+      "title": "Probe — Toward Workpiece, Error on Failure",
+      "description": "Linear probe move at feed rate; stops on probe contact. Signals error if contact is not made. Sets parameters #5061–#5069 and #5070.",
+      "summary": "Probes in a straight line toward the part and errors if no trip.",
+      "syntax": "G38.2 (X, Y, Z, …) F",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G38.3",
+          "hint": "Probe toward part, no error if no trip"
+        },
+        {
+          "kind": "g",
+          "code": "G38.4",
+          "hint": "Probe away from part"
+        },
+        {
+          "kind": "g",
+          "code": "G38.5",
+          "hint": "Away, no error on failure"
+        }
+      ]
+    },
+    "G38.3": {
+      "title": "Probe — Toward Workpiece, No Error on Failure",
+      "description": "Like G38.2 but does not signal an error if the probe does not trip.",
+      "summary": "Probes toward the part without error if the probe does not trip.",
+      "syntax": "G38.3 (X, Y, Z, …) F",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G38.2",
+          "hint": "Probe toward part, error if no trip"
+        },
+        {
+          "kind": "g",
+          "code": "G38.4",
+          "hint": "Probe away"
+        }
+      ]
+    },
+    "G38.4": {
+      "title": "Probe — Away from Workpiece, Error on Failure",
+      "description": "Probe move away until loss of contact; errors if the target state is not reached.",
+      "summary": "Probes away from the part and errors if contact is not lost.",
+      "syntax": "G38.4 (X, Y, Z, …) F",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G38.5",
+          "hint": "No error on failure"
+        },
+        {
+          "kind": "g",
+          "code": "G38.2",
+          "hint": "Probe toward"
+        }
+      ]
+    },
+    "G38.5": {
+      "title": "Probe — Away from Workpiece, No Error on Failure",
+      "description": "Like G38.4 without error signaling on failure.",
+      "summary": "Probes away from the part without error if contact is not lost.",
+      "syntax": "G38.5 (X, Y, Z, …) F",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G38.4",
+          "hint": "Error if contact not lost"
+        }
+      ]
+    },
+    "G40": {
+      "title": "Cancel Cutter Compensation",
+      "description": "Turns off cutter radius compensation. After G40 the next move must be linear and longer than the tool diameter.",
+      "summary": "Turns off cutter radius compensation.",
+      "syntax": "G40",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G41",
+          "hint": "Cutter radius comp left of path"
+        },
+        {
+          "kind": "g",
+          "code": "G42",
+          "hint": "Cutter radius comp right"
+        },
+        {
+          "kind": "g",
+          "code": "G41.1",
+          "hint": "Dynamic radius (D = diameter)"
+        },
+        {
+          "kind": "g",
+          "code": "G42.1",
+          "hint": "Dynamic radius right"
+        },
+        {
+          "kind": "g",
+          "code": "G43",
+          "hint": "Tool length offset from table"
+        },
+        {
+          "kind": "g",
+          "code": "G43.1",
+          "hint": "Dynamic length offsets"
+        },
+        {
+          "kind": "g",
+          "code": "G43.2",
+          "hint": "Additional length offset"
+        },
+        {
+          "kind": "g",
+          "code": "G49",
+          "hint": "Cancel length compensation"
+        }
+      ]
+    },
+    "G41": {
+      "title": "Cutter Compensation — Left",
+      "description": "Offsets the tool path to the left of the programmed path (viewed from +Z in the XY plane). Optional D word selects tool number for radius.",
+      "summary": "Offsets the path to the left of the programmed line (active plane).",
+      "syntax": "G41 (D)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G40",
+          "hint": "Comp off (next move linear, longer than tool dia.)"
+        },
+        {
+          "kind": "g",
+          "code": "G42",
+          "hint": "Right instead of left"
+        },
+        {
+          "kind": "g",
+          "code": "G41.1",
+          "hint": "Program diameter D"
+        },
+        {
+          "kind": "g",
+          "code": "G42.1",
+          "hint": "Dynamic right"
+        },
+        {
+          "kind": "g",
+          "code": "G17",
+          "hint": "XY plane typical for milling"
+        },
+        {
+          "kind": "g",
+          "code": "G18",
+          "hint": "Comp also in XZ (turn/mill)"
+        }
+      ]
+    },
+    "G42": {
+      "title": "Cutter Compensation — Right",
+      "description": "Offsets the tool path to the right of the programmed path. Optional D word selects tool number for radius.",
+      "summary": "Offsets the path to the right of the programmed line (active plane).",
+      "syntax": "G42 (D)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G40",
+          "hint": "Compensation off"
+        },
+        {
+          "kind": "g",
+          "code": "G41",
+          "hint": "Left instead of right"
+        },
+        {
+          "kind": "g",
+          "code": "G41.1",
+          "hint": "Dynamic left"
+        },
+        {
+          "kind": "g",
+          "code": "G42.1",
+          "hint": "Program diameter D"
+        },
+        {
+          "kind": "g",
+          "code": "G17",
+          "hint": "Active plane"
+        }
+      ]
+    },
+    "G41.1": {
+      "title": "Dynamic Cutter Compensation — Left",
+      "description": "Like G41 but tool diameter is given with D (and optional L orientation on lathe).",
+      "summary": "Cutter comp left with programmed diameter D (optional L on lathe).",
+      "syntax": "G41.1 D (L)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G40",
+          "hint": "Compensation off"
+        },
+        {
+          "kind": "g",
+          "code": "G41",
+          "hint": "Fixed radius from tool table"
+        },
+        {
+          "kind": "g",
+          "code": "G42.1",
+          "hint": "Right with programmed D"
+        }
+      ]
+    },
+    "G42.1": {
+      "title": "Dynamic Cutter Compensation — Right",
+      "description": "Like G42 with programmed cutter diameter D.",
+      "summary": "Cutter comp right with programmed diameter D (optional L on lathe).",
+      "syntax": "G42.1 D (L)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G40",
+          "hint": "Compensation off"
+        },
+        {
+          "kind": "g",
+          "code": "G42",
+          "hint": "Fixed radius from table"
+        },
+        {
+          "kind": "g",
+          "code": "G41.1",
+          "hint": "Left with programmed D"
+        }
+      ]
+    },
+    "G43": {
+      "title": "Tool Length Offset",
+      "description": "Applies tool length compensation from the tool table. G43 Hn selects tool n; G43 alone uses the current tool after T/M6. Does not cause motion.",
+      "summary": "Applies tool length offset from the tool table (no motion).",
+      "syntax": "G43 (H)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G49",
+          "hint": "Cancel length compensation"
+        },
+        {
+          "kind": "g",
+          "code": "G43.1",
+          "hint": "Replace offsets with axis words"
+        },
+        {
+          "kind": "g",
+          "code": "G43.2",
+          "hint": "Add another offset"
+        },
+        {
+          "kind": "m",
+          "code": "M6",
+          "hint": "Tool change; G43 often follows"
+        },
+        {
+          "kind": "m",
+          "code": "M61",
+          "hint": "Set tool number only — then G43"
+        }
+      ]
+    },
+    "G43.1": {
+      "title": "Dynamic Tool Length Offset",
+      "description": "Replaces current offset values with the programmed axis words. Does not write the tool table. No motion on the G43.1 line.",
+      "summary": "Replaces dynamic tool length offsets with axis values (no motion).",
+      "syntax": "G43.1 (X, Y, Z, …)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G43",
+          "hint": "Offsets from table"
+        },
+        {
+          "kind": "g",
+          "code": "G49",
+          "hint": "Cancel all length comp"
+        },
+        {
+          "kind": "g",
+          "code": "G43.2",
+          "hint": "Add on top"
+        }
+      ]
+    },
+    "G43.2": {
+      "title": "Additional Tool Length Offset",
+      "description": "Adds another tool’s offsets (G43.2 Hn) or adds axis values to the current combined offset. Can be called repeatedly to sum offsets.",
+      "summary": "Adds another tool table offset or extra axis offsets (no motion).",
+      "syntax": "G43.2 H  or  G43.2 (X, Y, Z, …)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G43",
+          "hint": "Base length offset"
+        },
+        {
+          "kind": "g",
+          "code": "G49",
+          "hint": "Cancel length offsets"
+        }
+      ]
+    },
+    "G49": {
+      "title": "Cancel Tool Length Compensation",
+      "description": "Cancels tool length compensation (G43 family).",
+      "summary": "Cancels tool length compensation.",
+      "syntax": "G49",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G43",
+          "hint": "Enable table offsets"
+        },
+        {
+          "kind": "g",
+          "code": "G43.1",
+          "hint": "Dynamic length"
+        },
+        {
+          "kind": "g",
+          "code": "G43.2",
+          "hint": "Additional offset"
+        }
+      ]
+    },
+    "G52": {
+      "title": "Local Coordinate System Offset",
+      "description": "Temporary offset in the current work coordinate system (G54–G59.3). See Local and Global Offsets in the manual for interaction with G92.",
+      "summary": "Sets a temporary local offset in the current work system.",
+      "syntax": "G52 (X, Y, Z, …)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G54",
+          "hint": "Base WCS (G52 is local shift on top)"
+        },
+        {
+          "kind": "g",
+          "code": "G92",
+          "hint": "Global offset — see manual for interaction"
+        },
+        {
+          "kind": "g",
+          "code": "G10",
+          "hint": "G10 L2/L20 for G54–G59.3"
+        }
+      ]
+    },
+    "G53": {
+      "title": "Move in Machine Coordinates",
+      "description": "Non-modal: use on the same line as G0/G1 to move in machine coordinates. Must be programmed on each line that needs it.",
+      "summary": "Moves in machine coordinates on this line (with G0/G1).",
+      "syntax": "G53 G0|G1 (X, Y, Z, …)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G54",
+          "hint": "Back to work coordinates"
+        },
+        {
+          "kind": "g",
+          "code": "G0",
+          "hint": "G53 non-modal on same line as G0 or G1"
+        }
+      ]
+    },
+    "G54": {
+      "title": "Work Coordinate System 1",
+      "description": "Selects coordinate system 1 (offsets in parameters 5221–5230).",
+      "summary": "Selects work coordinate system 1.",
+      "syntax": "G54",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G55",
+          "hint": "More WCS origins G56–G59.3"
+        },
+        {
+          "kind": "g",
+          "code": "G52",
+          "hint": "Local extra offset"
+        },
+        {
+          "kind": "g",
+          "code": "G10",
+          "hint": "Set offsets (L2/L20)"
+        }
+      ]
+    },
+    "G55": {
+      "title": "Work Coordinate System 2",
+      "description": "Selects coordinate system 2.",
+      "summary": "Selects work coordinate system 2.",
+      "syntax": "G55",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G54",
+          "hint": "Switch WCS"
+        },
+        {
+          "kind": "g",
+          "code": "G56",
+          "hint": "G57–G59.3 similar"
+        }
+      ]
+    },
+    "G56": {
+      "title": "Work Coordinate System 3",
+      "description": "Selects coordinate system 3.",
+      "summary": "Selects work coordinate system 3.",
+      "syntax": "G56",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G54",
+          "hint": "Switch coordinate system"
+        }
+      ]
+    },
+    "G57": {
+      "title": "Work Coordinate System 4",
+      "description": "Selects coordinate system 4.",
+      "summary": "Selects work coordinate system 4.",
+      "syntax": "G57",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G54",
+          "hint": "Switch coordinate system"
+        }
+      ]
+    },
+    "G58": {
+      "title": "Work Coordinate System 5",
+      "description": "Selects coordinate system 5.",
+      "summary": "Selects work coordinate system 5.",
+      "syntax": "G58",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G54",
+          "hint": "Switch coordinate system"
+        }
+      ]
+    },
+    "G59": {
+      "title": "Work Coordinate System 6",
+      "description": "Selects coordinate system 6.",
+      "summary": "Selects work coordinate system 6.",
+      "syntax": "G59",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G54",
+          "hint": "Switch coordinate system"
+        }
+      ]
+    },
+    "G59.1": {
+      "title": "Work Coordinate System 7",
+      "description": "Selects coordinate system 7.",
+      "summary": "Selects work coordinate system 7.",
+      "syntax": "G59.1",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G54",
+          "hint": "Switch coordinate system"
+        }
+      ]
+    },
+    "G59.2": {
+      "title": "Work Coordinate System 8",
+      "description": "Selects coordinate system 8.",
+      "summary": "Selects work coordinate system 8.",
+      "syntax": "G59.2",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G54",
+          "hint": "Switch coordinate system"
+        }
+      ]
+    },
+    "G59.3": {
+      "title": "Work Coordinate System 9",
+      "description": "Selects coordinate system 9.",
+      "summary": "Selects work coordinate system 9.",
+      "syntax": "G59.3",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G54",
+          "hint": "Switch coordinate system"
+        }
+      ]
+    },
+    "G61": {
+      "title": "Exact Path Mode",
+      "description": "Follows the programmed path exactly; may slow or stop between segments. Collinear consecutive moves may not stop.",
+      "summary": "Exact path mode: follows programmed points (may slow at corners).",
+      "syntax": "G61",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G61.1",
+          "hint": "Full stop each segment"
+        },
+        {
+          "kind": "g",
+          "code": "G64",
+          "hint": "Blend corners / tolerance"
+        }
+      ]
+    },
+    "G61.1": {
+      "title": "Exact Stop Mode",
+      "description": "Full stop at the end of each programmed segment.",
+      "summary": "Exact stop mode: full stop at each segment end.",
+      "syntax": "G61.1",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G61",
+          "hint": "Exact path without stop at every corner"
+        },
+        {
+          "kind": "g",
+          "code": "G64",
+          "hint": "Tolerance mode"
+        }
+      ]
+    },
+    "G64": {
+      "title": "Path Blending / Tolerance",
+      "description": "Blends corners for speed. Optional P (deviation tolerance) and Q (naive CAM tolerance) tune accuracy vs. performance.",
+      "summary": "Path blending; optional P and Q control tolerance and naive-CAM merge.",
+      "syntax": "G64 (P, Q)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G61",
+          "hint": "Exact path"
+        },
+        {
+          "kind": "g",
+          "code": "G61.1",
+          "hint": "Exact stop"
+        }
+      ]
+    },
+    "G70": {
+      "title": "Lathe Finishing Cycle",
+      "description": "Finishing pass along a profile defined in subroutine Q, after G71/G72 roughing. Requires ZX plane and monotonic profile.",
+      "summary": "Finishing pass along subroutine Q after G71/G72 roughing (lathe).",
+      "syntax": "G70 Q (X, Z, D, E, P)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G71",
+          "hint": "Rough along Z"
+        },
+        {
+          "kind": "g",
+          "code": "G72",
+          "hint": "Rough along X (facing)"
+        }
+      ]
+    },
+    "G71": {
+      "title": "Lathe Roughing Cycle — Z Axis",
+      "description": "Roughs along Z using a profile subroutine Q. Variants G71.1 (no pockets) and G71.2 (continuation after G71.1).",
+      "summary": "Z-direction roughing cycle using profile subroutine Q (lathe).",
+      "syntax": "G71 Q (X, Z, D, I, R)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G70",
+          "hint": "Finish after roughing"
+        },
+        {
+          "kind": "g",
+          "code": "G71.1",
+          "hint": "No pockets"
+        },
+        {
+          "kind": "g",
+          "code": "G71.2",
+          "hint": "Continue after G71.1"
+        },
+        {
+          "kind": "g",
+          "code": "G72",
+          "hint": "Other roughing pattern"
+        }
+      ]
+    },
+    "G71.1": {
+      "title": "Lathe Roughing — G71.1",
+      "description": "G71 variant that does not cut pockets.",
+      "summary": "G71 variant that does not cut pockets.",
+      "syntax": "G71.1 Q (X, Z, D, I, R)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G71",
+          "hint": "Standard G71"
+        },
+        {
+          "kind": "g",
+          "code": "G71.2",
+          "hint": "Second phase"
+        }
+      ]
+    },
+    "G71.2": {
+      "title": "Lathe Roughing — G71.2",
+      "description": "Continues roughing after G71.1 where it stopped; useful for multi-pocket profiles.",
+      "summary": "Continues G71 roughing after G71.1 stopped.",
+      "syntax": "G71.2 Q (X, Z, D, I, R)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G71.1",
+          "hint": "First phase"
+        },
+        {
+          "kind": "g",
+          "code": "G70",
+          "hint": "Finishing"
+        }
+      ]
+    },
+    "G72": {
+      "title": "Lathe Facing / Roughing — X Axis",
+      "description": "Facing-style roughing with profile in subroutine Q. Includes G72.1 and G72.2 variants similar to G71.",
+      "summary": "X-direction (facing) roughing cycle using profile subroutine Q (lathe).",
+      "syntax": "G72 Q (X, Z, D, I, R)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G70",
+          "hint": "Finishing"
+        },
+        {
+          "kind": "g",
+          "code": "G72.1",
+          "hint": "No pockets"
+        },
+        {
+          "kind": "g",
+          "code": "G72.2",
+          "hint": "Continuation"
+        },
+        {
+          "kind": "g",
+          "code": "G71",
+          "hint": "Rough along Z"
+        }
+      ]
+    },
+    "G72.1": {
+      "title": "Lathe Facing — G72.1",
+      "description": "G72 variant without pocket cutting.",
+      "summary": "G72 variant that does not cut pockets.",
+      "syntax": "G72.1 Q (X, Z, D, I, R)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G72",
+          "hint": "Standard G72"
+        },
+        {
+          "kind": "g",
+          "code": "G72.2",
+          "hint": "Continuation"
+        }
+      ]
+    },
+    "G72.2": {
+      "title": "Lathe Facing — G72.2",
+      "description": "Continuation cycle for G72 family.",
+      "summary": "Continues G72 roughing after G72.1 stopped.",
+      "syntax": "G72.2 Q (X, Z, D, I, R)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G72.1",
+          "hint": "First phase"
+        },
+        {
+          "kind": "g",
+          "code": "G70",
+          "hint": "Finishing"
+        }
+      ]
+    },
+    "G73": {
+      "title": "Drilling with Chip Breaking",
+      "description": "Peck drilling with short retracts (chip break). Q is increment along the drill axis; R is retract plane.",
+      "summary": "Drilling with chip-breaking pecks along the cycle axis.",
+      "syntax": "G73 (X, Y, Z, R, Q, L)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G83",
+          "hint": "Peck with full retract to R"
+        },
+        {
+          "kind": "g",
+          "code": "G80",
+          "hint": "Cancel canned cycle"
+        }
+      ]
+    },
+    "G74": {
+      "title": "Left-Hand Tapping Cycle with Dwell",
+      "description": "Floating-tap style cycle (not synchronized motion). Uses F as pitch × spindle speed; dwell P at bottom.",
+      "summary": "Left-hand floating tap cycle with dwell (not rigid/sync).",
+      "syntax": "G74 (X, Y, Z, U, V, W, R, L, P, $, F)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G84",
+          "hint": "Right-hand tapping"
+        },
+        {
+          "kind": "g",
+          "code": "G33.1",
+          "hint": "Rigid tap instead of floating"
+        }
+      ]
+    },
+    "G76": {
+      "title": "Multi-Pass Threading Cycle (Lathe)",
+      "description": "Threading cycle in ZX plane using P, Z, I, J, K, and optional Q, R, H, E, L. Requires spindle encoder/index for synchronization.",
+      "summary": "Multi-pass lathe threading synchronized to the spindle.",
+      "syntax": "G76 P Z I J K (R, Q, H, E, L, $)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G33",
+          "hint": "Single-pass spindle sync"
+        },
+        {
+          "kind": "m",
+          "code": "M3",
+          "hint": "Spindle for threading"
+        }
+      ]
+    },
+    "G80": {
+      "title": "Cancel Canned Cycles",
+      "description": "Cancels G81–G89 canned cycle modal motion. Any group-1 motion G-code also cancels the cycle.",
+      "summary": "Cancels canned-cycle modal motion (G81–G89).",
+      "syntax": "G80",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G81",
+          "hint": "Drilling"
+        },
+        {
+          "kind": "g",
+          "code": "G83",
+          "hint": "Peck drilling"
+        },
+        {
+          "kind": "g",
+          "code": "G98",
+          "hint": "Retract to initial Z"
+        },
+        {
+          "kind": "g",
+          "code": "G99",
+          "hint": "Retract to R"
+        }
+      ]
+    },
+    "G81": {
+      "title": "Drilling Cycle",
+      "description": "Standard drill: rapid to XY, rapid to R, feed to Z, rapid retract per G98/G99.",
+      "summary": "Drill cycle: feed to Z, then retract per G98/G99.",
+      "syntax": "G81 (X, Y, Z, U, V, W, R, L)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G80",
+          "hint": "Cancel cycle"
+        },
+        {
+          "kind": "g",
+          "code": "G98",
+          "hint": "Retract mode"
+        },
+        {
+          "kind": "g",
+          "code": "G99",
+          "hint": "Retract mode"
+        },
+        {
+          "kind": "g",
+          "code": "G82",
+          "hint": "With dwell"
+        },
+        {
+          "kind": "g",
+          "code": "G83",
+          "hint": "With peck"
+        }
+      ]
+    },
+    "G82": {
+      "title": "Drilling Cycle with Dwell",
+      "description": "Like G81 with dwell P at bottom of hole.",
+      "summary": "Drill cycle with dwell at bottom.",
+      "syntax": "G82 (X, Y, Z, U, V, W, R, L, P)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G81",
+          "hint": "Without dwell"
+        },
+        {
+          "kind": "g",
+          "code": "G80",
+          "hint": "Cancel cycle"
+        }
+      ]
+    },
+    "G83": {
+      "title": "Peck Drilling Cycle",
+      "description": "Peck drilling with full retract to R (chip clearing). Q is peck increment.",
+      "summary": "Peck drill with retract to R for chip clearing.",
+      "syntax": "G83 (X, Y, Z, U, V, W, R, L, Q)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G73",
+          "hint": "Short chip breaks vs full retract"
+        },
+        {
+          "kind": "g",
+          "code": "G81",
+          "hint": "Simple drill"
+        },
+        {
+          "kind": "g",
+          "code": "G80",
+          "hint": "Cancel cycle"
+        }
+      ]
+    },
+    "G84": {
+      "title": "Right-Hand Tapping Cycle with Dwell",
+      "description": "Floating-tap cycle for right-hand threads; not synchronized rigid tapping.",
+      "summary": "Right-hand floating tap cycle with dwell (not rigid/sync).",
+      "syntax": "G84 (X, Y, Z, U, V, W, R, L, P, $, F)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G74",
+          "hint": "Left-hand tap"
+        },
+        {
+          "kind": "g",
+          "code": "G33.1",
+          "hint": "Rigid tapping"
+        }
+      ]
+    },
+    "G85": {
+      "title": "Boring Cycle — Feed Out",
+      "description": "Bore in, feed retract to R (or as documented), then rapid clear.",
+      "summary": "Bore in at feed, feed retract, then rapid clear.",
+      "syntax": "G85 (X, Y, Z, U, V, W, R, L)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G80",
+          "hint": "Cancel cycle"
+        },
+        {
+          "kind": "g",
+          "code": "G86",
+          "hint": "Other bore cycles"
+        }
+      ]
+    },
+    "G86": {
+      "title": "Boring Cycle — Stop Spindle, Rapid Out",
+      "description": "Bore, dwell, stop spindle, rapid out, restart spindle.",
+      "summary": "Bore, dwell, stop spindle, rapid out, restart spindle.",
+      "syntax": "G86 (X, Y, Z, U, V, W, R, L, P, $)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G80",
+          "hint": "Cancel cycle"
+        },
+        {
+          "kind": "g",
+          "code": "G89",
+          "hint": "Dwell, feed out"
+        }
+      ]
+    },
+    "G87": {
+      "title": "Back-Boring Cycle",
+      "description": "Accepted by the interpreter but not fully implemented; behavior undefined.",
+      "summary": "Back-boring cycle (accepted; behavior undefined / not implemented).",
+      "syntax": "G87 (see manual)"
+    },
+    "G88": {
+      "title": "Boring Cycle — Manual Out",
+      "description": "Accepted but not fully implemented; behavior undefined.",
+      "summary": "Boring cycle with manual retract (accepted; not fully implemented).",
+      "syntax": "G88 (see manual)"
+    },
+    "G89": {
+      "title": "Boring Cycle — Dwell, Feed Out",
+      "description": "Bore with dwell, then feed out.",
+      "summary": "Bore with dwell at bottom, then feed out.",
+      "syntax": "G89 (X, Y, Z, U, V, W, R, L, P)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G80",
+          "hint": "Cancel cycle"
+        }
+      ]
+    },
+    "G90": {
+      "title": "Absolute Distance Mode",
+      "description": "Axis words are absolute positions in the active coordinate system.",
+      "summary": "Axis words are absolute positions in the active coordinate system.",
+      "syntax": "G90",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G91",
+          "hint": "Incremental instead of absolute"
+        }
+      ]
+    },
+    "G91": {
+      "title": "Incremental Distance Mode",
+      "description": "Axis words are increments from the current position.",
+      "summary": "Axis words are increments from the current position.",
+      "syntax": "G91",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G90",
+          "hint": "Absolute instead of incremental"
+        }
+      ]
+    },
+    "G90.1": {
+      "title": "Absolute Arc Center Offsets",
+      "description": "I, J, K arc centers are absolute in the current coordinate system for G2/G3.",
+      "summary": "Arc center offsets I J K are absolute.",
+      "syntax": "G90.1",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G91.1",
+          "hint": "Arc center incremental (default)"
+        },
+        {
+          "kind": "g",
+          "code": "G2",
+          "hint": "Arc move"
+        }
+      ]
+    },
+    "G91.1": {
+      "title": "Incremental Arc Center Offsets",
+      "description": "I, J, K are relative to the arc start (default for arcs).",
+      "summary": "Arc center offsets I J K are incremental from arc start (default).",
+      "syntax": "G91.1",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G90.1",
+          "hint": "Arc center absolute"
+        },
+        {
+          "kind": "g",
+          "code": "G2",
+          "hint": "Arc move"
+        }
+      ]
+    },
+    "G92": {
+      "title": "Coordinate System Offset",
+      "description": "Offsets all origins so the current point becomes the programmed values. Stored in parameters 5211–5219. Use carefully; see G92.1/G92.2 to clear.",
+      "summary": "Shifts all coordinate origins so the current point matches the given values.",
+      "syntax": "G92 (X, Y, Z, … — at least one axis)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G92.1",
+          "hint": "Clear G92 offsets"
+        },
+        {
+          "kind": "g",
+          "code": "G92.2",
+          "hint": "Off without clearing parameters"
+        },
+        {
+          "kind": "g",
+          "code": "G92.3",
+          "hint": "Restore offsets"
+        },
+        {
+          "kind": "g",
+          "code": "G52",
+          "hint": "Local offset in G5x"
+        }
+      ]
+    },
+    "G92.1": {
+      "title": "Reset G92 Offsets",
+      "description": "Clears G92 offsets and zeros parameters 5211–5219.",
+      "summary": "Clears G92 offsets and zeros the stored parameters.",
+      "syntax": "G92.1",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G92",
+          "hint": "Set offset"
+        },
+        {
+          "kind": "g",
+          "code": "G92.3",
+          "hint": "Re-enable"
+        }
+      ]
+    },
+    "G92.2": {
+      "title": "Turn Off G92 (Keep Parameters)",
+      "description": "Disables G92 offsets but retains parameter values for later G92.3.",
+      "summary": "Disables G92 offsets but keeps parameter values for G92.3.",
+      "syntax": "G92.2",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G92",
+          "hint": "Set offset"
+        },
+        {
+          "kind": "g",
+          "code": "G92.3",
+          "hint": "Restore"
+        }
+      ]
+    },
+    "G92.3": {
+      "title": "Restore G92 Offsets",
+      "description": "Restores G92 from saved parameters 5211–5219.",
+      "summary": "Restores G92 offsets from saved parameters.",
+      "syntax": "G92.3",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G92.1",
+          "hint": "Full clear"
+        },
+        {
+          "kind": "g",
+          "code": "G92.2",
+          "hint": "Disable"
+        }
+      ]
+    },
+    "G93": {
+      "title": "Inverse Time Feed Mode",
+      "description": "F is inverse minutes for the move (each G1/G2/G3 line needs F).",
+      "summary": "Inverse time: F is minutes⁻¹ for each feed move.",
+      "syntax": "G93",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G94",
+          "hint": "Feed per minute"
+        },
+        {
+          "kind": "g",
+          "code": "G95",
+          "hint": "Feed per revolution"
+        }
+      ]
+    },
+    "G94": {
+      "title": "Feed Rate — Units per Minute",
+      "description": "F is length units per minute (or degrees per minute for rotary axes).",
+      "summary": "Feed rate is length units per minute (or deg/min on rotary axes).",
+      "syntax": "G94",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G93",
+          "hint": "Inverse time"
+        },
+        {
+          "kind": "g",
+          "code": "G95",
+          "hint": "Feed per rev"
+        }
+      ]
+    },
+    "G95": {
+      "title": "Feed Rate — Units per Revolution",
+      "description": "F is feed per spindle revolution; requires spindle speed-in. Not for threading—use G33/G76.",
+      "summary": "Feed rate is units per spindle revolution (not for threading).",
+      "syntax": "G95",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G94",
+          "hint": "Feed per minute"
+        },
+        {
+          "kind": "g",
+          "code": "G33",
+          "hint": "Threading — not G95"
+        },
+        {
+          "kind": "g",
+          "code": "G76",
+          "hint": "Threading cycle (lathe)"
+        }
+      ]
+    },
+    "G96": {
+      "title": "Constant Surface Speed",
+      "description": "CSS mode on lathe: S is surface speed (ft/min or m/min); D optional max RPM. X0 should be part center.",
+      "summary": "Constant surface speed on lathe; S is speed, D optional max RPM.",
+      "syntax": "G96 S (D) ($)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G97",
+          "hint": "Fixed RPM; with G96, S is usually surface speed (see manual)"
+        }
+      ]
+    },
+    "G97": {
+      "title": "Spindle RPM Mode",
+      "description": "S is spindle speed in RPM.",
+      "summary": "Spindle speed S is in RPM.",
+      "syntax": "G97 S ($)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G96",
+          "hint": "Constant surface speed instead of fixed RPM"
+        }
+      ]
+    },
+    "G98": {
+      "title": "Canned Cycle — Retract to Initial Z",
+      "description": "Between canned cycle moves, retract to the Z level in effect when the cycle started (if above R).",
+      "summary": "Canned cycles retract to the initial Z if it is above R.",
+      "syntax": "G98",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G99",
+          "hint": "Retract to R plane"
+        },
+        {
+          "kind": "g",
+          "code": "G81",
+          "hint": "Canned cycles"
+        }
+      ]
+    },
+    "G99": {
+      "title": "Canned Cycle — Retract to R Plane",
+      "description": "Retract to the R word plane after each hole.",
+      "summary": "Canned cycles retract to the R plane.",
+      "syntax": "G99",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G98",
+          "hint": "Retract to initial Z"
+        },
+        {
+          "kind": "g",
+          "code": "G81",
+          "hint": "Canned cycles"
+        }
+      ]
+    }
+  },
+  "m": {
+    "M0": {
+      "title": "Program Pause",
+      "description": "Optional program stop. Resume continues execution at the next line.",
+      "summary": "Pauses the program until cycle start (optional stop behavior).",
+      "syntax": "M0",
+      "related": [
+        {
+          "kind": "m",
+          "code": "M1",
+          "hint": "Optional stop"
+        },
+        {
+          "kind": "m",
+          "code": "M2",
+          "hint": "Program end"
+        }
+      ]
+    },
+    "M1": {
+      "title": "Optional Stop",
+      "description": "Pauses only if optional stop is enabled on the control.",
+      "summary": "Pauses only if the optional-stop switch is on.",
+      "syntax": "M1",
+      "related": [
+        {
+          "kind": "m",
+          "code": "M0",
+          "hint": "Program stop"
+        },
+        {
+          "kind": "m",
+          "code": "M2",
+          "hint": "Program end"
+        }
+      ]
+    },
+    "M2": {
+      "title": "Program End",
+      "description": "Ends the program and resets many modal states (G54, G17, G90, G94, G40, G49, M5, M9, etc.).",
+      "summary": "Ends the program and resets many modal states to defaults.",
+      "syntax": "M2",
+      "related": [
+        {
+          "kind": "m",
+          "code": "M30",
+          "hint": "End with rewind/pallet per INI"
+        },
+        {
+          "kind": "m",
+          "code": "M5",
+          "hint": "Spindle stop — also applied when M2 ends the program"
+        },
+        {
+          "kind": "m",
+          "code": "M9",
+          "hint": "Coolant off"
+        }
+      ]
+    },
+    "M30": {
+      "title": "Program End / Rewind",
+      "description": "Like M2 with pallet/rewind behavior as configured; cycle start runs from the beginning.",
+      "summary": "Ends the program (pallet/rewind behavior per config); restart from top.",
+      "syntax": "M30",
+      "related": [
+        {
+          "kind": "m",
+          "code": "M2",
+          "hint": "Similar program end"
+        }
+      ]
+    },
+    "M60": {
+      "title": "Pallet Change Pause",
+      "description": "Exchange pallets and pause; resume continues at the next line.",
+      "summary": "Pallet exchange then pause; resume continues on the next line.",
+      "syntax": "M60",
+      "related": [
+        {
+          "kind": "m",
+          "code": "M0",
+          "hint": "Pallet change with pause"
+        }
+      ]
+    },
+    "M3": {
+      "title": "Spindle On — Clockwise",
+      "description": "Starts the selected spindle clockwise at the last S speed. Use $ for spindle number on multi-spindle configs.",
+      "summary": "Starts the selected spindle clockwise at the last S speed.",
+      "syntax": "M3 ($)",
+      "related": [
+        {
+          "kind": "m",
+          "code": "M4",
+          "hint": "Spindle CCW"
+        },
+        {
+          "kind": "m",
+          "code": "M5",
+          "hint": "Spindle stop"
+        },
+        {
+          "kind": "m",
+          "code": "M19",
+          "hint": "Orient — clears M3/M4/M5"
+        },
+        {
+          "kind": "g",
+          "code": "G97",
+          "hint": "Typical S in RPM (turning)"
+        }
+      ]
+    },
+    "M4": {
+      "title": "Spindle On — Counterclockwise",
+      "description": "Starts the selected spindle counterclockwise at the last S speed.",
+      "summary": "Starts the selected spindle counterclockwise at the last S speed.",
+      "syntax": "M4 ($)",
+      "related": [
+        {
+          "kind": "m",
+          "code": "M3",
+          "hint": "Spindle CW"
+        },
+        {
+          "kind": "m",
+          "code": "M5",
+          "hint": "Spindle stop"
+        },
+        {
+          "kind": "m",
+          "code": "M19",
+          "hint": "Orient"
+        }
+      ]
+    },
+    "M5": {
+      "title": "Spindle Stop",
+      "description": "Stops the selected spindle.",
+      "summary": "Stops the selected spindle.",
+      "syntax": "M5 ($)",
+      "related": [
+        {
+          "kind": "m",
+          "code": "M3",
+          "hint": "Spindle on CW"
+        },
+        {
+          "kind": "m",
+          "code": "M4",
+          "hint": "Spindle on CCW"
+        },
+        {
+          "kind": "m",
+          "code": "M19",
+          "hint": "Spindle orient (modal group 7)"
+        }
+      ]
+    },
+    "M6": {
+      "title": "Tool Change",
+      "description": "Performs a tool change to the tool selected by T. Does not apply tool length offset—use G43 after M6.",
+      "summary": "Runs the tool change for the tool last selected with T.",
+      "syntax": "M6  (after Tn)",
+      "related": [
+        {
+          "kind": "g",
+          "code": "G43",
+          "hint": "Apply length offset after change (select tool with T first)"
+        },
+        {
+          "kind": "m",
+          "code": "M61",
+          "hint": "Set tool number only, no physical change"
+        }
+      ]
+    },
+    "M7": {
+      "title": "Mist Coolant On",
+      "description": "Turns on mist coolant (iocontrol pin).",
+      "summary": "Turns mist coolant on.",
+      "syntax": "M7",
+      "related": [
+        {
+          "kind": "m",
+          "code": "M8",
+          "hint": "Flood coolant"
+        },
+        {
+          "kind": "m",
+          "code": "M9",
+          "hint": "All off"
+        }
+      ]
+    },
+    "M8": {
+      "title": "Flood Coolant On",
+      "description": "Turns on flood coolant.",
+      "summary": "Turns flood coolant on.",
+      "syntax": "M8",
+      "related": [
+        {
+          "kind": "m",
+          "code": "M7",
+          "hint": "Mist"
+        },
+        {
+          "kind": "m",
+          "code": "M9",
+          "hint": "All off"
+        }
+      ]
+    },
+    "M9": {
+      "title": "All Coolant Off",
+      "description": "Turns off M7 and M8.",
+      "summary": "Turns off mist and flood coolant.",
+      "syntax": "M9",
+      "related": [
+        {
+          "kind": "m",
+          "code": "M7",
+          "hint": "Mist on"
+        },
+        {
+          "kind": "m",
+          "code": "M8",
+          "hint": "Flood on"
+        }
+      ]
+    },
+    "M19": {
+      "title": "Orient Spindle",
+      "description": "Positions spindle to angle R with optional direction P and timeout Q. Requires encoder with index.",
+      "summary": "Orients the spindle to angle R with optional P direction and Q timeout.",
+      "syntax": "M19 R (Q, P, $)",
+      "related": [
+        {
+          "kind": "m",
+          "code": "M3",
+          "hint": "Normal spindle on (clears M19)"
+        },
+        {
+          "kind": "m",
+          "code": "M4",
+          "hint": "Other direction"
+        },
+        {
+          "kind": "m",
+          "code": "M5",
+          "hint": "Stop"
+        }
+      ]
+    },
+    "M48": {
+      "title": "Enable Feed & Speed Overrides",
+      "description": "Re-enables feed and spindle override controls.",
+      "summary": "Enables feed and spindle speed override controls.",
+      "syntax": "M48 ($)",
+      "related": [
+        {
+          "kind": "m",
+          "code": "M49",
+          "hint": "Lock overrides"
+        },
+        {
+          "kind": "m",
+          "code": "M50",
+          "hint": "Feed override only"
+        },
+        {
+          "kind": "m",
+          "code": "M51",
+          "hint": "Spindle override only"
+        }
+      ]
+    },
+    "M49": {
+      "title": "Disable Feed & Speed Overrides",
+      "description": "Disables feed and spindle overrides so program F/S are exact.",
+      "summary": "Disables feed and spindle overrides.",
+      "syntax": "M49 ($)",
+      "related": [
+        {
+          "kind": "m",
+          "code": "M48",
+          "hint": "Allow overrides"
+        }
+      ]
+    },
+    "M50": {
+      "title": "Feed Override Control",
+      "description": "M50 P1 enables feed override; M50 P0 disables it.",
+      "summary": "Enables or disables feed override via P1/P0.",
+      "syntax": "M50 P0 | M50 P1",
+      "related": [
+        {
+          "kind": "m",
+          "code": "M48",
+          "hint": "Enable both"
+        },
+        {
+          "kind": "m",
+          "code": "M49",
+          "hint": "Disable both"
+        },
+        {
+          "kind": "m",
+          "code": "M51",
+          "hint": "Spindle separately"
+        }
+      ]
+    },
+    "M51": {
+      "title": "Spindle Override Control",
+      "description": "M51 P1 enables spindle override; M51 P0 disables it. Optional spindle selector $.",
+      "summary": "Enables or disables spindle speed override for the selected spindle.",
+      "syntax": "M51 P0 | M51 P1 ($)",
+      "related": [
+        {
+          "kind": "m",
+          "code": "M48",
+          "hint": "Enable both"
+        },
+        {
+          "kind": "m",
+          "code": "M49",
+          "hint": "Disable both"
+        },
+        {
+          "kind": "m",
+          "code": "M50",
+          "hint": "Feed separately"
+        }
+      ]
+    },
+    "M52": {
+      "title": "Adaptive Feed Control",
+      "description": "Uses motion.adaptive-feed when enabled (e.g. plasma THC).",
+      "summary": "Enables or disables adaptive feed (motion.adaptive-feed).",
+      "syntax": "M52 P0 | M52 P1",
+      "related": [
+        {
+          "kind": "m",
+          "code": "M53",
+          "hint": "Feed-hold with M53"
+        }
+      ]
+    },
+    "M53": {
+      "title": "Feed Stop Control",
+      "description": "When enabled, motion.feed-hold can halt feed when true.",
+      "summary": "Allows feed-hold to stop motion when the pin is true.",
+      "syntax": "M53 P0 | M53 P1",
+      "related": [
+        {
+          "kind": "m",
+          "code": "M52",
+          "hint": "Adaptive feed"
+        }
+      ]
+    },
+    "M61": {
+      "title": "Set Current Tool Number",
+      "description": "M61 Qn sets current tool to n without a physical tool change (e.g. after power-up). Use G43 to apply length offset.",
+      "summary": "Sets the current tool number without a physical tool change.",
+      "syntax": "M61 Q",
+      "related": [
+        {
+          "kind": "m",
+          "code": "M6",
+          "hint": "Physical tool change"
+        },
+        {
+          "kind": "g",
+          "code": "G43",
+          "hint": "Apply length offset"
+        }
+      ]
+    },
+    "M62": {
+      "title": "Digital Output On (Synced)",
+      "description": "Turns on digital output P at the start of the next motion command.",
+      "summary": "Turns digital output P on at the start of the next motion.",
+      "syntax": "M62 P",
+      "related": [
+        {
+          "kind": "m",
+          "code": "M63",
+          "hint": "Sync output off"
+        },
+        {
+          "kind": "m",
+          "code": "M64",
+          "hint": "Immediate on"
+        },
+        {
+          "kind": "m",
+          "code": "M65",
+          "hint": "Immediate off"
+        }
+      ]
+    },
+    "M63": {
+      "title": "Digital Output Off (Synced)",
+      "description": "Turns off digital output P at the start of the next motion command.",
+      "summary": "Turns digital output P off at the start of the next motion.",
+      "syntax": "M63 P",
+      "related": [
+        {
+          "kind": "m",
+          "code": "M62",
+          "hint": "Sync on"
+        },
+        {
+          "kind": "m",
+          "code": "M64",
+          "hint": "Immediate on"
+        },
+        {
+          "kind": "m",
+          "code": "M65",
+          "hint": "Immediate off"
+        }
+      ]
+    },
+    "M64": {
+      "title": "Digital Output On (Immediate)",
+      "description": "Immediate digital output on; not queued with motion.",
+      "summary": "Turns digital output P on immediately (not synced to motion).",
+      "syntax": "M64 P",
+      "related": [
+        {
+          "kind": "m",
+          "code": "M65",
+          "hint": "Immediate off"
+        },
+        {
+          "kind": "m",
+          "code": "M62",
+          "hint": "Synced to motion"
+        },
+        {
+          "kind": "m",
+          "code": "M63",
+          "hint": "Sync off"
+        }
+      ]
+    },
+    "M65": {
+      "title": "Digital Output Off (Immediate)",
+      "description": "Immediate digital output off.",
+      "summary": "Turns digital output P off immediately (not synced to motion).",
+      "syntax": "M65 P",
+      "related": [
+        {
+          "kind": "m",
+          "code": "M64",
+          "hint": "Immediate on"
+        },
+        {
+          "kind": "m",
+          "code": "M62",
+          "hint": "Sync"
+        },
+        {
+          "kind": "m",
+          "code": "M63",
+          "hint": "Sync off"
+        }
+      ]
+    },
+    "M66": {
+      "title": "Wait on Input",
+      "description": "Waits for digital or analog input event with mode L and timeout Q. Result in #5399.",
+      "summary": "Waits for a digital or analog input event; result in #5399.",
+      "syntax": "M66 P | E (L, Q)",
+      "related": [
+        {
+          "kind": "m",
+          "code": "M62",
+          "hint": "Digital outputs — different use case"
+        }
+      ]
+    },
+    "M67": {
+      "title": "Analog Output (Synced)",
+      "description": "Sets analog output E to value Q at the next motion.",
+      "summary": "Sets analog output E to Q at the next motion.",
+      "syntax": "M67 E Q",
+      "related": [
+        {
+          "kind": "m",
+          "code": "M68",
+          "hint": "Analog immediate"
+        },
+        {
+          "kind": "m",
+          "code": "M62",
+          "hint": "Synced like M67"
+        }
+      ]
+    },
+    "M68": {
+      "title": "Analog Output (Immediate)",
+      "description": "Sets analog output E to Q immediately.",
+      "summary": "Sets analog output E to Q immediately.",
+      "syntax": "M68 E Q",
+      "related": [
+        {
+          "kind": "m",
+          "code": "M67",
+          "hint": "Analog with next motion"
+        }
+      ]
+    },
+    "M70": {
+      "title": "Save Modal State",
+      "description": "Saves G/M modal state at current call level for later M72 restore.",
+      "summary": "Saves modal G/M state at this call level for M72 restore.",
+      "syntax": "M70",
+      "related": [
+        {
+          "kind": "m",
+          "code": "M72",
+          "hint": "Restore saved state"
+        },
+        {
+          "kind": "m",
+          "code": "M71",
+          "hint": "Invalidate save"
+        },
+        {
+          "kind": "m",
+          "code": "M73",
+          "hint": "Auto-restore on sub return"
+        }
+      ]
+    },
+    "M71": {
+      "title": "Invalidate Saved Modal State",
+      "description": "Invalidates the last M70/M73 save at this level.",
+      "summary": "Invalidates the last M70/M73 save at this level.",
+      "syntax": "M71",
+      "related": [
+        {
+          "kind": "m",
+          "code": "M70",
+          "hint": "Save"
+        },
+        {
+          "kind": "m",
+          "code": "M72",
+          "hint": "Restore"
+        }
+      ]
+    },
+    "M72": {
+      "title": "Restore Modal State",
+      "description": "Restores state saved by M70.",
+      "summary": "Restores modal state saved with M70.",
+      "syntax": "M72",
+      "related": [
+        {
+          "kind": "m",
+          "code": "M70",
+          "hint": "Save first"
+        },
+        {
+          "kind": "m",
+          "code": "M73",
+          "hint": "Alternative with auto-restore"
+        }
+      ]
+    },
+    "M73": {
+      "title": "Save Modal State (Auto-Restore)",
+      "description": "Saves state and restores it on subroutine return or endsub.",
+      "summary": "Saves modal state and auto-restores on subroutine return/endsub.",
+      "syntax": "M73",
+      "related": [
+        {
+          "kind": "m",
+          "code": "M70",
+          "hint": "Explicit save/restore"
+        },
+        {
+          "kind": "m",
+          "code": "M72",
+          "hint": "Restore after M70"
+        }
+      ]
+    },
+    "M98": {
+      "title": "Call Subprogram",
+      "description": "Fanuc-style subprogram call (see Fanuc-Style Programs in the manual).",
+      "summary": "Calls a Fanuc-style subprogram (see O-code / Fanuc programs).",
+      "syntax": "M98 (see Fanuc-style programs in manual)",
+      "related": [
+        {
+          "kind": "m",
+          "code": "M99",
+          "hint": "Return from subprogram"
+        }
+      ]
+    },
+    "M99": {
+      "title": "Return from Subprogram",
+      "description": "Returns from Fanuc-style subprogram or repeats main program depending on usage.",
+      "summary": "Returns from a subprogram or repeats the main program per usage.",
+      "syntax": "M99 (see Fanuc-style programs in manual)",
+      "related": [
+        {
+          "kind": "m",
+          "code": "M98",
+          "hint": "Call subprogram"
+        }
+      ]
+    }
+  }
+}

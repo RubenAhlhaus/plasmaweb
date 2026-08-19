@@ -1,0 +1,202 @@
+{
+  "slider": {
+    "openSettingsWithLabel": "{{label}}: Einstellungen öffnen",
+    "openSettingsDisplay": "Anzeige: Einstellungen öffnen"
+  },
+  "programQueue": {
+    "title": "Programm-Warteschlange",
+    "nextMacro": "Nächstes Makro:",
+    "nextMacroQuoted": "„{{label}}“",
+    "nextMacroPhaseNote": "(als Phase im Block).",
+    "clearAddTarget": "Stattdessen ans Programmende",
+    "tailDropHint": "Hier ablegen: ans Programmende",
+    "empty": "Keine Einträge."
+  },
+  "patternQueue": {
+    "description": "Phasen nacheinander für alle Positionen des Musters. Reihenfolge per Ziehen; auf diese Fläche Gezogenes wird ans Ende der Phasenliste angehängt.",
+    "addMacroHere": "Makro hier",
+    "emptyPhases": "Makros aus der Liste hierher ziehen (sie erscheinen zuletzt in der Liste) oder „Makro hier“ wählen und links eine Kachel anklicken."
+  },
+  "queueSetup": {
+    "programHeader": "Programmkopf",
+    "tapToEdit": "Tippen zum Bearbeiten",
+    "dialogTitle": "Programmkopf",
+    "workOffset": "Koordinatensystem",
+    "units": "Einheiten",
+    "dialogWorkOffset": "Koordinatensystem",
+    "dialogUnits": "Einheiten",
+    "unitG21": "Millimeter (G21)",
+    "unitG20": "Zoll (G20)",
+    "retractZToMachineZero": "Z nach oben (Maschine)",
+    "retractZToMachineZeroOn": "Z-Sicherheitsfahrt aktiv (Programmanfang und Werkzeugwechsel)",
+    "retractZToMachineZeroOff": "Z-Sicherheitsfahrt inaktiv (Programmanfang und Werkzeugwechsel)",
+    "retractZToMachineZeroHint": "Fährt in Maschinenkoordinaten nach Z0 (G53 G0 Z0) am Programmanfang und erneut vor jedem Werkzeugwechsel in der Queue (andere T-Nummer). Nur sicher, wenn nach Homing Maschinen-Z0 oben liegt und Soft-Limits passen. Abschalten, wenn diese Konvention nicht gilt.",
+    "cancel": "Abbrechen",
+    "apply": "Übernehmen"
+  },
+  "fileBrowser": {
+    "loadTitle": "Programm vom Steuerrechner öffnen",
+    "saveAsTitle": "Programm speichern unter …",
+    "invalidListResponse": "Ungültige Antwort vom Backend (list).",
+    "loadDirFailed": "Verzeichnis konnte nicht geladen werden.",
+    "readFileFailed": "Datei konnte nicht gelesen werden.",
+    "enterFileName": "Bitte einen Dateinamen eingeben.",
+    "fileName": "Dateiname",
+    "fileNamePlaceholder": "z. B. teil.ngc",
+    "parentDir": "Ebene höher",
+    "noEntries": "Keine Einträge",
+    "applyPath": "Pfad übernehmen",
+    "cancel": "Abbrechen"
+  },
+  "programPathErrors": {
+    "not_a_directory": "Das NC-Programmverzeichnis existiert nicht{{pathSuffix}}. Legen Sie den Ordner auf dem Steuerrechner an, oder tragen Sie unter [DISPLAY] PROGRAM_PREFIX in der LinuxCNC-INI ein vorhandenes Verzeichnis ein (Pfad relativ zur INI-Datei).",
+    "outside_program_prefix": "Der Pfad liegt außerhalb des NC-Programmverzeichnisses, das als [DISPLAY] PROGRAM_PREFIX in der LinuxCNC-INI eingetragen ist{{pathSuffix}}.",
+    "file_not_found": "Die Datei existiert nicht oder kann nicht gelesen werden{{pathSuffix}}.",
+    "parent_not_found": "Der übergeordnete Ordner existiert nicht{{pathSuffix}}. Legen Sie ihn an oder wählen Sie einen anderen Speicherort.",
+    "is_directory": "Hier kann nicht gespeichert werden{{pathSuffix}}: Der Pfad ist ein Ordner, keine Datei.",
+    "invalid_params": "Ungültiger Pfad.",
+    "generateProgramListFailed": "Auf das NC-Programmverzeichnis zum Speichern des erzeugten Programms konnte nicht zugegriffen werden.",
+    "generateProgramListInvalidResponse": "Das NC-Programmverzeichnis konnte nicht ermittelt werden (unerwartete Antwort vom Controller).",
+    "generateProgramSaveFailed": "Das erzeugte Programm konnte nicht gespeichert werden.",
+    "notConnected": "Nicht verbunden — bitte zuerst mit dem Backend verbinden.",
+    "alreadyGenerating": "Ein Programm wird bereits erzeugt. Bitte warten.",
+    "cannotGenerateGcode": "G-Code kann nicht erzeugt werden: {{errors}}",
+    "openProgramFailed": "Programm konnte in LinuxCNC nicht geladen werden.",
+    "readProgramFailed": "Programmdatei konnte vom Controller nicht gelesen werden."
+  },
+  "coordinates": {
+    "invalidExpression": "Ungültiger Ausdruck. Bitte Eingabe prüfen (z. B. 5−3 oder 10+0,5).",
+    "hint": "Tippe eine X-/Y-/Z-Zelle an, um den Offset im Taschenrechner zu bearbeiten. Mit Bestätigen wird der Wert übernommen.",
+    "noActivateMachine": "Kein Aktivieren für Maschinenkoordinaten",
+    "close": "Schließen",
+    "confirm": "Bestätigen",
+    "cancel": "Abbrechen",
+    "dialogTitle": "Koordinatensysteme & Offsets",
+    "machineG53": "Maschine (G53)",
+    "columnSystem": "System",
+    "columnActive": "Aktiv",
+    "stateActive": "Aktiv",
+    "setActive": "Aktiv setzen",
+    "setAxisX": "X Achse setzen…",
+    "setAxisY": "Y Achse setzen…",
+    "setAxisZ": "Z Achse setzen…",
+    "axisDialogTitle": "{{axis}}-Achse auf Wert setzen",
+    "axisDialogTitleFallback": "Achse setzen",
+    "axisTargetLabel": "Zielwert {{axis}}",
+    "offsetDialogTitle": "{{system}} – {{axis}}-Offset",
+    "offsetDialogTitleFallback": "Offset",
+    "offsetFieldLabel": "Offset {{axis}}"
+  },
+  "homing": {
+    "closeAria": "Dialog schließen",
+    "title": "Home",
+    "homeAll": "Alle Achsen home",
+    "homeX": "Home X",
+    "homeY": "Home Y",
+    "homeZ": "Home Z",
+    "unhomeAll": "Home aufheben"
+  },
+  "mdi": {
+    "applyToLineAria": "Befehl in die MDI-Zeile übernehmen"
+  },
+  "mdiConsole": {
+    "inputLabel": "MDI-Befehl eingeben",
+    "placeholder": "G-Code / MDI…",
+    "emptyHistory": "MDI-Befehle erscheinen hier…",
+    "send": "Senden"
+  },
+  "machineVisualization": {
+    "comingSoon": "Coming soon!"
+  },
+  "spindleFeed": {
+    "spindleTitle": "Drehzahl",
+    "feedTitle": "Vorschub",
+    "rpmLabel": "Drehzahl (U/min)",
+    "feedLabel": "Vorschub (mm/min)",
+    "setSpindle": "Drehzahl setzen",
+    "setFeed": "Vorschub setzen",
+    "invalidSpindleHint": "Bitte eine gültige Zahl eingeben (0 oder größer). Mit „=“ kannst du rechnen.",
+    "invalidFeedHint": "Bitte eine gültige Zahl größer als 0 eingeben. Mit „=“ kannst du rechnen.",
+    "overridePercent": "Override (Prozent)",
+    "feedOverrideLabel": "Vorschub-Override (Prozent)",
+    "rapidOverrideLabel": "Eilgang-Override (Prozent)",
+    "jogSpeedLabel": "Jog-Geschwindigkeit (mm/min)",
+    "current": "Aktuell",
+    "spindleOverrideAria": "Drehzahl-Override in Prozent",
+    "feedOverrideAria": "Vorschub-Override in Prozent",
+    "rapidOverrideAria": "Eilgang-Override in Prozent",
+    "jogSpeedAria": "Jog-Geschwindigkeit in Millimetern pro Minute",
+    "applyOverride": "Override anwenden",
+    "applyOverrides": "Overrides anwenden",
+    "overrideFailed": "Override konnte nicht angewendet werden.",
+    "valueOutOfRange": "Bitte einen Wert zwischen {{min}} und {{max}} eingeben.",
+    "close": "Schließen"
+  },
+  "virtualSidebar": {
+    "machineLine1": "Maschine",
+    "machineLine2": "EIN/AUS",
+    "home": "Home",
+    "cycleStart": "Programmstart",
+    "estop": "Not-Aus",
+    "coolant": "Flutkühlung",
+    "spindleLeft": "Linkslauf",
+    "spindleStop": "M-Stopp",
+    "spindleRight": "Rechtslauf",
+    "pause": "Pause",
+    "stop": "Stopp"
+  },
+  "toolChange": {
+    "title": "Manueller Werkzeugwechsel",
+    "closeAria": "Dialog schließen",
+    "body": "Bitte Werkzeug <bold>T{{toolNo}}</bold> einlegen bzw. wechseln und bestätigen, wenn fertig.",
+    "cancel": "Abbrechen",
+    "ack": "OK — Wechsel quittieren"
+  },
+  "unhomedJog": {
+    "title": "Achse ist nicht gehomed",
+    "paragraph1": "Für die ausgewählte Achse{{suffix}} wurde noch kein Home durchgeführt.",
+    "paragraph2": "Das Joggen dieser Achse erfolgt jetzt im Gelenkmodus: die einzelnen Motoren werden dabei direkt verfahren. Bitte bestätigen Sie, dass Sie fortfahren möchten.",
+    "cancel": "Abbrechen",
+    "confirm": "Verstanden, im Gelenkmodus joggen"
+  },
+  "errorToast": {
+    "noteTitle": "Hinweis",
+    "errorTitle": "Fehler",
+    "dismissNote": "Hinweis schließen",
+    "dismissError": "Fehlermeldung schließen"
+  },
+  "jogDirectional": {
+    "yPositive": "Y-Achse vor",
+    "yNegative": "Y-Achse zurück",
+    "xNegative": "X-Achse links",
+    "xPositive": "X-Achse rechts",
+    "zPositive": "Z-Achse hoch",
+    "zNegative": "Z-Achse runter"
+  },
+  "jogIncrements": {
+    "ariaLabel": "Jog-Inkrement",
+    "continuous": "Kontinuierlich"
+  },
+  "touchNumericKeypad": {
+    "groupAria": "Zahlen- und Rechenfeld",
+    "openParen": "Klammer auf",
+    "closeParen": "Klammer zu",
+    "clearAll": "Alles löschen",
+    "backspace": "Rücktaste",
+    "divide": "Geteilt",
+    "multiply": "Mal",
+    "decimal": "Dezimalpunkt",
+    "calculate": "Berechnen",
+    "minus": "Minus",
+    "plus": "Plus"
+  },
+  "touchSelect": {
+    "noChoices": "Keine Auswahlmöglichkeiten"
+  },
+  "touchNumeric": {
+    "invalidExpression": "Ungültiger Ausdruck. Bitte Eingabe prüfen (z. B. 5-3 oder 10+0,5).",
+    "emptyRequired": "Bitte einen Wert eingeben oder Abbrechen.",
+    "cancel": "Abbrechen",
+    "confirm": "OK"
+  }
+}

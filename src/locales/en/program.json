@@ -1,0 +1,32 @@
+{
+  "errors": {
+    "loadFailed": "Program could not be loaded in LinuxCNC.",
+    "saveFailed": "File could not be saved on the controller PC.",
+    "readFailed": "File could not be read from the controller PC.",
+    "noConnection": "No connection to the backend.",
+    "noConnectionLinuxcnc": "No connection to the backend — LinuxCNC was not updated.",
+    "connectFirst": "Please connect to the backend first.",
+    "noPathLoaded": "No loaded path — please load a file from the controller PC first.",
+    "readTimeout": "Timeout while reading the file from the controller PC.",
+    "noPathSaveAs": "No controller path — please use \"Save as…\"."
+  },
+  "editorEmpty": "No program loaded.",
+  "executingLocked": "Program is running — editing is locked.",
+  "loadFile": "Load file",
+  "reloadTooltip": "Reload current file from the controller PC (unsaved changes will be lost)",
+  "reloadAria": "Reload program file from controller PC",
+  "saveTooltip": "Saves the current file on the controller PC (overwrites the file there).",
+  "save": "Save",
+  "saved": "Saved",
+  "saveAs": "Save as…",
+  "runFromLine": "Run from line…",
+  "runFromLineTitle": "Run from line",
+  "lineLabel": "Line (1–{{max}})",
+  "runFromLineInvalid": "Please enter a valid line (1–{{max}}). You can calculate with \"=\".",
+  "runFromLineOutOfRange": "Line must be between 1 and {{max}}.",
+  "cancel": "Cancel",
+  "apply": "Apply",
+  "cycleStartHint": "To run the program, press “{{cycleStart}}” on the virtual button sidebar to the left. Optionally use “{{runFromLine}}” first to pick a different start point.",
+  "cycleStartHintNoSidebar": "To run the program, use the “{{cycleStart}}” hotkey (Settings) or the physical cycle-start button. Optionally use “{{runFromLine}}” first.",
+  "cycleStartHintPendingLine": "Next start will run from line {{line}}."
+}

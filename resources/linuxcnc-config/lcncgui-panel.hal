@@ -1,0 +1,101 @@
+# lcncgui external panel — HAL trigger inputs + status outputs
+#
+# Panel only. Source from a HALFILE (e.g. custom.hal), NOT from POSTGUI_HALFILE:
+#   source /opt/lcncgui/resources/linuxcnc-config/lcncgui-panel.hal
+#
+# If you also need softkey pulse/feedback pins (labels 14–16), do NOT source this
+# file together with lcncgui-softkeys.hal (both loadrt dbounce). Use the combined
+# snippet instead (also from a HALFILE):
+#   source /opt/lcncgui/resources/linuxcnc-config/lcncgui-panel-and-softkeys.hal
+#
+# Trigger inputs (wire physical buttons TO the *.in pins):
+#   Rising edge on the debounced *.out pin triggers the matching virtual sidebar action.
+#
+#   lcncgui-panel-machine-toggle.in   → Machine ON/OFF (button 1)
+#   lcncgui-panel-homing.in           → Open homing dialog (button 2)
+#   lcncgui-panel-cycle-start.in      → Cycle start (button 3)
+#   lcncgui-panel-estop.in            → E-Stop toggle (button 4)
+#   lcncgui-panel-axis-x.in           → Open X coordinate dialog (button 5)
+#   lcncgui-panel-axis-y.in           → Open Y coordinate dialog (button 6)
+#   lcncgui-panel-axis-z.in           → Open Z coordinate dialog (button 7)
+#   lcncgui-panel-flood.in            → Flood coolant toggle (button 9)
+#   lcncgui-panel-spindle-reverse.in  → Spindle left (button 10)
+#   lcncgui-panel-spindle-stop.in     → Spindle stop (button 11)
+#   lcncgui-panel-spindle-forward.in  → Spindle right (button 12)
+#   lcncgui-panel-program-pause.in    → Program pause/resume (button 14)
+#   lcncgui-panel-program-stop.in     → Program stop (button 15)
+#   lcncgui-panel-softkey-14.in       → HAL softkey pulse 14 (button 8)
+#   lcncgui-panel-softkey-15.in       → HAL softkey pulse 15 (button 13)
+#   lcncgui-panel-softkey-16.in       → HAL softkey pulse 16 (button 16)
+#
+# Status outputs (wire panel LEDs FROM the *.out pins; lcncgui updates *.value):
+#   lcncgui-panel-status-machine-on.out
+#   lcncgui-panel-status-estop.out
+#   lcncgui-panel-status-paused.out
+#   lcncgui-panel-status-flood.out
+#
+# Example:
+#   net estop-key   parport.0.pin-12-in => lcncgui-panel-estop.in
+#   net led-estop   lcncgui-panel-status-estop.out => parport.0.pin-08-out
+#
+# Components: dbounce (names=) for triggers; constant (names=) for status LEDs.
+# (Classic debounce only accepts cfg=, so it cannot provide these pin names.)
+# dbounce delay is in servo periods (u32); 50 ≈ 50 ms at a 1 ms servo thread.
+
+loadrt dbounce names=\
+lcncgui-panel-machine-toggle,\
+lcncgui-panel-homing,\
+lcncgui-panel-cycle-start,\
+lcncgui-panel-estop,\
+lcncgui-panel-axis-x,\
+lcncgui-panel-axis-y,\
+lcncgui-panel-axis-z,\
+lcncgui-panel-flood,\
+lcncgui-panel-spindle-reverse,\
+lcncgui-panel-spindle-stop,\
+lcncgui-panel-spindle-forward,\
+lcncgui-panel-program-pause,\
+lcncgui-panel-program-stop,\
+lcncgui-panel-softkey-14,\
+lcncgui-panel-softkey-15,\
+lcncgui-panel-softkey-16
+
+setp lcncgui-panel-machine-toggle.delay 50
+setp lcncgui-panel-homing.delay 50
+setp lcncgui-panel-cycle-start.delay 50
+setp lcncgui-panel-estop.delay 50
+setp lcncgui-panel-axis-x.delay 50
+setp lcncgui-panel-axis-y.delay 50
+setp lcncgui-panel-axis-z.delay 50
+setp lcncgui-panel-flood.delay 50
+setp lcncgui-panel-spindle-reverse.delay 50
+setp lcncgui-panel-spindle-stop.delay 50
+setp lcncgui-panel-spindle-forward.delay 50
+setp lcncgui-panel-program-pause.delay 50
+setp lcncgui-panel-program-stop.delay 50
+setp lcncgui-panel-softkey-14.delay 50
+setp lcncgui-panel-softkey-15.delay 50
+setp lcncgui-panel-softkey-16.delay 50
+
+addf lcncgui-panel-machine-toggle servo-thread
+addf lcncgui-panel-homing servo-thread
+addf lcncgui-panel-cycle-start servo-thread
+addf lcncgui-panel-estop servo-thread
+addf lcncgui-panel-axis-x servo-thread
+addf lcncgui-panel-axis-y servo-thread
+addf lcncgui-panel-axis-z servo-thread
+addf lcncgui-panel-flood servo-thread
+addf lcncgui-panel-spindle-reverse servo-thread
+addf lcncgui-panel-spindle-stop servo-thread
+addf lcncgui-panel-spindle-forward servo-thread
+addf lcncgui-panel-program-pause servo-thread
+addf lcncgui-panel-program-stop servo-thread
+addf lcncgui-panel-softkey-14 servo-thread
+addf lcncgui-panel-softkey-15 servo-thread
+addf lcncgui-panel-softkey-16 servo-thread
+
+loadrt constant names=\
+lcncgui-panel-status-machine-on,\
+lcncgui-panel-status-estop,\
+lcncgui-panel-status-paused,\
+lcncgui-panel-status-flood

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "websocketUrl": "ws://127.0.0.1:8765/ws",
+  "ui": {
+    "showVirtualSidebar": true,
+    "kioskMode": false,
+    "debugLoggingEnabled": false,
+    "debugLogEventBus": true,
+    "debugLogWsOutgoing": true,
+    "debugLogWsIncoming": false,
+    "coordinateUiFlushMs": 66
+  }
+}

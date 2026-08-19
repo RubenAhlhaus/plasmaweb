@@ -1,0 +1,32 @@
+{
+  "errors": {
+    "loadFailed": "Programm konnte in LinuxCNC nicht geladen werden.",
+    "saveFailed": "Datei konnte auf dem Steuerrechner nicht gespeichert werden.",
+    "readFailed": "Datei konnte nicht vom Steuerrechner gelesen werden.",
+    "noConnection": "Keine Verbindung zum Backend.",
+    "noConnectionLinuxcnc": "Keine Verbindung zum Backend – LinuxCNC wurde nicht aktualisiert.",
+    "connectFirst": "Bitte zuerst mit dem Backend verbinden.",
+    "noPathLoaded": "Kein geladener Pfad – bitte zuerst eine Datei vom Steuerrechner laden.",
+    "readTimeout": "Zeitüberschreitung beim Lesen der Datei vom Steuerrechner.",
+    "noPathSaveAs": "Kein Steuerrechner-Pfad – bitte „Speichern unter…“ verwenden."
+  },
+  "editorEmpty": "Kein Programm geladen.",
+  "executingLocked": "Programm läuft – Bearbeitung gesperrt.",
+  "loadFile": "Datei laden",
+  "reloadTooltip": "Aktuelle Datei vom Steuerrechner neu laden (nicht gespeicherte Änderungen gehen verloren)",
+  "reloadAria": "Programmdatei vom Steuerrechner neu laden",
+  "saveTooltip": "Speichert die aktuelle Datei auf dem Steuerrechner (überschreibt die dortige Datei).",
+  "save": "Speichern",
+  "saved": "Gespeichert",
+  "saveAs": "Speichern unter…",
+  "runFromLine": "Ausführen ab Zeile…",
+  "runFromLineTitle": "Ausführen ab Zeile",
+  "lineLabel": "Zeile (1–{{max}})",
+  "runFromLineInvalid": "Bitte eine gültige Zeile eingeben (1–{{max}}). Mit „=“ kannst du rechnen.",
+  "runFromLineOutOfRange": "Zeile muss zwischen 1 und {{max}} liegen.",
+  "cancel": "Abbrechen",
+  "apply": "Übernehmen",
+  "cycleStartHint": "Programm starten: Schaltfläche „{{cycleStart}}“ links in der virtuellen Tasten-Sidebar. Optional zuerst „{{runFromLine}}“ für einen anderen Startpunkt.",
+  "cycleStartHintNoSidebar": "Programm starten: Tastenkombination für „{{cycleStart}}“ (Einstellungen) oder physische Cycle-Start-Taste. Optional zuerst „{{runFromLine}}“.",
+  "cycleStartHintPendingLine": "Nächster Start ab Zeile {{line}}."
+}

@@ -1,0 +1,65 @@
+{
+  "placeholder": {
+    "emptyArea": "This section is empty for now."
+  },
+  "screenLoading": "Loading…",
+  "nav": {
+    "home": "Home",
+    "macros": "Macros",
+    "program": "Program",
+    "tools": "Tools",
+    "probing": "Probing",
+    "settings": "Settings"
+  },
+  "header": {
+    "estopActive": "E-stop active",
+    "estopActiveTooltip": "E-stop active",
+    "machineOff": "Machine off",
+    "machineOffTooltip": "Machine off",
+    "disconnected": "Disconnected",
+    "disconnectedTooltip": "Disconnected",
+    "unhomedAxes": {
+      "label": "Not homed ({{axes}})",
+      "tooltip": "Tap to open homing.",
+      "openHomingAria": "Open homing — axes not homed: {{axes}}"
+    },
+    "exit": "Exit",
+    "exitAria": "Exit",
+    "exitDialogTitle": "Exit",
+    "closeWindow": "Close window",
+    "closeWindowShutdown": "Close window and shut down",
+    "cancel": "Cancel",
+    "taskMode": {
+      "manual": { "label": "Manual", "title": "Manual mode" },
+      "auto": { "label": "Program", "title": "Program mode (auto)" },
+      "mdi": { "label": "MDI", "title": "MDI mode" },
+      "fallback": { "label": "Machine on", "title": "Machine on" }
+    },
+    "programRunning": {
+      "label": "Program running…",
+      "title": "A program is currently being interpreted (running or waiting)"
+    },
+    "programPaused": {
+      "label": "Program paused…",
+      "title": "Program interpretation is paused"
+    },
+    "errors": {
+      "noConnection": "No connection to the backend.",
+      "exitRejected": "The backend refused to exit.",
+      "shutdownUnavailable": "Cannot shut down the system. Run once as root: sudo ./install.sh --setup-shutdown",
+      "backendStopped": "The backend has stopped. You can close this tab now.",
+      "exitTimeout": "Timeout while exiting.",
+      "exitFailed": "Exit failed."
+    }
+  },
+  "language": {
+    "label": "Language",
+    "en": "English",
+    "de": "German"
+  },
+  "configLoader": {
+    "loading": "Loading configuration…",
+    "errorTitle": "Configuration error",
+    "errorHelp": "Expected the file lcncgui-config.json at the same origin as this page (Vite dev: under public/ in the repo; built or packaged app: same filename next to the shipped UI). Template in the repo: public/lcncgui-config.example.json. Reload the page after changes. See docs/frontend-web-start.md."
+  }
+}

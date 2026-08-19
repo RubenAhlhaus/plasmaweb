@@ -1,0 +1,44 @@
+{
+  "mdi": {
+    "tooltip": {
+      "estop_active": "MDI is not available while the emergency stop is active.",
+      "machine_off": "MDI is not available while the machine is off.",
+      "interpreter_busy": "MDI is not available while a program is running.",
+      "task_mode_unknown": "MDI is briefly unavailable: task mode not known yet (status is loading).",
+      "task_mode_not_manual_or_mdi": "MDI is only available in manual or MDI mode (not in program/auto mode).",
+      "default": "MDI is not available right now."
+    },
+    "hintFragment": {
+      "estop_active": "E-stop active",
+      "machine_off": "Machine off (turn on first)",
+      "interpreter_busy": "Program running",
+      "task_mode_unknown": "Task mode unknown",
+      "task_mode_not_manual_or_mdi": "Program mode (auto)",
+      "default": "Machine state"
+    },
+    "friendly": {
+      "spindle": "Spindle speed",
+      "feed": "Feed rate",
+      "estop_active": "{{what}} cannot be changed while the emergency stop is active.",
+      "machine_off": "{{what}} cannot be changed while the machine is off. Please turn it on first.",
+      "interpreter_busy": "{{what}} cannot be changed here while a program is running.",
+      "task_mode_unknown": "{{what}} cannot be changed while the task mode (manual/MDI/program) is not known yet — please wait a moment.",
+      "task_mode_not_manual_or_mdi": "{{what}} cannot be changed. Please switch to manual or MDI mode first.",
+      "default": "{{what}} cannot be changed right now.",
+      "multi": "{{what}} cannot be changed ({{reasons}})."
+    }
+  },
+  "jog": {
+    "tooltip": {
+      "estop_active": "Jogging is not available while the emergency stop is active.",
+      "machine_off": "Jogging is not available while the machine is off.",
+      "not_manual_mode": "Jogging is only available in manual mode.",
+      "default": "Jogging is not available right now."
+    }
+  },
+  "wsErrors": {
+    "unknownLinuxcnc": "Unknown LinuxCNC error",
+    "unknownBackend": "Unknown backend error",
+    "unknownCommand": "Unknown command error"
+  }
+}

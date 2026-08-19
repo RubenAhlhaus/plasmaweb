@@ -1,0 +1,12 @@
+; Sample LinuxCNC tool table for lcncgui documentation.
+; Point [EMCIO] TOOL_TABLE in your INI to this file (or merge lines into your real table).
+; After editing on disk, use the refresh control in the Tools screen or restart LinuxCNC.
+;
+; Format (typical mill): T<pocket> P<pocket> ... offsets ... D<diameter> ; optional short comment
+; lcncgui library data (name, type, presets, …) lives in sample_tool_table.lcncgui-tools.json beside this file.
+
+T1 P1 Z+0.000000 D+6.000000 ; VHM Schaftfräser 6mm
+T2 P2 Z+0.000000 D+10.000000 ; VHM Schaftfräser 10mm
+T3 P3 Z+0.000000 D+5.000000 ; HSS Spiralbohrer 5mm
+T4 P4 Z+0.000000 D+1.000000 ; VHM Mikrofräser 1mm
+T5 P5 Z+0.000000 D+10.000000 ; Kegelsenker 90° 10mm

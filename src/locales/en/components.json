@@ -1,0 +1,203 @@
+{
+  "slider": {
+    "openSettingsWithLabel": "{{label}}: open settings",
+    "openSettingsDisplay": "Display: open settings"
+  },
+  "programQueue": {
+    "title": "Program queue",
+    "nextMacro": "Next macro:",
+    "nextMacroQuoted": "“{{label}}”",
+    "nextMacroPhaseNote": "(as a phase in the block).",
+    "clearAddTarget": "Append to program end instead",
+    "tailDropHint": "Drop here: append to program end",
+    "empty": "No entries."
+  },
+  "patternQueue": {
+    "description": "Phases run in order for every pattern position. Reorder by dragging; items dropped here are appended to the end of the phase list.",
+    "addMacroHere": "Macro here",
+    "emptyPhases": "Drag macros from the list here (they appear last in the list) or use “Macro here” and click a tile on the left."
+  },
+  "queueSetup": {
+    "programHeader": "Program header",
+    "tapToEdit": "Tap to edit",
+    "dialogTitle": "Program header",
+    "workOffset": "Coordinate system",
+    "units": "Units",
+    "dialogWorkOffset": "Coordinate system",
+    "dialogUnits": "Units",
+    "unitG21": "Millimetres (G21)",
+    "unitG20": "Inches (G20)",
+    "retractZToMachineZero": "Retract Z (machine)",
+    "retractZToMachineZeroOn": "Machine Z retract on (program start and tool changes)",
+    "retractZToMachineZeroOff": "Machine Z retract off (program start and tool changes)",
+    "retractZToMachineZeroHint": "Rapids to Z0 in machine coordinates (G53 G0 Z0) at program start and again before each mid-queue tool change (different T number). Only safe when machine Z0 is at the top after homing and soft limits match. Disable if that convention does not hold.",
+    "cancel": "Cancel",
+    "apply": "Apply"
+  },
+  "fileBrowser": {
+    "loadTitle": "Open program from controller PC",
+    "saveAsTitle": "Save program as…",
+    "invalidListResponse": "Invalid response from backend (list).",
+    "loadDirFailed": "Could not load directory.",
+    "readFileFailed": "Could not read file.",
+    "enterFileName": "Please enter a file name.",
+    "fileName": "File name",
+    "fileNamePlaceholder": "e.g. part.ngc",
+    "parentDir": "Parent folder",
+    "noEntries": "No entries",
+    "applyPath": "Apply path",
+    "cancel": "Cancel"
+  },
+  "programPathErrors": {
+    "not_a_directory": "The NC program directory does not exist{{pathSuffix}}. Create this folder on the controller PC, or set [DISPLAY] PROGRAM_PREFIX in your LinuxCNC INI file to an existing directory (path is relative to the INI file).",
+    "outside_program_prefix": "The path is outside the NC program directory configured as [DISPLAY] PROGRAM_PREFIX in the LinuxCNC INI{{pathSuffix}}.",
+    "file_not_found": "The file does not exist or cannot be read{{pathSuffix}}.",
+    "parent_not_found": "The parent folder does not exist{{pathSuffix}}. Create it or choose another save location.",
+    "is_directory": "Cannot save here{{pathSuffix}}: the path is a folder, not a file.",
+    "invalid_params": "Invalid path.",
+    "generateProgramListFailed": "Could not access the NC program directory to save the generated program.",
+    "generateProgramListInvalidResponse": "Could not determine the NC program directory (unexpected response from the controller).",
+    "generateProgramSaveFailed": "Could not save the generated program.",
+    "notConnected": "Not connected — connect to the backend first.",
+    "alreadyGenerating": "A program is already being generated. Please wait.",
+    "cannotGenerateGcode": "Cannot generate G-code: {{errors}}",
+    "openProgramFailed": "Could not load the program in LinuxCNC.",
+    "readProgramFailed": "Could not read the program file from the controller."
+  },
+  "coordinates": {
+    "invalidExpression": "Invalid expression. Check the input (e.g. 5-3 or 10+0.5).",
+    "hint": "Tap an X/Y/Z cell to edit the offset in the calculator. Confirm applies the value.",
+    "noActivateMachine": "Cannot activate machine coordinates",
+    "close": "Close",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "dialogTitle": "Coordinate systems & offsets",
+    "machineG53": "Machine (G53)",
+    "columnSystem": "System",
+    "columnActive": "Active",
+    "stateActive": "Active",
+    "setActive": "Set active",
+    "setAxisX": "Set X axis…",
+    "setAxisY": "Set Y axis…",
+    "setAxisZ": "Set Z axis…",
+    "axisDialogTitle": "{{axis}} axis — set to value",
+    "axisDialogTitleFallback": "Set axis",
+    "axisTargetLabel": "Target value {{axis}}",
+    "offsetDialogTitle": "{{system}} – {{axis}} offset",
+    "offsetDialogTitleFallback": "Offset",
+    "offsetFieldLabel": "{{axis}} offset"
+  },
+  "homing": {
+    "closeAria": "Close dialog",
+    "title": "Homing",
+    "homeAll": "Home all",
+    "homeX": "Home X",
+    "homeY": "Home Y",
+    "homeZ": "Home Z",
+    "unhomeAll": "Unhome all"
+  },
+  "mdi": {
+    "applyToLineAria": "Apply command to MDI line"
+  },
+  "mdiConsole": {
+    "inputLabel": "Enter MDI command",
+    "placeholder": "G-code / MDI…",
+    "emptyHistory": "MDI commands will appear here…",
+    "send": "Send"
+  },
+  "machineVisualization": {
+    "comingSoon": "Coming soon!"
+  },
+  "spindleFeed": {
+    "spindleTitle": "Spindle",
+    "feedTitle": "Feed rate",
+    "rpmLabel": "Speed (rpm)",
+    "feedLabel": "Feed (mm/min)",
+    "setSpindle": "Set speed",
+    "setFeed": "Set feed",
+    "invalidSpindleHint": "Enter a valid number (0 or greater). You can calculate with “=”.",
+    "invalidFeedHint": "Enter a valid number greater than 0. You can calculate with “=”.",
+    "overridePercent": "Override (percent)",
+    "feedOverrideLabel": "Feed override (percent)",
+    "rapidOverrideLabel": "Rapid override (percent)",
+    "jogSpeedLabel": "Jog speed (mm/min)",
+    "current": "Current",
+    "spindleOverrideAria": "Spindle override percent",
+    "feedOverrideAria": "Feed override percent",
+    "rapidOverrideAria": "Rapid override percent",
+    "jogSpeedAria": "Jog speed in millimeters per minute",
+    "applyOverride": "Apply override",
+    "applyOverrides": "Apply overrides",
+    "overrideFailed": "Override could not be applied.",
+    "valueOutOfRange": "Enter a value between {{min}} and {{max}}.",
+    "close": "Close"
+  },
+  "virtualSidebar": {
+    "machineLine1": "Machine",
+    "machineLine2": "ON/OFF",
+    "home": "Home",
+    "cycleStart": "Cycle start",
+    "estop": "E-stop",
+    "coolant": "Flood coolant",
+    "spindleLeft": "Spindle left",
+    "spindleStop": "Spindle stop",
+    "spindleRight": "Spindle right",
+    "pause": "Pause",
+    "stop": "Stop"
+  },
+  "toolChange": {
+    "title": "Manual tool change",
+    "closeAria": "Close dialog",
+    "body": "Please load or change tool T{{toolNo}} and confirm when done.",
+    "cancel": "Cancel",
+    "ack": "OK — acknowledge change"
+  },
+  "unhomedJog": {
+    "title": "Axis not homed",
+    "paragraph1": "No homing (reference) has been performed for the selected axis{{suffix}}.",
+    "paragraph2": "Jogging this axis now uses joint mode: individual motors move directly. Please confirm you want to continue.",
+    "cancel": "Cancel",
+    "confirm": "Continue jogging in joint mode"
+  },
+  "errorToast": {
+    "noteTitle": "Note",
+    "errorTitle": "Error",
+    "dismissNote": "Dismiss note",
+    "dismissError": "Dismiss error"
+  },
+  "jogDirectional": {
+    "yPositive": "Y axis forward",
+    "yNegative": "Y axis back",
+    "xNegative": "X axis left",
+    "xPositive": "X axis right",
+    "zPositive": "Z axis up",
+    "zNegative": "Z axis down"
+  },
+  "jogIncrements": {
+    "ariaLabel": "Jog increment",
+    "continuous": "Continuous"
+  },
+  "touchNumericKeypad": {
+    "groupAria": "Number pad",
+    "openParen": "Open parenthesis",
+    "closeParen": "Close parenthesis",
+    "clearAll": "Clear all",
+    "backspace": "Backspace",
+    "divide": "Divide",
+    "multiply": "Multiply",
+    "decimal": "Decimal separator",
+    "calculate": "Calculate",
+    "minus": "Minus",
+    "plus": "Plus"
+  },
+  "touchSelect": {
+    "noChoices": "No options available"
+  },
+  "touchNumeric": {
+    "invalidExpression": "Invalid expression. Check the input (e.g. 5-3 or 10+0.5).",
+    "emptyRequired": "Please enter a value or cancel.",
+    "cancel": "Cancel",
+    "confirm": "OK"
+  }
+}
+

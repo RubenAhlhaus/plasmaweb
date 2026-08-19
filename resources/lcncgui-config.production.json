@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "websocketUrl": "auto",
+  "ui": {
+    "showVirtualSidebar": true,
+    "kioskMode": true,
+    "debugLoggingEnabled": false,
+    "debugLogEventBus": false,
+    "debugLogWsOutgoing": false,
+    "debugLogWsIncoming": false,
+    "coordinateUiFlushMs": 66
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "tools": {
+    "1": {
+      "meta": {
+        "comment": "Allround, Stahl bis 60 HRC",
+        "material": "Carbide",
+        "name": "VHM Schaftfräser 6mm",
+        "type": "Flat End Mill"
+      },
+      "presets": [
+        {
+          "id": "rough-alu",
+          "name": "Alu Schruppen",
+          "comment": "Beispiel-Preset mit Vorschub und Drehzahl",
+          "spindle_rpm": 12000,
+          "feed_mm_min": 1200,
+          "coolant": "mist"
+        }
+      ]
+    },
+    "2": {
+      "meta": {
+        "comment": "Schruppen, hohe Zustellung",
+        "material": "Carbide",
+        "name": "VHM Schaftfräser 10mm",
+        "type": "Flat End Mill"
+      },
+      "presets": []
+    },
+    "3": {
+      "meta": {
+        "comment": "Standardbohrer für Aluminium",
+        "material": "HSS",
+        "name": "HSS Spiralbohrer 5mm",
+        "type": "Drill"
+      },
+      "presets": []
+    },
+    "4": {
+      "meta": {
+        "comment": "Feine Konturen, PCB",
+        "material": "Carbide",
+        "name": "VHM Mikrofräser 1mm",
+        "type": "Flat End Mill"
+      },
+      "presets": []
+    },
+    "5": {
+      "meta": {
+        "comment": "Entgraten, Senken",
+        "material": "HSS",
+        "name": "Kegelsenker 90° 10mm",
+        "type": "Face Mill"
+      },
+      "presets": []
+    }
+  },
+  "version": 1
+}

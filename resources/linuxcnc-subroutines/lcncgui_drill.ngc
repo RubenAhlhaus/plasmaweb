@@ -1,0 +1,72 @@
+; lcncgui - Standard drilling (macro "Drill")
+; Call: o<lcncgui_drill> call [#1] [#2] [#3] [#4] [#5] [#6] [#7] [#8] [#9] [#10] [#11]
+;
+; #1 = X (mm)  #2 = Y (mm)
+; #3 = Safe Z / retract (absolute, mm)
+; #4 = Surface Z (absolute, mm)
+; #5 = Feed approach above surface (mm)
+; #6 = Drill depth below surface (mm, positive)
+; #7 = Feed (mm/min)
+; #8 = Peck increment (mm, positive). 0 or >= #6: single feed to depth.
+; #9 = Coolant: >0.5 = M8 before plunge (no M9 here)
+; #10 = Chip-break retract (mm) after each peck, toward surface (+Z). Ignored when not pecking
+;       or when #11 selects full retract.
+;       If <=0 while pecking (and not full retract), defaults to 1.0 mm (same default as
+;       DRILL_CHIP_BREAK_RETRACT_MM in emitProgram.ts).
+;       Large #10 vs #8 can lift Z above #4 (surface); that is allowed for chip clearing.
+; #11 = Full retract: >0.5 = after each intermediate peck, rapid to feed-start Z (#4 + #5).
+;       Ignored when not pecking. Unset/0 keeps chip-break retract via #10.
+;
+; Main program should set M3 S... before calling this subroutine, and M5 afterwards if needed.
+; Initial approach: raise to #3 only if below, then XY, then Z (see README).
+
+o<lcncgui_drill> sub
+  G90
+  o90 if [#<_z> LT #3]
+    G0 Z#3
+  o90 endif
+  G0 X#1 Y#2
+  G0 Z#3
+  o100 if [#9 GT 0.5]
+    M8
+  o100 endif
+  G0 Z[#4 + #5]
+  ; #<_use_peck>: 1 = pecking (0 < #8 < #6)
+  #<_use_peck> = 0
+  o110 if [#8 GT 0]
+    o111 if [#8 LT #6]
+      #<_use_peck> = 1
+    o111 endif
+  o110 endif
+  o120 if [#<_use_peck> GT 0.5]
+    #<_full_retract> = 0
+    o125 if [#11 GT 0.5]
+      #<_full_retract> = 1
+    o125 endif
+    #<_r> = #10
+    o121 if [#<_full_retract> LT 0.5]
+      o126 if [#<_r> LE 0]
+        #<_r> = 1.0
+      o126 endif
+    o121 endif
+    #<_d> = 0
+    o122 while [#<_d> LT #6]
+      #<_n> = [#<_d> + #8]
+      o123 if [#<_n> GT #6]
+        #<_n> = #6
+      o123 endif
+      G1 Z[#4 - #<_n>] F#7
+      #<_d> = #<_n>
+      o124 if [#<_d> LT #6]
+        o127 if [#<_full_retract> GT 0.5]
+          G0 Z[#4 + #5]
+        o127 else
+          G0 Z[#4 - #<_d> + #<_r>]
+        o127 endif
+      o124 endif
+    o122 endwhile
+  o120 else
+    G1 Z[#4 - #6] F#7
+  o120 endif
+  G0 Z#3
+o<lcncgui_drill> endsub

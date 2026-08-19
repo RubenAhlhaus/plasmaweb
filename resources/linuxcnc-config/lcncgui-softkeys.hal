@@ -1,0 +1,41 @@
+# lcncgui virtual sidebar — custom HAL softkeys (labels 14, 15, 16)
+#
+# Softkeys only (pulse + feedback). Source from a HALFILE (e.g. custom.hal),
+# NOT from POSTGUI_HALFILE — loadrt must run before the GUI/postgui phase:
+#   source /opt/lcncgui/resources/linuxcnc-config/lcncgui-softkeys.hal
+#
+# If you also need the external panel pins, do NOT source this file together with
+# lcncgui-panel.hal (both loadrt dbounce). Use the combined snippet instead:
+#   source /opt/lcncgui/resources/linuxcnc-config/lcncgui-panel-and-softkeys.hal
+#
+# Per softkey you get two user-facing pins:
+#
+#   lcncgui-sk-14.out      — pulse on button press (wire TO your machine logic)
+#   lcncgui-sk-14-fb.in    — your "is active" signal (wire FROM your machine logic;
+#                            button 14 glows green while this is TRUE)
+#
+# Backend pulse trigger (do not wire): lcncgui-sk-14.in (and -15/-16).
+#
+# Example:
+#   net lube-pulse  lcncgui-sk-14.out => mycomp.lube-trigger
+#   net lube-active mycomp.lube-on     => lcncgui-sk-14-fb.in
+#
+# Components: oneshot (names=) for pulses; dbounce (names=) for feedback.
+# (Classic debounce only accepts cfg=, so it cannot provide these pin names.)
+# dbounce delay is in servo periods (u32); 50 ≈ 50 ms at a 1 ms servo thread.
+
+loadrt oneshot names=lcncgui-sk-14,lcncgui-sk-15,lcncgui-sk-16
+setp lcncgui-sk-14.width 0.1
+setp lcncgui-sk-15.width 0.1
+setp lcncgui-sk-16.width 0.1
+addf lcncgui-sk-14 servo-thread
+addf lcncgui-sk-15 servo-thread
+addf lcncgui-sk-16 servo-thread
+
+loadrt dbounce names=lcncgui-sk-14-fb,lcncgui-sk-15-fb,lcncgui-sk-16-fb
+setp lcncgui-sk-14-fb.delay 50
+setp lcncgui-sk-15-fb.delay 50
+setp lcncgui-sk-16-fb.delay 50
+addf lcncgui-sk-14-fb servo-thread
+addf lcncgui-sk-15-fb servo-thread
+addf lcncgui-sk-16-fb servo-thread

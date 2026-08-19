@@ -1,0 +1,134 @@
+{
+  "title": "Einstellungen",
+  "description": "Konfiguration von UI- und Debug-Optionen.",
+  "groups": {
+    "connection": "Verbindung",
+    "display": "Anzeige",
+    "virtualSidebarHotkeys": "Virtuelle Sidebar — Hotkeys",
+    "feedOverrideHotkeys": "Feed-Override — Hotkeys",
+    "spindleOverrideHotkeys": "Spindle-Override — Hotkeys",
+    "halTools": "HAL-Werkzeuge",
+    "debugLogging": "Debug / Logging",
+    "debugState": "Debug / Zustände"
+  },
+  "connection": {
+    "wsUrl": "WebSocket-URL (aus Konfigurationsdatei)",
+    "notLoaded": "— (Konfiguration noch nicht geladen)",
+    "help": "Die URL stammt aus {{configFile}} (gleiche Origin wie die App; im Vite-Dev-Projekt liegt die Datei unter {{public}}, in gebauter/packagierter UI daneben wie die statische Web-App). Werte werden beim Laden der Seite übernommen; die UI schreibt die Datei nicht zurück — nach Änderungen neu laden. Siehe {{docLink}}."
+  },
+  "display": {
+    "virtualSidebar": "Virtuelle Tasten-Sidebar links anzeigen",
+    "windowMode": "Fenstermodus beim Start",
+    "windowModeKiosk": "Vollbild (Kiosk)",
+    "windowModeWindowed": "Fenster mit Titelleiste",
+    "windowModeHelp": "Steuert, ob lcncgui beim nächsten Start im Vollbild (Kiosk) oder als normales Fenster mit Minimieren-, Maximieren- und Schließen-Schaltflächen erscheint. Die Einstellung wird unter ~/.local/share/lcncgui/user-preferences.json gespeichert und gilt nach einem Neustart von LinuxCNC bzw. lcncgui.",
+    "windowModeSaveFailed": "Fenstermodus konnte nicht gespeichert werden.",
+    "language": "Sprache",
+    "linuxCncAutostart": "LinuxCNC beim Systemstart starten",
+    "linuxCncAutostartHelp": "Wenn aktiviert, startet LinuxCNC nach der grafischen Anmeldung automatisch mit der aktuellen INI-Konfiguration. Erfordert eine Desktop-Session (Autologin auf dedizierten Maschinen empfohlen). Gespeichert in ~/.local/share/lcncgui/user-preferences.json und ~/.config/autostart/linuxcnc-lcncgui.desktop.",
+    "linuxCncAutostartIni": "INI: {{path}}",
+    "linuxCncAutostartSaveFailed": "LinuxCNC-Autostart konnte nicht gespeichert werden.",
+    "linuxCncAutostartErrors": {
+      "ini_path_unavailable": "LinuxCNC-INI-Pfad ist nicht verfügbar. LinuxCNC einmal mit Ihrer Konfiguration starten, bevor Autostart aktiviert wird.",
+      "autostart_setup_failed": "Autostart-Eintrag konnte nicht angelegt oder entfernt werden. Dateiberechtigungen unter ~/.config/autostart/ prüfen.",
+      "autostart_env_disabled": "Autostart ist durch die Umgebungsvariable LCNCGUI_AUTOSTART auf dem Backend-Host deaktiviert.",
+      "network_error": "Backend nicht erreichbar — Autostart-Einstellung konnte nicht gespeichert werden.",
+      "save_failed": "LinuxCNC-Autostart konnte nicht gespeichert werden."
+    },
+    "reloadToolOnStartup": "Letztes Werkzeug nach Homing laden",
+    "reloadToolOnStartupHelp": "Merkt sich das zuletzt in der Spindel befindliche Werkzeug und setzt es nach dem Homing aller Achsen mit M61 erneut (ohne physischen Werkzeugwechsel). Entspricht gmoccapys „Reload tool“. Gespeichert in ~/.local/share/lcncgui/user-preferences.json.",
+    "reloadToolOnStartupSaveFailed": "Einstellung „Letztes Werkzeug laden“ konnte nicht gespeichert werden.",
+    "userPreferencesLoadFailed": "Gespeicherte Anzeige-Einstellungen konnten nicht geladen werden (Backend nicht erreichbar). Angezeigte Werte können Defaults aus der Konfigurationsdatei sein, bis das Backend verfügbar ist."
+  },
+  "halTools": {
+    "help": "Startet LinuxCNC-HAL-Hilfsprogramme auf dem Rechner mit dem Backend (wie in den gmoccapy-Einstellungen). Jedes Werkzeug öffnet ein eigenes Fenster auf dem LinuxCNC-Host.",
+    "launchFailed": "{{tool}} konnte nicht geöffnet werden.",
+    "errors": {
+      "halshow_unavailable": "{{tool}} ist nicht verfügbar (LINUXCNC_TCL_DIR oder tclsh fehlt).",
+      "halmeter_unavailable": "{{tool}} ist nicht installiert oder nicht im PATH.",
+      "halscope_unavailable": "{{tool}} ist nicht installiert oder nicht im PATH.",
+      "linuxcnctop_unavailable": "{{tool}} ist nicht installiert oder nicht im PATH.",
+      "hal_calibration_unavailable": "{{tool}} ist nicht verfügbar (LINUXCNC_TCL_DIR oder tclsh fehlt).",
+      "ini_path_unavailable": "LinuxCNC-INI-Pfad für {{tool}} ist nicht verfügbar.",
+      "classicladder_unavailable": "ClassicLadder-RT-Komponente nicht gefunden oder {{tool}} fehlt.",
+      "display_unavailable": "Keine Display-Session (DISPLAY/WAYLAND_DISPLAY). lcncgui aus der LinuxCNC-Display-Session starten.",
+      "launch_failed": "{{tool}} wurde sofort beendet oder konnte nicht gestartet werden.",
+      "network_error": "Backend nicht erreichbar — {{tool}} konnte nicht geöffnet werden."
+    },
+    "tools": {
+      "classicladder": "ClassicLadder",
+      "halscope": "HAL Scope",
+      "linuxcnctop": "HAL Status",
+      "halmeter": "HAL Meter",
+      "hal_calibration": "HAL Calibration",
+      "halshow": "HAL Show"
+    }
+  },
+  "virtualSidebarHotkeys": {
+    "help": "Weisen Sie jeder Taste der virtuellen Sidebar eine Tastenkombination zu. Feld anklicken, gewünschte Taste oder Kombination drücken (z. B. Strg+Umschalt+F1). Mit Rücktaste oder Entf beim Erfassen löschen. Shortcuts funktionieren auch bei ausgeblendeter Sidebar, offenen Dialogen und auf dem Einstellungs-Screen.",
+    "notSet": "Nicht belegt",
+    "pressKeys": "Tasten drücken…",
+    "clear": "Löschen",
+    "modifiers": {
+      "ctrl": "Strg",
+      "alt": "Alt",
+      "shift": "Umschalt",
+      "meta": "Meta",
+      "space": "Leertaste"
+    }
+  },
+  "hotkeys": {
+    "duplicate": "Diese Kombination ist bereits „{{target}}“ zugewiesen."
+  },
+  "overridePresetHotkeys": {
+    "help": "Jeder Drehgeber-Stellung (0–15) eine Tastenkombination zuweisen. Stellungen 0–10 setzen 0–100 % in 10er-Schritten; 11–15 setzen 125–200 % in 25er-Schritten (Stellung 15 auf 200 % begrenzt). Feed-Stellung 0 setzt ~1 % im Idle/MDI bzw. Program Pause bei laufendem Programm (Verlassen von 0 resumed nur, wenn diese Pause vom Feed-Preset kam). Gleiche Bedienung wie bei Sidebar-Hotkeys; Kombinationen müssen über alle Hotkey-Gruppen eindeutig sein.",
+    "expandPositions": "Stellungen 0–15 anzeigen",
+    "positionLabel": "{{kind}} Stellung {{position}} → {{percent}} %",
+    "positionLabelFeedZero": "{{kind}} Stellung {{position}} → ~1 % / Pause",
+    "kinds": {
+      "feed": "Feed",
+      "spindle": "Spindle"
+    }
+  },
+  "debugLogging": {
+    "masterToggle": "Debug-Logging (Eventbus & WebSocket) aktivieren",
+    "help": "Wenn aktiviert, werden ausgewählte Events in der Browser-Konsole mit Timestamp geloggt. Die Logs werden nicht persistent gespeichert.",
+    "whatIsLogged": "Was wird geloggt?",
+    "eventBus": "Frontend-Eventbus-Events",
+    "wsOutgoing": "WebSocket – ausgehende Nachrichten",
+    "wsIncoming": "WebSocket – eingehende Nachrichten"
+  },
+  "debugState": {
+    "snapshotTitle": "Zustand-Snapshot",
+    "logAll": "Alle gespeicherten Zustände in Konsole schreiben",
+    "logButton": "Snapshot loggen",
+    "snapshotHelp": "Loggt einmalig einen Snapshot aller aktuell gespeicherten Zustände in die Browser-Developer-Konsole.",
+    "programEditor": "Programm-Editor (UI-State)",
+    "current": "Aktuell",
+    "resetEditor": "Editor und Makro-Warteschlange zurücksetzen",
+    "resetButton": "Zurücksetzen",
+    "resetHelp": "Leert Text, Pfad, Fehlerbanner, nächsten Cycle-Start (`pendingAutoRunStartLine`), die Makro-Warteschlange (`macroQueueItems`), den Programmkopf (`macroQueueProgramSetup`) und stellt den Bearbeitungsmodus auf Standard. LinuxCNC wird dadurch nicht verändert.",
+    "mdi": "MDI-Konsole (UI-State)",
+    "historyCount": "Historie-Einträge (Session-Ring)",
+    "wsCommands": "WebSocket-Kommandos",
+    "commandResultRing": "Letzte command_result-Einträge (Ring)",
+    "errorToasts": "Error Toasts",
+    "openToasts": "Offen in der Queue",
+    "clearToasts": "Queue leeren",
+    "clearToastsButton": "Toasts entfernen"
+  },
+  "programEditor": {
+    "highlightLine": " · hervorgehobene Zeile: {{line}}",
+    "summaryWithContent": "{{count}} Zeichen{{pathSegment}}{{highlight}} · nächster Run startLine: {{startLine}}",
+    "summaryEmpty": "leer{{highlight}} · nächster Run startLine: {{startLine}}",
+    "pathSeparator": " · {{path}}"
+  },
+  "configErrors": {
+    "notObject": "Konfiguration ist kein JSON-Objekt.",
+    "websocketMissing": "Pflichtfeld \"websocketUrl\" fehlt oder ist leer.",
+    "websocketScheme": "\"websocketUrl\" muss ws://, wss:// oder \"auto\" (gleicher Host wie die Seite) sein.",
+    "fetchFailed": "Konfiguration konnte nicht geladen werden ({{message}}).",
+    "httpNotOk": "Konfiguration nicht gefunden (HTTP {{status}}). Erwartet: {{url}}",
+    "invalidJson": "Konfigurationsdatei ist kein gültiges JSON."
+  }
+}

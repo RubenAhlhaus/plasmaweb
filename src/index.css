@@ -1,0 +1,99 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 20% 8%;
+    --foreground: 0 0% 98%;
+    --card: 220 20% 10%;
+    --card-foreground: 0 0% 98%;
+    --primary: 210 100% 50%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 220 15% 20%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 220 15% 15%;
+    --muted-foreground: 220 10% 65%;
+    --accent: 220 15% 20%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 220 15% 25%;
+    --input: 220 15% 25%;
+    --ring: 210 100% 50%;
+    --radius: 0.5rem;
+    /* Akzentfarben für moderneres UI */
+    --accent-green: 142 76% 36%;
+    --accent-orange: 25 95% 53%;
+    --accent-cyan: 187 85% 43%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-mono;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+}
+
+/* Solid surface utilities (opaque — no backdrop-blur for embedded GPU performance) */
+.surface {
+  @apply bg-muted border border-white/20;
+}
+
+.surface-strong {
+  @apply bg-secondary border border-white/30;
+}
+
+.surface-subtle {
+  @apply bg-card border border-white/10;
+}
+
+/* Einfarbige Slider-Füllung (F=Grün, S=Orange) */
+.slider-fill-f { background-color: hsl(142 76% 40% / 0.9); }
+.slider-fill-s { background-color: hsl(25 95% 53% / 0.9); }
+
+/* Koordinaten-Achsenfarben (X=Orange, Y=Grün, Z=Cyan) */
+.axis-x { color: hsl(25 95% 60%); }
+.axis-y { color: hsl(142 76% 50%); }
+.axis-z { color: hsl(187 85% 55%); }
+
+/* Linke, angepasste Scrollbar (z. B. Makromenü) */
+.scrollbar-left-custom {
+  direction: rtl;
+  /* Firefox: schmale Scrollbar, Farben an Design anpassen */
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+.scrollbar-left-custom > * {
+  direction: ltr;
+}
+/* WebKit (Chrome, Edge, Safari): Scrollbar links, schlank, zum Design passend */
+.scrollbar-left-custom::-webkit-scrollbar {
+  width: 6px;
+}
+.scrollbar-left-custom::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-left-custom::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 3px;
+}
+.scrollbar-left-custom::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+.scrollbar-left-custom::-webkit-scrollbar-thumb:active {
+  background: hsl(var(--muted-foreground) / 0.7);
+}
+
+/* Snap hover/active color changes instantly — Tailwind's default 150ms feels sluggish on embedded GPUs. */
+@layer utilities {
+  .transition-colors {
+    transition-duration: 0ms;
+  }
+}
