@@ -189,7 +189,9 @@ class HalBridge:
         self._read_plasmac = tuple(present)
         self._missing = tuple(hal_name(PLASMAC_COMPONENT, pin) for pin in missing)
         if self._missing:
-            logger.info(
+            # Warning, not info: uvicorn configures no root handler, so info from backend
+            # modules is dropped, and "this build is missing 18 pins" is worth seeing.
+            logger.warning(
                 "plasma: this LinuxCNC build has no %s — those pins stay absent",
                 ", ".join(self._missing),
             )
