@@ -16,7 +16,9 @@ import {
   dispatchVirtualSidebarButton,
   isVirtualSidebarButtonId,
 } from '@/lib/dispatchVirtualSidebarButton';
+import { jointCoordinatesFromIni } from '@/lib/axisJointMap';
 import { useAppStore } from '@/store';
+import { isAxisHomed } from '@/utils/homing';
 import { useEffect, useRef } from 'react';
 
 export function useBackendWebSocket() {
@@ -160,16 +162,20 @@ export function useBackendWebSocket() {
               const nextHomed = updates.linuxCncStatusPartial.motion?.homed;
 
               if (Array.isArray(previousHomed) && Array.isArray(nextHomed)) {
-                const axes: Array<{ index: number; axis: 'x' | 'y' | 'z' }> = [
-                  { index: 0, axis: 'x' },
-                  { index: 1, axis: 'y' },
-                  { index: 2, axis: 'z' },
-                ];
+                // stat.homed is indexed by joint, so an axis only becomes homed once
+                // every joint driving it reports homed (Y owns joints 1 and 2 on a
+                // gantry, Z is joint 3 on trivkins coordinates=xyyz).
+                const jointCoordinates = jointCoordinatesFromIni(state.iniRuntimeConfig);
+                const nextStatus = {
+                  motion: { ...linuxCncStatus.motion, ...updates.linuxCncStatusPartial.motion },
+                  joints: updates.linuxCncStatusPartial.joints ?? linuxCncStatus.joints,
+                };
 
-                for (const { index, axis } of axes) {
-                  const prev = previousHomed[index];
-                  const next = nextHomed[index];
-                  if ((prev === undefined || prev === 0) && next && next !== 0) {
+                for (const axis of ['x', 'y', 'z'] as const) {
+                  if (
+                    !isAxisHomed(linuxCncStatus, axis, jointCoordinates) &&
+                    isAxisHomed(nextStatus, axis, jointCoordinates)
+                  ) {
                     resetUnhomedJogDialogForAxis(axis);
                   }
                 }

@@ -165,6 +165,33 @@ working.
   synchronised axis — the same rule QtPlasmaC applies. The backend's INI reader also
   follows `#INCLUDE`, which every QtPlasmaC config needs.
 
+**M0 exit criterion: met** (VM run, LinuxCNC 2.9.4, `sim/qtplasmac` `qtplasmac_s_metric.ini`
+with `DISPLAY = plasmacweb`; recipe and guest-access details in `docs/dev-vm.md`):
+
+| Checked | Result |
+|---|---|
+| Vendored GUI boots as a LinuxCNC `[DISPLAY]` | RT stack, `plasmac` comp, `halui`, backend on `127.0.0.1:8765` and `firefox-esr -kiosk` all come up |
+| POSTGUI ordering | Both POSTGUI halfiles (`custom_postgui.hal`, `sim_postgui.hal`) load before the backend and need **no** `qtplasmac.*` pins — `sim-torch` and the `qtplasmac_sim` panel run. The launcher's current order is fine until M1 creates the comp |
+| INI reading | `#INCLUDE` followed; `traj_coordinates = XYYZ`, `kins_kinematics = trivkins coordinates=xyyz`, `joint_home_sequences = ["1","-2","-2","0"]` |
+| Home all | 4 joints homed, Z (joint 3) parks at 95 mm |
+| Home one joint | `motion.home {joint: 3}` homes **only** joint 3 — the case the old X→0/Y→1/Z→2 assumption got wrong |
+| Axis jog | X +10 mm and Z −5 mm move the right axis; joint 3 follows Z |
+| Joint jog | joint 3 (Z) moves in free mode; joint 1 (synchronised Y) is refused by LinuxCNC itself — *"Homing is REQUIRED to jog requested coordinate because joint (1) home_sequence is synchronized (-2)"* — which is exactly the rule the frontend now enforces up front |
+| 3 spindles / external offsets | No breakage: `stat.spindle` carries all 3, `plasmac`'s `axis.[xyz].eoffset-*` nets load |
+
+Two things the run surfaced, both fixed here:
+
+- `get_status_snapshot` truncated `stat.homed` to three entries. It is indexed by **joint**,
+  so on XYYZ the Z flag (index 3) was dropped; only the `joints[]` fallback in
+  `src/utils/homing.ts` kept the display honest. Now sent per joint.
+- `useBackendWebSocket` still mapped `homed[0..2]` to X/Y/Z when clearing the unhomed-jog
+  hint, so homing the *second Y joint* cleared it for Z. Now goes through `isAxisHomed` and
+  the `[KINS]` map.
+
+Sim-only gotcha, not a defect: `estop_or.in0` is owned by the `qtplasmac_sim` panel and
+starts engaged, so `machine.power` fails with `estop_reset_rejected` until that panel's
+estop is released (or `halcmd setp estop_or.in0 0`).
+
 ### M1 — Live dashboard + run control  ← chosen MVP
 
 - `plasma/pins.py`: transcribe the **91** `qtplasmac.*` pins (exact list already extracted
@@ -316,7 +343,10 @@ open/run, tool table, error channel, INI parsing, atomic file writes),
   Playwright MCP headless (per global rules), not claude-in-chrome.
 
 **On the Linux VM (each milestone):**
-1. `linuxcnc configs/sim/qtplasmac/qtplasmac_metric.ini` with `DISPLAY = plasmacweb`.
+0. Deploy and start per `docs/dev-vm.md` (the Mac cannot reach the VM over IP yet, so the
+   UTM guest agent is the transport).
+1. `linuxcnc ~/linuxcnc/configs/qtplasmac/plasmacweb_metric.ini` (a copy of
+   `qtplasmac_s_metric.ini` with `DISPLAY = plasmacweb`).
 2. `halcmd show pin qtplasmac` — all 91 pins present with correct types/directions;
    `halcmd show pin plasmac` — no unconnected pin that QtPlasmaC connects.
 3. Side-by-side against real QtPlasmaC on the same config: same material values applied to

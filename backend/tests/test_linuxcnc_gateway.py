@@ -431,6 +431,53 @@ def test_get_status_snapshot_includes_tool_table(monkeypatch) -> None:
     assert snap["tools"]["tool_from_pocket"] == 0
 
 
+def test_get_status_snapshot_keeps_homed_flag_per_joint(monkeypatch) -> None:
+    """stat.homed is indexed by joint: on trivkins coordinates=xyyz Z is joint 3,
+    so the snapshot must not truncate the list to three axis-shaped entries."""
+    gateway = LinuxCncGateway()
+    fake_lc = SimpleNamespace(
+        MODE_MANUAL=1,
+        STATE_OFF=3,
+        STATE_ON=4,
+        STATE_ESTOP=1,
+        STATE_ESTOP_RESET=2,
+    )
+    monkeypatch.setattr(gateway_module, "linuxcnc", fake_lc)
+
+    gateway._stat = SimpleNamespace(
+        poll=lambda: None,
+        task_mode=1,
+        task_state=4,
+        estop=fake_lc.STATE_ESTOP_RESET,
+        feedrate=1.0,
+        axis_mask=7,
+        actual_position=(0.0, 0.0, 95.0),
+        # XYYZ gantry, only the Z joint (index 3) is homed
+        homed=(0, 0, 0, 1, 0, 0, 0, 0, 0),
+        g5x_index=1,
+        g5x_offset=(0.0,) * 9,
+        g92_offset=(0.0,) * 9,
+        din=(),
+        dout=(),
+        flood=0,
+        mist=0,
+        file=None,
+        gcodes=(),
+        mcodes=(),
+        settings=(),
+        joint=(),
+        axis=(),
+        tool_in_spindle=0,
+        tool_table=[],
+        pocket_prepped=0,
+        tool_from_pocket=0,
+        spindle=(),
+    )
+
+    snap = gateway.get_status_snapshot()
+    assert snap["motion"]["homed"] == [0, 0, 0, 1, 0, 0, 0, 0, 0]
+
+
 def test_get_status_snapshot_hydrates_coordinate_offsets_from_var(
     tmp_path, monkeypatch
 ) -> None:

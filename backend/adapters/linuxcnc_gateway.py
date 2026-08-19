@@ -4012,7 +4012,10 @@ class LinuxCncGateway:
                         "actual_position": list(
                             getattr(s, "actual_position", (0.0, 0.0, 0.0))
                         )[:3],
-                        "homed": list(getattr(s, "homed", (0, 0, 0)))[:3],
+                        # Per JOINT, nicht per Achse: stat.homed[j] gehoert zu Joint j.
+                        # Auf trivkins coordinates=xyyz ist Z Joint 3, also darf hier
+                        # nicht auf drei Eintraege gekuerzt werden.
+                        "homed": list(getattr(s, "homed", (0, 0, 0))),
                         "g5x_index": getattr(s, "g5x_index", 0),
                         "g5x_offset": list(getattr(s, "g5x_offset", (0.0,) * 9)),
                         "g92_offset": list(getattr(s, "g92_offset", (0.0,) * 9)),
