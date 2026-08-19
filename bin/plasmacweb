@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# plasmacweb — LinuxCNC [DISPLAY] launcher for the QtPlasmaC web interface.
+#
+# LinuxCNC runs:  plasmacweb -ini "/path/to/machine.ini"
+#
+#   [DISPLAY]
+#   DISPLAY = plasmacweb
+#
+# Thin wrapper over bin/lcncgui. The upstream launcher is vendored unchanged so
+# it stays diffable against lcncgui; this script only supplies the install-root
+# default and the name LinuxCNC calls. All LCNCGUI_* environment variables
+# documented in `bin/lcncgui --help` apply here too.
+#
+# NOTE (milestone M1): bin/lcncgui loads [HAL] POSTGUI_HALFILE *before* starting
+# the backend (bin/lcncgui, run_postgui_halfiles in main). QtPlasmaC configs net
+# against `qtplasmac.*` pins, which the backend itself must create and mark ready
+# first, so that order has to be inverted once backend/plasma/hal_bridge.py
+# exists. Until then the upstream order is correct and untouched.
+
+set -euo pipefail
+
+self="$(readlink -f "${BASH_SOURCE[0]}")"
+: "${LCNCGUI_ROOT:="$(readlink -f "$(dirname "$self")/..")"}"
+export LCNCGUI_ROOT
+
+exec "${LCNCGUI_ROOT}/bin/lcncgui" "$@"

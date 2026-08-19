@@ -1,104 +1,76 @@
-# lcncgui
+# plasma-web-interface
 
-Web-based GUI for LinuxCNC — jog, tool table, program editor, macros, and machine control in a touch-friendly browser UI (similar role to gmoccapy).
+A browser-based replacement for the **QtPlasmaC** screen — plasma cutter control for
+LinuxCNC in a touch-friendly web UI, with a Python backend on the machine.
 
-## Screenshots
+**Status: milestone M0 (foundation).** The lcncgui application skeleton is vendored and
+boots against a QtPlasmaC config; no plasma-specific code exists yet. See
+[`BUILD_PLAN.md`](BUILD_PLAN.md) for the full plan and milestones, and
+[`plan.md`](plan.md) for the original brief.
 
-<table>
-  <tr>
-    <td width="50%">
-      <img src="docs/img/home.png" alt="Home / jog screen">
-      <p align="center"><sub>Home — jog, DRO, MDI, spindle &amp; feed</sub></p>
-    </td>
-    <td width="50%">
-      <img src="docs/img/sidebar.png" alt="Virtual sidebar hotkeys">
-      <p align="center"><sub>Virtual sidebar — machine, spindle, coolant</sub></p>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <img src="docs/img/program.png" alt="Program editor">
-      <p align="center"><sub>Program editor — load, edit, run from line</sub></p>
-    </td>
-    <td width="50%">
-      <img src="docs/img/macro.png" alt="Macros screen">
-      <p align="center"><sub>Macros — drilling, milling, program queue</sub></p>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <img src="docs/img/tooltable.png" alt="Tool table">
-      <p align="center"><sub>Tool table — offsets, materials, touch-off</sub></p>
-    </td>
-    <td width="50%">
-      <img src="docs/img/input.png" alt="Numeric input keypad">
-      <p align="center"><sub>Touch keypad — expressions &amp; units</sub></p>
-    </td>
-  </tr>
-</table>
+## Design in one page
 
-<details>
-<summary>More screenshots</summary>
+- **Drop-in.** The backend registers the same userspace HAL component name
+  (`qtplasmac`, 91 pins) and reads the same files (`<machine>_material.cfg`,
+  `<machine>.prefs`, the `[QTPLASMAC]` INI section) as QtPlasmaC. Switching a machine
+  over means changing one INI line — and changing it back works too.
+- **Dashboard and remote control only.** All reactive and timing-critical logic stays in
+  the realtime `plasmac` HAL component. The backend writes setpoints and one-shot
+  requests; realtime-owned pins are read-only, enforced by an explicit table in
+  `backend/plasma/pins.py`. Losing the browser or the WebSocket never changes machine
+  state.
+- **HAL on its own thread.** A dedicated OS thread polls HAL every 50 ms via the native
+  `hal` module and pushes diffs into the asyncio loop — never `halcmd` subprocesses, and
+  never HAL calls from the event loop.
+- **Reuse over reimplementation.** Conversational geometry, run-from-line and the G-code
+  interpreter come from LinuxCNC's own pure-Python modules. Jog, DRO, MDI, program
+  running and the tool table come from lcncgui.
 
-<p align="center">
-  <img src="docs/img/preset.png" alt="Machining preset editor" width="70%">
-  <br>
-  <sub>Machining presets — speeds, feeds, plunge &amp; coolant</sub>
-</p>
+See [`UPSTREAM.md`](UPSTREAM.md) for exactly what is vendored, what is reused at
+runtime, and the rules for both.
 
-</details>
+## Layout
 
-## Install (LinuxCNC controller)
-
-You do **not** need Node.js on the machine. Download a pre-built release tarball from **[GitHub Releases](https://github.com/salomom/lcncgui/releases)**.
-
-```bash
-tar xzf lcncgui-1.0.0-linux.tar.gz
-cd lcncgui-1.0.0-linux
-sudo ./install.sh
 ```
-
-Then set `DISPLAY = lcncgui` in your LinuxCNC INI and restart LinuxCNC.
-
-Full guide: [`docs/installation.md`](docs/installation.md) (requirements, per-user install, upgrades, uninstall, shutdown permissions).
-
-### Verify download (optional)
-
-```bash
-sha256sum -c checksums.txt
+backend/            FastAPI + WebSocket backend (vendored from lcncgui)
+  plasma/           plasma domain logic                       (M1+)
+  adapters/         LinuxCNC + HAL access
+src/                React + TypeScript frontend (vendored from lcncgui)
+  screens/plasma/   MAIN / PARAMETERS / SETTINGS / STATISTICS /
+                    CONVERSATIONAL / MATERIAL                 (M1+)
+bin/plasmacweb      LinuxCNC [DISPLAY] launcher
+reference/          read-only upstream clones (git-ignored)
+docs/               upstream docs + UPSTREAM_README.md
 ```
-
-Use the `checksums.txt` file attached to the same GitHub Release as the tarball.
-
-## Upgrade
-
-Extract a newer release tarball and re-run the installer from that directory:
-
-```bash
-sudo ./install.sh
-```
-
-Restart LinuxCNC after upgrading.
 
 ## Development
 
-Requires Node.js 20+ and Python 3 with LinuxCNC (`import linuxcnc`).
+Requires Node 18+ and Python 3.9+. The backend needs LinuxCNC's `linuxcnc` and `hal`
+Python modules, which only exist on a LinuxCNC install — off-machine, plasma code falls
+back to fakes and fixtures (M1+).
 
 ```bash
-cp public/lcncgui-config.example.json public/lcncgui-config.json
 npm install
-python -m backend.main    # terminal 1 — WebSocket on :8765
-npm run dev               # terminal 2 — Vite on :5173
+npm run dev            # Vite dev server
+npm test               # vitest
+npm run lint
+
+python -m backend.main # backend (needs the linuxcnc module)
+pytest backend/tests
 ```
 
-See [`docs/frontend-web-start.md`](docs/frontend-web-start.md) for details. Run tests with `npm test` and `npm run test:e2e`.
+## Running on a machine
 
-## Releasing (maintainers)
+Install per [`docs/installation.md`](docs/installation.md), then in the machine INI:
 
-See [`docs/releasing.md`](docs/releasing.md) for the full checklist (changelog, version bump, tagging, CI verification).
+```ini
+[DISPLAY]
+DISPLAY = plasmacweb
+```
 
-Quick summary: update `CHANGELOG.md`, bump `package.json`, push tag `v1.0.0` to GitHub — Actions builds and publishes `lcncgui-<version>-linux.tar.gz`.
+The integration target is the QtPlasmaC simulator config shipped with LinuxCNC
+(`configs/sim/qtplasmac/`), whose `sim-torch` component supplies a synthetic arc voltage.
 
 ## License
 
-GNU General Public License v3.0 or later (GPL-3.0-or-later) — see [`LICENSE`](LICENSE).
+GPL-3.0-or-later. See [`LICENSE`](LICENSE) and [`UPSTREAM.md`](UPSTREAM.md).

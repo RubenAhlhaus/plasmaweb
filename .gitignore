@@ -116,3 +116,10 @@ dist/
 dist-release/
 todo
 lcncgui-config.json
+# --- plasma-web-interface ---
+# Read-only upstream sources (linuxcnc ~1.2 GB, lcncgui ~14 MB). Cloned locally,
+# never committed. See UPSTREAM.md for the exact revisions.
+/reference/
+
+# Session scratch
+.remember/
