@@ -37,6 +37,25 @@ export function usePlasmaCommands() {
     [socket],
   );
 
+  /**
+   * Same, but hands back the `commandId` so the caller can wait for the ack.
+   *
+   * Most plasma commands are fire-and-forget because the pin diff is the answer. The preview
+   * and run-from-line are not: their answer only exists in the result, so the caller needs to
+   * be able to recognise it.
+   */
+  const sendForResult = useCallback(
+    (action: string, params?: Record<string, unknown>): string | null => {
+      if (!socket || socket.readyState !== WebSocket.OPEN) {
+        return null;
+      }
+      const envelope = createCommandEnvelope('plasma', action, params ?? {});
+      socket.send(JSON.stringify(envelope));
+      return envelope.commandId;
+    },
+    [socket],
+  );
+
   return useMemo(
     () => ({
       getSnapshot: () => send('get_snapshot'),
@@ -57,7 +76,15 @@ export function usePlasmaCommands() {
       getParameters: () => send('get_parameters'),
       saveParameters: (values: Record<string, number>) => send('save_parameters', { values }),
       reloadConfig: () => send('reload_config'),
+      toolpath: (path?: string) => sendForResult('toolpath', path ? { path } : {}),
+      runFromLine: (params: {
+        line: number;
+        runType?: 'here' | 'cut';
+        leadinLength?: number;
+        leadinAngle?: number;
+        load?: boolean;
+      }) => sendForResult('run_from_line', { ...params }),
     }),
-    [send],
+    [send, sendForResult],
   );
 }

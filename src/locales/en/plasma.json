@@ -60,7 +60,8 @@
     "label": "Plasma screens",
     "main": "Main",
     "material": "Material",
-    "parameters": "Parameters"
+    "parameters": "Parameters",
+    "preview": "Preview"
   },
   "material": {
     "unavailable": "No material file for this machine.",
@@ -106,5 +107,20 @@
       "motion": "Motion and safety",
       "scribe": "Scribe, spotting and offsets"
     }
+  },
+  "preview": {
+    "refresh": "Refresh",
+    "pickACut": "Tap a cut to pick a start line",
+    "selectedLine": "Line {{line}} selected",
+    "hereToEnd": "Here to end",
+    "thisCutpath": "This cutpath",
+    "leadinLength": "Lead-in",
+    "leadinAngle": "Angle",
+    "loading": "Reading the program…",
+    "noProgram": "No program loaded.",
+    "loadedFromLine": "Loaded, starting at line {{line}}",
+    "runFromLineFailed": "Run from line failed.",
+    "points": "{{count}} points",
+    "truncated": "Preview truncated: the program is larger than the preview limit."
   }
 }

@@ -593,6 +593,29 @@ export interface PlasmaParameters {
   path: string;
 }
 
+/**
+ * One polyline of the preview: a run of same-kind moves from one G-code line.
+ *
+ * `line` is the source line the interpreter was on, which is what makes clicking a segment a
+ * run-from-line gesture rather than a decoration.
+ */
+export interface PlasmaToolpathSegment {
+  kind: 'rapid' | 'feed';
+  line: number;
+  pts: number[][];
+}
+
+/** Payload of the `plasma.toolpath` result: LinuxCNC's interpreter run over a program. */
+export interface PlasmaToolpath {
+  path: string;
+  segments: PlasmaToolpathSegment[];
+  extents: { min: number[]; max: number[] } | null;
+  points: number;
+  /** True when the program was larger than the point budget and the tail is missing. */
+  truncated: boolean;
+  units: 'mm' | 'inch';
+}
+
 /** Payload of `plasma.pins.snapshot` and of the `plasma.get_snapshot` result. */
 export interface PlasmaSnapshot {
   pins: Partial<PlasmaPinValues>;
@@ -613,11 +636,19 @@ export interface PlasmaSlice {
   /** Null until the backend reports them; stays null without an INI to find the files in. */
   plasmaMaterials: PlasmaMaterials | null;
   plasmaParameters: PlasmaParameters | null;
+  /** Preview of the loaded program; null while none has been parsed. */
+  plasmaToolpath: PlasmaToolpath | null;
+  /** Why the last preview failed (a G-code error, usually), for the screen to show. */
+  plasmaToolpathError: string | null;
+  plasmaToolpathLoading: boolean;
   setPlasmaSnapshot: (snapshot: PlasmaSnapshot) => void;
   mergePlasmaPins: (diff: Partial<PlasmaPinValues>) => void;
   setPlasmaState: (state: PlasmaState) => void;
   setPlasmaMaterials: (materials: PlasmaMaterials) => void;
   setPlasmaParameters: (parameters: PlasmaParameters) => void;
+  setPlasmaToolpath: (toolpath: PlasmaToolpath | null) => void;
+  setPlasmaToolpathError: (message: string | null) => void;
+  setPlasmaToolpathLoading: (loading: boolean) => void;
   resetPlasma: () => void;
 }
 

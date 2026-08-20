@@ -60,7 +60,8 @@
     "label": "Plasma-Bildschirme",
     "main": "Haupt",
     "material": "Material",
-    "parameters": "Parameter"
+    "parameters": "Parameter",
+    "preview": "Vorschau"
   },
   "material": {
     "unavailable": "Keine Materialdatei für diese Maschine.",
@@ -106,5 +107,20 @@
       "motion": "Bewegung und Sicherheit",
       "scribe": "Ritzen, Spotting und Offsets"
     }
+  },
+  "preview": {
+    "refresh": "Neu laden",
+    "pickACut": "Schnitt antippen, um eine Startzeile zu wählen",
+    "selectedLine": "Zeile {{line}} gewählt",
+    "hereToEnd": "Ab hier bis Ende",
+    "thisCutpath": "Dieser Schnitt",
+    "leadinLength": "Einfahrt",
+    "leadinAngle": "Winkel",
+    "loading": "Programm wird gelesen…",
+    "noProgram": "Kein Programm geladen.",
+    "loadedFromLine": "Geladen, Start bei Zeile {{line}}",
+    "runFromLineFailed": "Start ab Zeile fehlgeschlagen.",
+    "points": "{{count}} Punkte",
+    "truncated": "Vorschau gekürzt: Programm größer als das Vorschaulimit."
   }
 }

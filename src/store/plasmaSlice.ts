@@ -26,6 +26,9 @@ export const createPlasmaSlice: StateCreator<BoundStore, [], [], PlasmaSlice> = 
   plasmaMissingPins: [],
   plasmaMaterials: null,
   plasmaParameters: null,
+  plasmaToolpath: null,
+  plasmaToolpathError: null,
+  plasmaToolpathLoading: false,
 
   setPlasmaSnapshot: (snapshot) =>
     set((prev) => ({
@@ -55,6 +58,14 @@ export const createPlasmaSlice: StateCreator<BoundStore, [], [], PlasmaSlice> = 
 
   setPlasmaParameters: (parameters) => set(() => ({ plasmaParameters: parameters })),
 
+  setPlasmaToolpath: (toolpath) =>
+    set(() => ({ plasmaToolpath: toolpath, plasmaToolpathError: null, plasmaToolpathLoading: false })),
+
+  setPlasmaToolpathError: (message) =>
+    set(() => ({ plasmaToolpathError: message, plasmaToolpathLoading: false })),
+
+  setPlasmaToolpathLoading: (loading) => set(() => ({ plasmaToolpathLoading: loading })),
+
   resetPlasma: () =>
     set(() => ({
       plasmaAvailable: false,
@@ -63,5 +74,8 @@ export const createPlasmaSlice: StateCreator<BoundStore, [], [], PlasmaSlice> = 
       plasmaMissingPins: [],
       plasmaMaterials: null,
       plasmaParameters: null,
+      plasmaToolpath: null,
+      plasmaToolpathError: null,
+      plasmaToolpathLoading: false,
     })),
 });
