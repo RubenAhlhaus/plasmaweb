@@ -64,6 +64,9 @@ ERROR_EVENT = "plasma.config.error"
 GUI_SECTION = "GUI_OPTIONS"
 DEFAULT_MATERIAL_KEY = "Default material"
 
+#: QtPlasmaC keeps the conversational pre/postamble here, alongside its other settings.
+CONVERSATIONAL_SECTION = "CONVERSATIONAL"
+
 #: QtPlasmaC's temporary-material drop box, written by its G-code filter.
 TEMP_MATERIAL_DIR = "/tmp/qtplasmac"
 
@@ -90,6 +93,29 @@ class PlasmaConfigService:
         self._enables: Dict[str, bool] = {}
         self._selected: Optional[int] = None
         self._default: Optional[int] = None
+
+    @property
+    def selected_material(self) -> Tuple[int, str]:
+        """``(number, name)`` of the material on the setpoints, for anything generating G-code."""
+        material = self._materials.get(self._selected) if self._selected is not None else None
+        if material is None:
+            return 0, "Default"
+        return material.number, material.name
+
+    def conversational_ambles(self) -> Tuple[str, str]:
+        """``[CONVERSATIONAL] Preamble/Postamble`` from the prefs, or QtPlasmaC's defaults."""
+        from backend.plasma.conversational import default_ambles  # noqa: PLC0415
+
+        units = "inch" if self._files.units_per_mm != 1.0 else "mm"
+        amble = default_ambles(units)
+        parser = read_config(self._files.prefs_path)
+        preamble = amble
+        postamble = amble
+        if parser.has_option(CONVERSATIONAL_SECTION, "Preamble"):
+            preamble = parser.get(CONVERSATIONAL_SECTION, "Preamble") or amble
+        if parser.has_option(CONVERSATIONAL_SECTION, "Postamble"):
+            postamble = parser.get(CONVERSATIONAL_SECTION, "Postamble") or amble
+        return preamble, postamble
 
     @property
     def files(self) -> MachineFiles:

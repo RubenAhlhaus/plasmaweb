@@ -25,6 +25,9 @@ logger = logging.getLogger(__name__)
 #: QtPlasmaC drops ``torch-pulse-abort`` again 50 ms after raising it.
 _ABORT_RELEASE_DELAY_S = 0.05
 
+#: Where a saved conversational job goes, under the machine's program directory.
+CONVERSATIONAL_JOB_NAME = "conversational.ngc"
+
 
 class PlasmaSetParamParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -532,4 +535,103 @@ async def handle_plasma_run_from_line(
                 )
             )
         result["loaded"] = True
+    return DispatchResult(ack=build_ok(command.commandId, result))
+
+
+class PlasmaConversationalParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    shape: str
+    params: dict
+    #: The job the shape is added to; omit to start a new one.
+    job: Optional[str] = None
+    #: Write the job to this path and load it, the way QtPlasmaC's SAVE does.
+    save: bool = False
+
+
+async def handle_plasma_conversational_shapes(
+    command: CommandEnvelope, ctx: AppContext
+) -> DispatchResult:
+    """Which shapes this LinuxCNC can generate, and the parameters each one takes."""
+    from backend.plasma.conversational import shapes
+
+    return DispatchResult(ack=build_ok(command.commandId, {"shapes": shapes()}))
+
+
+async def handle_plasma_conversational_generate(
+    command: CommandEnvelope, ctx: AppContext
+) -> DispatchResult:
+    """Generate a shape through LinuxCNC's own conversational modules."""
+    import os
+
+    from backend.plasma.conversational import ConversationalError, generate
+
+    try:
+        params = PlasmaConversationalParams.model_validate(command.params)
+    except ValidationError:
+        return _invalid(
+            command,
+            'plasma.conversational params: {"shape": string, "params": object, '
+            '"job": string (optional), "save": bool}',
+        )
+
+    material = (0, "Default")
+    preamble = None
+    postamble = None
+    units = "mm"
+    if ctx.plasma_config is not None:
+        material = ctx.plasma_config.selected_material
+        preamble, postamble = ctx.plasma_config.conversational_ambles()
+        units = "inch" if ctx.plasma_config.files.units_per_mm != 1.0 else "mm"
+
+    try:
+        result = await asyncio.to_thread(
+            generate,
+            params.shape,
+            params.params,
+            params.job,
+            material,
+            preamble,
+            postamble,
+            units,
+        )
+    except ConversationalError as exc:
+        return DispatchResult(ack=build_error(command.commandId, exc.code, exc.message))
+
+    if result.get("error") or not params.save:
+        return DispatchResult(ack=build_ok(command.commandId, result))
+
+    # Saving means writing the job where the machine can open it, then opening it — the same
+    # place run-from-line writes for the same reason (program.open only loads files there).
+    directory = None
+    for prefix in ctx.gateway.get_program_prefix_directories():
+        if os.path.isdir(prefix) and os.access(prefix, os.W_OK):
+            directory = prefix
+            break
+    if directory is None:
+        return DispatchResult(
+            ack=build_error(
+                command.commandId,
+                "no_program_directory",
+                "No writable [DISPLAY] PROGRAM_PREFIX directory to save the job into.",
+            )
+        )
+
+    path = os.path.join(directory, CONVERSATIONAL_JOB_NAME)
+    try:
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(result["gcode"])
+    except OSError as exc:
+        return DispatchResult(ack=build_error(command.commandId, "write_failed", str(exc)))
+
+    opened = ctx.gateway.program_open(path)
+    if not opened.ok:
+        return DispatchResult(
+            ack=build_error(
+                command.commandId,
+                opened.error_code or "open_failed",
+                opened.error_message or "Could not load the conversational job.",
+            )
+        )
+    result["path"] = path
+    result["loaded"] = True
     return DispatchResult(ack=build_ok(command.commandId, result))

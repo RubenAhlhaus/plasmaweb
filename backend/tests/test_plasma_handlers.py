@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import asyncio
+
+import pytest
 from typing import Any, Dict, Optional
 
 from backend.application.context import AppContext
 from backend.contracts.messages import CommandEnvelope
 from backend.handlers.plasma import (
+    handle_plasma_conversational_generate,
+    handle_plasma_conversational_shapes,
     handle_plasma_delete_material,
     handle_plasma_get_materials,
     handle_plasma_get_parameters,
@@ -619,3 +623,136 @@ def test_run_from_line_writes_into_the_machines_program_directory(tmp_path, monk
 
     assert result.ack.ok is True
     assert result.ack.result["path"] == str(program.parent / "rfl.ngc")
+
+
+# ---- conversational -----------------------------------------------------------------
+
+
+CONV_CIRCLE = {
+    "leadinLength": 5.0,
+    "leadoutLength": 5.0,
+    "isCenter": True,
+    "xOffset": 50.0,
+    "yOffset": 40.0,
+    "kerfWidth": 1.5,
+    "isExternal": False,
+    "isOvercut": False,
+    "overCut": 0.0,
+    "smallHoleDia": 32.0,
+    "smallHoleSpeed": 60,
+    "diameter": 30.0,
+    "invalidLeads": 0,
+}
+
+
+@pytest.fixture()
+def reference_shapes(monkeypatch):
+    """The reference tree's shape modules, which are pure Python and importable here."""
+    import builtins
+    import sys
+    from pathlib import Path
+
+    reference = Path(__file__).resolve().parents[2] / "reference" / "linuxcnc" / "lib" / "python"
+    if not (reference / "plasmac" / "circle.py").exists():
+        pytest.skip("reference tree not checked out")
+    monkeypatch.syspath_prepend(str(reference))
+    for name in [key for key in sys.modules if key.startswith("plasmac")]:
+        monkeypatch.delitem(sys.modules, name, raising=False)
+    if not hasattr(builtins, "_"):
+        monkeypatch.setattr(builtins, "_", lambda text: text, raising=False)
+
+
+def test_conversational_shapes_lists_what_the_machine_can_generate(reference_shapes) -> None:
+    ctx = build_preview_ctx(None)
+
+    result = run(handle_plasma_conversational_shapes, command("conversational_shapes"), ctx)
+
+    assert result.ack.ok is True
+    assert "circle" in result.ack.result["shapes"]
+    assert any(p["name"] == "diameter" for p in result.ack.result["shapes"]["circle"])
+
+
+def test_conversational_generates_a_shape(reference_shapes, tmp_path) -> None:
+    ctx = build_preview_ctx(None)
+
+    result = run(
+        handle_plasma_conversational_generate,
+        command("conversational", {"shape": "circle", "params": CONV_CIRCLE}),
+        ctx,
+    )
+
+    assert result.ack.ok is True
+    assert "(conversational circle)" in result.ack.result["gcode"]
+    assert result.ack.result["error"] is None
+
+
+def test_conversational_uses_the_selected_material(reference_shapes, tmp_path) -> None:
+    """A conversational job cuts with the material the operator selected, via M190."""
+    ctx, _runtime, _bridge = build_config_ctx(tmp_path)
+    ctx.plasma_config.select_material(3)
+    ctx = AppContext(
+        manager=ctx.manager,
+        gateway=FakeGateway(None),
+        plasma=ctx.plasma,
+        plasma_config=ctx.plasma_config,
+    )
+
+    result = run(
+        handle_plasma_conversational_generate,
+        command("conversational", {"shape": "circle", "params": CONV_CIRCLE}),
+        ctx,
+    )
+
+    assert "M190 P3" in result.ack.result["gcode"]
+    assert ";using material #3: 5mm mild steel" in result.ack.result["gcode"]
+
+
+def test_conversational_reports_the_shapes_own_complaint(reference_shapes) -> None:
+    ctx = build_preview_ctx(None)
+
+    result = run(
+        handle_plasma_conversational_generate,
+        command(
+            "conversational",
+            {"shape": "circle", "params": {**CONV_CIRCLE, "diameter": 0.0}},
+        ),
+        ctx,
+    )
+
+    assert result.ack.ok is True  # a message for the operator, not a failed command
+    assert result.ack.result["gcode"] is None
+    assert "DIAMETER" in result.ack.result["error"]
+
+
+def test_conversational_refuses_an_unknown_parameter(reference_shapes) -> None:
+    ctx = build_preview_ctx(None)
+
+    result = run(
+        handle_plasma_conversational_generate,
+        command("conversational", {"shape": "circle", "params": {**CONV_CIRCLE, "nope": 1}}),
+        ctx,
+    )
+
+    assert result.ack.ok is False
+    assert result.ack.error.code == "unknown_parameters"
+
+
+def test_saving_a_job_writes_it_where_the_machine_can_open_it(reference_shapes, tmp_path) -> None:
+    from pathlib import Path
+
+    programs = tmp_path / "nc_files"
+    programs.mkdir()
+    ctx = build_preview_ctx(None, prefixes=(str(programs),))
+
+    result = run(
+        handle_plasma_conversational_generate,
+        command("conversational", {"shape": "circle", "params": CONV_CIRCLE, "save": True}),
+        ctx,
+    )
+
+    saved = programs / "conversational.ngc"
+    assert result.ack.ok is True
+    assert result.ack.result["path"] == str(saved)
+    assert result.ack.result["loaded"] is True
+    assert "(conversational circle)" in Path(saved).read_text()
+    assert ctx.gateway.opened == [str(saved)]
