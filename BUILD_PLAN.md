@@ -254,11 +254,41 @@ plus `src/components/plasma/*`, a `plasmaSlice` in the store, the three plasma e
 Cycle start/pause/stop reuse the existing `ui.program.*` event bus, so they run through the
 same `program.auto` / `machine.abort` path as the sidebar buttons rather than duplicating it.
 
-What M1's exit criterion still needs, and why it is not done here: the sim's arc voltage
-only moves while a cut runs (`sim-torch` outputs zero at idle, and the panel's offset slider
-is an output pin, not something a test can drive). Watching arc voltage, the THC LEDs and
-torch-on follow a *running* cut, plus pause/stop/abort behaviour, wants a program running on
-the sim — the natural first task of the next session.
+**Exit criterion: met, on a running cut.** `nc_files/metric_line.ngc` (pierce at X10 Y10,
+cut to X590, `M3 $0 S1` / `M5 $0`) run from the web UI on the sim, with the plasma screen
+open in a browser on the host through an ssh tunnel.
+
+| Checked on a running cut | Result |
+|---|---|
+| Cut sequence | `state-out` walked PROBE_HEIGHT → PROBE_DOWN → PROBE_UP → PIERCE_HEIGHT → TORCH_ON → ARC_OK → PIERCE_DELAY → CUT_HEIGHT → CUT_MODE_01 → SAFE_HEIGHT → IDLE, decoded by name in the UI at every step |
+| Arc voltage | tracks `sim-torch` live in the browser (0 V idle, ~100 V through the cut), and `torch-on` / `arc-ok-out` follow it |
+| THC | `thc-active` true through CUT_MODE_01, `target-volts` = cut volts, and the THC **up** LED lights in the browser while the torch climbs; dark again at idle |
+| Statistics | run/probe/paused time, pierce count and cut length all advance during and after the cut |
+| Pause mid-cut | torch off and arc voltage to 0 within a poll, torch retracts (MAX_HEIGHT), X frozen where it was |
+| Resume | re-probes from the paused position (PROBE_HEIGHT → PROBE_DOWN), the way QtPlasmaC restarts a paused cut |
+| Stop mid-probe | MAX_HEIGHT then IDLE, motion stopped, torch off |
+| LinuxCNC operator errors | `top limit reached while THC moving up`, `safe traverse height has been reduced…` and a `wrong_task_mode` rejection all surfaced as UI errors rather than being swallowed |
+
+The run found and fixed a real bug: **our component's own output pins started at zero, and
+zero is not neutral for two of them.** QtPlasmaC's handler sets `gcode_scale` to 1 and
+`thc_feed_rate` to `[AXIS_Z] MAX_VELOCITY * OFFSET_AV_RATIO * 60`; plasmac *divides* its
+requested feed rate by `gcode_scale`, so a zero made the requested feed rate infinite, the
+"running at cut speed" test never passed, `target-volts` was never set and the THC never
+engaged — a cut ran with the torch height frozen and no LED ever lit. `HalBridge`
+`apply_startup_values()` plus `qtplasmac_startup_values()` in `plasma/startup.py` now set
+both (`thc_feed_rate` = 3600 on the sim, read from the INI), verified live in HAL.
+
+Two things the sim needs that only M2 will provide, and which are **not** defects: plasmac's
+cut parameters (`cut-feed-rate`, `pierce-height`, `arc-max-starts`, `pid-p-gain`, …) live in
+QtPlasmaC's prefs file, so today they have to be `setp`-ed by hand before a cut — with
+`arc-max-starts` at its zero default, plasmac pauses the program with "no arc detected after
+0 start attempts" the instant it tries to fire. `docs/dev-vm.md` has the set of values that
+make the sim cut. Related design point worth keeping: QtPlasmaC nets those parameters from
+*qtvcp widget* pins (`qtplasmac.pid_p_gain-f`), which we deliberately do not recreate — that
+is what leaves them unlinked and therefore writable by the backend's `plasma.set_param`.
+
+Still open for later: `gcode_scale` is set once at startup and does not yet follow a program
+switching units (QtPlasmaC re-scales it to 25.4 or 1/25.4 on G20/G21 against machine units).
 
 ### M2 — Materials, parameters, settings persistence
 

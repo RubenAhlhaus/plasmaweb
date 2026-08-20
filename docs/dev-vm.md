@@ -133,3 +133,46 @@ connects to `ws://127.0.0.1:8765/ws` and sends command envelopes:
 `motion.jog` takes `{jointMode, index, velocity, mode, distance}` — **`distance` must be
 positive and the sign of `velocity` sets the direction**; a negative distance is rejected
 with `invalid_params`.
+
+## Making the sim actually cut
+
+The plasma parameters plasmac needs live in QtPlasmaC's prefs file, which the web UI does not
+write yet (M2). On a fresh HAL session they are all zero, and zero is not benign: with
+`arc-max-starts` at 0 plasmac pauses the program with *"no arc detected after 0 start
+attempts"* the moment it tries to fire, and with `pid-p-gain` at 0 the THC computes no
+correction, so the torch height never moves and the up/down LEDs never light. Set them once
+per session, before running a program:
+
+```bash
+halcmd setp estop_or.in0 0        # release the sim panel's estop
+for kv in "cut-feed-rate 4000" "cut-height 1.0" "pierce-height 3.0" "pierce-delay 0.1" \
+          "arc-ok-high 250" "arc-ok-low 60" "arc-fail-delay 3" "arc-max-starts 3" \
+          "arc-voltage-scale 1" "arc-voltage-offset 0" "cut-volts 100" "mode 0" \
+          "thc-enable 1" "thc-delay 0.5" "thc-threshold 1" "height-per-volt 0.1" \
+          "pid-p-gain 10" "pid-i-gain 0" "pid-d-gain 0" \
+          "probe-feed-rate 300" "probe-start-height 25" "float-switch-travel 1.5" \
+          "safe-height 10" "setup-feed-rate 3000" "skip-ihs-distance 0" \
+          "kerf-width 1.5" "cornerlock-threshold 90" "voidlock-slope 500"; do
+    halcmd setp plasmac.$kv
+done
+```
+
+`cut-volts 100` matches what `sim-torch` produces, so the THC hovers instead of driving the
+torch to the top limit (at `cut-volts 122` it runs out of travel and plasmac pauses the
+program with *"top limit reached while THC moving up"* — correct behaviour, wrong parameter).
+
+`nc_files/metric_line.ngc` is the cut to run: `G0 X10 Y10`, `M3 $0 S1`, `G1 X590`, `M5 $0`.
+Load it from the UI's PROGRAM screen, switch to the plasma screen, turn TORCH ENABLE on and
+press CYCLE START. Watch it from the host with the tunnel up, or from HAL:
+
+```bash
+watch -n0.2 'halcmd -s show pin plasmac.state-out plasmac.torch-on plasmac.thc-active \
+    plasmac.target-volts plasmac.arc-voltage-in'
+```
+
+Restarting the backend means restarting LinuxCNC (the backend *is* the DISPLAY). `halrun -U`
+then `pkill -x linuxcncsvr` clears the session; a restart that overlaps the old one hangs on
+*"Waiting for other session to finish exiting…lockfile still not removed"* and gives up, so
+check nothing is left running before starting again. `pkill -f <pattern>` over ssh is a trap
+here: the pattern matches the `bash -c` line running it, so the shell kills itself before the
+rest of the command runs — match on something narrower (`pkill -x linuxcncsvr`).
