@@ -271,6 +271,7 @@ async def handle_plasma_select_material(
         refused = ctx.plasma_config.select_material(params.number)
     except MaterialError as exc:
         return _material_error(command, exc)
+    await _broadcast_config(ctx, materials=True, parameters=False)
     return DispatchResult(
         ack=build_ok(
             command.commandId, {"number": params.number, "refusedPins": list(refused)}
@@ -296,6 +297,7 @@ async def handle_plasma_save_material(
         return _material_error(command, exc)
     except OSError as exc:
         return DispatchResult(ack=build_error(command.commandId, "write_failed", str(exc)))
+    await _broadcast_config(ctx, materials=True, parameters=False)
     return DispatchResult(ack=build_ok(command.commandId, {"material": material.as_dict()}))
 
 
@@ -314,6 +316,7 @@ async def handle_plasma_delete_material(
         return _material_error(command, exc)
     except OSError as exc:
         return DispatchResult(ack=build_error(command.commandId, "write_failed", str(exc)))
+    await _broadcast_config(ctx, materials=True, parameters=False)
     return DispatchResult(ack=build_ok(command.commandId, {"number": params.number}))
 
 
@@ -332,6 +335,7 @@ async def handle_plasma_set_default_material(
         return _material_error(command, exc)
     except OSError as exc:
         return DispatchResult(ack=build_error(command.commandId, "write_failed", str(exc)))
+    await _broadcast_config(ctx, materials=True, parameters=False)
     return DispatchResult(ack=build_ok(command.commandId, {"number": params.number}))
 
 
@@ -358,6 +362,7 @@ async def handle_plasma_save_parameters(
         return DispatchResult(ack=build_error(command.commandId, "invalid_value", str(exc)))
     except OSError as exc:
         return DispatchResult(ack=build_error(command.commandId, "write_failed", str(exc)))
+    await _broadcast_config(ctx, materials=False, parameters=True)
     return DispatchResult(ack=build_ok(command.commandId, {"values": values}))
 
 
@@ -372,6 +377,7 @@ async def handle_plasma_reload_config(
     except ValidationError:
         return _invalid(command, "plasma.reload_config params: {}")
     ctx.plasma_config.reload()
+    await _broadcast_config(ctx, materials=True, parameters=True)
     return DispatchResult(
         ack=build_ok(
             command.commandId,
@@ -381,3 +387,25 @@ async def handle_plasma_reload_config(
             },
         )
     )
+
+
+async def _broadcast_config(ctx: AppContext, materials: bool, parameters: bool) -> None:
+    """Tell every client what changed. A shop may well have the panel and a laptop open."""
+    if ctx.plasma_config is None:
+        return
+    from backend.plasma.config_service import MATERIALS_EVENT, PARAMETERS_EVENT
+
+    events = []
+    if materials:
+        events.append((MATERIALS_EVENT, ctx.plasma_config.materials_payload()))
+    if parameters:
+        events.append((PARAMETERS_EVENT, ctx.plasma_config.parameters_payload()))
+    for event, payload in events:
+        await ctx.manager.broadcast_json(
+            {
+                "type": "machine_event",
+                "protocolVersion": 1,
+                "event": event,
+                "payload": payload,
+            }
+        )

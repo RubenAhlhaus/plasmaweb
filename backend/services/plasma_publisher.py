@@ -132,8 +132,13 @@ class PlasmaPublisher:
     # ---- connect -------------------------------------------------------------------
 
     def snapshot_event(self) -> Dict[str, Any]:
-        """The full-snapshot event a freshly connected client receives."""
-        return snapshot_event(self._service)
+        """The full-snapshot event a freshly connected client receives.
+
+        Materials and parameters ride along with the pins: a client that has just connected
+        needs them to render the material and parameter screens, and sending them here keeps
+        the UI purely store-driven instead of making every screen ask on mount.
+        """
+        return snapshot_event(self._service, self._config)
 
     async def send_snapshot(self, websocket: Any) -> None:
         await self._manager.send_json(websocket, self.snapshot_event())
@@ -157,10 +162,16 @@ class PlasmaPublisher:
         )
 
 
-def snapshot_event(service: PlasmaService) -> Dict[str, Any]:
+def snapshot_event(
+    service: PlasmaService, config: Optional[PlasmaConfigService] = None
+) -> Dict[str, Any]:
     """Full plasma snapshot as an event. Diffs are only meaningful on top of one of these."""
+    payload = service.snapshot_payload()
+    if config is not None:
+        payload["materials"] = config.materials_payload()
+        payload["parameters"] = config.parameters_payload()
     return EventMessage(
         type="machine_event",
         event=PINS_SNAPSHOT_EVENT,
-        payload=service.snapshot_payload(),
+        payload=payload,
     ).model_dump()

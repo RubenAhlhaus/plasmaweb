@@ -55,5 +55,56 @@
     "pausedTime": "Pausenzeit",
     "pierceCount": "Einstiche",
     "cutLength": "Schnittlänge"
+  },
+  "tabs": {
+    "label": "Plasma-Bildschirme",
+    "main": "Haupt",
+    "material": "Material",
+    "parameters": "Parameter"
+  },
+  "material": {
+    "unavailable": "Keine Materialdatei für diese Maschine.",
+    "empty": "Kein Material ausgewählt.",
+    "new": "Neu",
+    "newName": "Material {{number}}",
+    "reload": "Neu laden",
+    "save": "Speichern",
+    "revert": "Verwerfen",
+    "delete": "Löschen",
+    "setDefault": "Als Standard",
+    "default": "Standard",
+    "inUse": "Aktiv",
+    "temporary": "Aus Programm",
+    "name": "Name",
+    "number": "Nummer",
+    "field": {
+      "pierceHeight": "Einstichhöhe",
+      "pierceDelay": "Einstichverzögerung",
+      "puddleJumpHeight": "Puddle-Jump-Höhe",
+      "puddleJumpDelay": "Puddle-Jump-Verzögerung",
+      "cutHeight": "Schnitthöhe",
+      "cutSpeed": "Schnittvorschub",
+      "cutAmps": "Schnittstrom",
+      "cutVolts": "Schnittspannung",
+      "kerfWidth": "Schnittbreite",
+      "pauseAtEnd": "Pause am Ende",
+      "gasPressure": "Gasdruck",
+      "cutMode": "Schnittmodus",
+      "thickness": "Materialdicke"
+    }
+  },
+  "parameters": {
+    "unavailable": "Keine Parameterdatei für diese Maschine.",
+    "save": "Speichern",
+    "revert": "Verwerfen",
+    "reload": "Neu laden",
+    "unsaved": "{{count}} nicht gespeichert",
+    "group": {
+      "arc": "Lichtbogen",
+      "thc": "Höhenregelung",
+      "probe": "Antasten",
+      "motion": "Bewegung und Sicherheit",
+      "scribe": "Ritzen, Spotting und Offsets"
+    }
   }
 }

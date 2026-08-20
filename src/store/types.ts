@@ -541,12 +541,67 @@ export interface PlasmaState {
   isCutting: boolean;
 }
 
+/**
+ * One cut material from `<machine>_material.cfg`.
+ *
+ * The twelve numbers are QtPlasmaC's fourteen keys minus `NAME`, camelCased. `temporary` is
+ * true for the numbers from 1000000 up, which a G-code program declares and which are never
+ * written to the file — those cannot be edited or deleted here.
+ */
+export interface PlasmaMaterial {
+  number: number;
+  name: string;
+  temporary: boolean;
+  kerfWidth: number;
+  pierceHeight: number;
+  pierceDelay: number;
+  puddleJumpHeight: number;
+  puddleJumpDelay: number;
+  cutHeight: number;
+  cutSpeed: number;
+  cutAmps: number;
+  cutVolts: number;
+  pauseAtEnd: number;
+  gasPressure: number;
+  cutMode: number;
+  thickness: number;
+}
+
+/** Payload of `plasma.materials.changed` and of the `plasma.get_materials` result. */
+export interface PlasmaMaterials {
+  materials: PlasmaMaterial[];
+  /** The material whose values are on the `plasmac.*` setpoints right now. */
+  selected: number | null;
+  /** The one selected at startup, and what `material_change_number = -1` means. */
+  default: number | null;
+  path: string;
+}
+
+/**
+ * Payload of `plasma.parameters.changed` and of the `plasma.get_parameters` result.
+ *
+ * `values` is keyed by QtPlasmaC's own prefs keys (`"Pid P Gain"`), because those keys are
+ * the contract with the file and with QtPlasmaC itself — renaming them in the UI layer would
+ * mean two names for one thing. `enables` is keyed by dashed `plasmac.*` pin name.
+ */
+export interface PlasmaParameters {
+  values: Record<string, number>;
+  defaults: Record<string, number>;
+  enables: Record<string, boolean>;
+  /** 1 on a metric machine, 0.03937 on an imperial one (QtPlasmaC's own constant). */
+  unitsPerMm: number;
+  path: string;
+}
+
 /** Payload of `plasma.pins.snapshot` and of the `plasma.get_snapshot` result. */
 export interface PlasmaSnapshot {
   pins: Partial<PlasmaPinValues>;
   state?: PlasmaState;
   /** `plasmac.*` pins this LinuxCNC build does not have (2.9.4 lacks 18 of them). */
   missingPins?: string[];
+  /** Present when the backend found the machine's config files. */
+  materials?: PlasmaMaterials;
+  parameters?: PlasmaParameters;
 }
 
 export interface PlasmaSlice {
@@ -555,9 +610,14 @@ export interface PlasmaSlice {
   plasmaPins: PlasmaPinValues;
   plasmaState: PlasmaState;
   plasmaMissingPins: string[];
+  /** Null until the backend reports them; stays null without an INI to find the files in. */
+  plasmaMaterials: PlasmaMaterials | null;
+  plasmaParameters: PlasmaParameters | null;
   setPlasmaSnapshot: (snapshot: PlasmaSnapshot) => void;
   mergePlasmaPins: (diff: Partial<PlasmaPinValues>) => void;
   setPlasmaState: (state: PlasmaState) => void;
+  setPlasmaMaterials: (materials: PlasmaMaterials) => void;
+  setPlasmaParameters: (parameters: PlasmaParameters) => void;
   resetPlasma: () => void;
 }
 

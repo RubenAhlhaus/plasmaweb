@@ -24,9 +24,11 @@ export const createPlasmaSlice: StateCreator<BoundStore, [], [], PlasmaSlice> = 
   plasmaPins: emptyPins,
   plasmaState: initialPlasmaState,
   plasmaMissingPins: [],
+  plasmaMaterials: null,
+  plasmaParameters: null,
 
   setPlasmaSnapshot: (snapshot) =>
-    set(() => ({
+    set((prev) => ({
       plasmaAvailable: true,
       plasmaPins: {
         plasmac: { ...(snapshot.pins?.plasmac ?? {}) },
@@ -34,6 +36,9 @@ export const createPlasmaSlice: StateCreator<BoundStore, [], [], PlasmaSlice> = 
       },
       plasmaState: snapshot.state ?? initialPlasmaState,
       plasmaMissingPins: snapshot.missingPins ?? [],
+      // A snapshot without them means no INI, not "forget what we know".
+      plasmaMaterials: snapshot.materials ?? prev.plasmaMaterials,
+      plasmaParameters: snapshot.parameters ?? prev.plasmaParameters,
     })),
 
   mergePlasmaPins: (diff) =>
@@ -46,11 +51,17 @@ export const createPlasmaSlice: StateCreator<BoundStore, [], [], PlasmaSlice> = 
 
   setPlasmaState: (state) => set(() => ({ plasmaState: state })),
 
+  setPlasmaMaterials: (materials) => set(() => ({ plasmaMaterials: materials })),
+
+  setPlasmaParameters: (parameters) => set(() => ({ plasmaParameters: parameters })),
+
   resetPlasma: () =>
     set(() => ({
       plasmaAvailable: false,
       plasmaPins: emptyPins,
       plasmaState: initialPlasmaState,
       plasmaMissingPins: [],
+      plasmaMaterials: null,
+      plasmaParameters: null,
     })),
 });

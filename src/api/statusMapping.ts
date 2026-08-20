@@ -3,6 +3,8 @@ import type {
   LinuxCncStatusRoot,
   ConnectionStatus,
   IniRuntimeConfig,
+  PlasmaMaterials,
+  PlasmaParameters,
   PlasmaPinValues,
   PlasmaState,
 } from '@/store/types';
@@ -162,6 +164,28 @@ export interface PlasmaStateChangedEventMessage {
   payload: PlasmaState;
 }
 
+export interface PlasmaMaterialsChangedEventMessage {
+  type: 'machine_event';
+  protocolVersion?: 1;
+  event: 'plasma.materials.changed';
+  payload: PlasmaMaterials;
+}
+
+export interface PlasmaParametersChangedEventMessage {
+  type: 'machine_event';
+  protocolVersion?: 1;
+  event: 'plasma.parameters.changed';
+  payload: PlasmaParameters;
+}
+
+/** A material change the machine asked for and could not have (unknown number, timeout). */
+export interface PlasmaConfigErrorEventMessage {
+  type: 'machine_event';
+  protocolVersion?: 1;
+  event: 'plasma.config.error';
+  payload: { code: string; message: string };
+}
+
 export type BackendMessage =
   | LinuxCncStatusMessage
   | MachineEventMessage
@@ -250,6 +274,42 @@ export function isPlasmaPinsChangedEventMessage(
     msg.event === 'plasma.pins.changed' &&
     typeof msg.payload === 'object' &&
     !!msg.payload
+  );
+}
+
+export function isPlasmaMaterialsChangedEventMessage(
+  msg: BackendMessage,
+): msg is PlasmaMaterialsChangedEventMessage {
+  return (
+    msg.type === 'machine_event' &&
+    msg.event === 'plasma.materials.changed' &&
+    typeof msg.payload === 'object' &&
+    !!msg.payload &&
+    Array.isArray((msg.payload as PlasmaMaterials).materials)
+  );
+}
+
+export function isPlasmaParametersChangedEventMessage(
+  msg: BackendMessage,
+): msg is PlasmaParametersChangedEventMessage {
+  return (
+    msg.type === 'machine_event' &&
+    msg.event === 'plasma.parameters.changed' &&
+    typeof msg.payload === 'object' &&
+    !!msg.payload &&
+    typeof (msg.payload as PlasmaParameters).values === 'object'
+  );
+}
+
+export function isPlasmaConfigErrorEventMessage(
+  msg: BackendMessage,
+): msg is PlasmaConfigErrorEventMessage {
+  return (
+    msg.type === 'machine_event' &&
+    msg.event === 'plasma.config.error' &&
+    typeof msg.payload === 'object' &&
+    !!msg.payload &&
+    typeof (msg.payload as { message?: unknown }).message === 'string'
   );
 }
 

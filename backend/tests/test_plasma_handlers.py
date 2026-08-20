@@ -394,3 +394,30 @@ def test_bad_params_are_rejected_before_anything_is_written(tmp_path) -> None:
 
     assert result.ack.ok is False
     assert result.ack.error.code == "invalid_params"
+
+
+def test_a_new_client_gets_materials_and_parameters_with_the_snapshot(tmp_path) -> None:
+    """The screens render from the store, so the connect snapshot has to carry both files."""
+    from backend.services.plasma_publisher import snapshot_event
+
+    ctx, _runtime, _bridge = build_config_ctx(tmp_path)
+
+    event = snapshot_event(ctx.plasma, ctx.plasma_config)
+
+    assert [m["number"] for m in event["payload"]["materials"]["materials"]] == [0, 3]
+    assert event["payload"]["parameters"]["values"]["Pid P Gain"] == 10.0
+    assert event["payload"]["parameters"]["enables"]["thc-enable"] is True
+    assert "torch-on" in event["payload"]["pins"]["plasmac"]
+
+
+def test_saving_a_material_tells_every_client(tmp_path) -> None:
+    ctx, _runtime, _bridge = build_config_ctx(tmp_path)
+
+    run(
+        handle_plasma_save_material,
+        command("save_material", {"number": 3, "name": "6mm", "values": {"cutVolts": 130.0}}),
+        ctx,
+    )
+
+    events = [msg["event"] for msg in ctx.manager.broadcasts]
+    assert "plasma.materials.changed" in events

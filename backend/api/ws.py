@@ -67,7 +67,9 @@ def create_ws_router(
         if app_context.plasma is not None:
             from backend.services.plasma_publisher import snapshot_event
 
-            await manager.send_json(websocket, snapshot_event(app_context.plasma))
+            await manager.send_json(
+                websocket, snapshot_event(app_context.plasma, app_context.plasma_config)
+            )
 
         try:
             while True:

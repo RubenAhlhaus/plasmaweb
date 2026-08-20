@@ -8,7 +8,7 @@ import { RightSidebar } from './components/RightSidebar';
 import { HomeScreen } from './screens/HomeScreen';
 import { PlaceholderScreen } from './screens/PlaceholderScreen';
 import { ProgramScreen } from './screens/ProgramScreen';
-import { PlasmaMainScreen } from './screens/PlasmaMainScreen';
+import { PlasmaScreen } from './screens/PlasmaScreen';
 import { ToolsScreen } from './screens/ToolsScreen';
 import { VirtualButtonSidebar } from './components/VirtualButtonSidebar';
 import { useJogEventSubscription } from './hooks/useJogCommand';
@@ -110,7 +110,7 @@ function AppContent() {
             {activeMenuIndex === SIDEBAR_INDEX_PROGRAM && <ProgramScreen />}
             {activeMenuIndex === SIDEBAR_INDEX_TOOLS && <ToolsScreen />}
             {activeMenuIndex === SIDEBAR_INDEX_PROBING && <PlaceholderScreen titleKey="nav.probing" />}
-            {activeMenuIndex === SIDEBAR_INDEX_PLASMA && <PlasmaMainScreen />}
+            {activeMenuIndex === SIDEBAR_INDEX_PLASMA && <PlasmaScreen />}
             {activeMenuIndex === SIDEBAR_INDEX_SETTINGS && (
               <Suspense fallback={<ScreenLoadingFallback />}>
                 <SettingsScreen />

@@ -55,5 +55,56 @@
     "pausedTime": "Paused time",
     "pierceCount": "Pierce count",
     "cutLength": "Cut length"
+  },
+  "tabs": {
+    "label": "Plasma screens",
+    "main": "Main",
+    "material": "Material",
+    "parameters": "Parameters"
+  },
+  "material": {
+    "unavailable": "No material file for this machine.",
+    "empty": "No material selected.",
+    "new": "New",
+    "newName": "Material {{number}}",
+    "reload": "Reload",
+    "save": "Save",
+    "revert": "Revert",
+    "delete": "Delete",
+    "setDefault": "Set default",
+    "default": "Default",
+    "inUse": "In use",
+    "temporary": "From program",
+    "name": "Name",
+    "number": "Number",
+    "field": {
+      "pierceHeight": "Pierce height",
+      "pierceDelay": "Pierce delay",
+      "puddleJumpHeight": "Puddle jump height",
+      "puddleJumpDelay": "Puddle jump delay",
+      "cutHeight": "Cut height",
+      "cutSpeed": "Cut feed rate",
+      "cutAmps": "Cut amps",
+      "cutVolts": "Cut volts",
+      "kerfWidth": "Kerf width",
+      "pauseAtEnd": "Pause at end",
+      "gasPressure": "Gas pressure",
+      "cutMode": "Cut mode",
+      "thickness": "Thickness"
+    }
+  },
+  "parameters": {
+    "unavailable": "No parameter file for this machine.",
+    "save": "Save",
+    "revert": "Revert",
+    "reload": "Reload",
+    "unsaved": "{{count}} unsaved",
+    "group": {
+      "arc": "Arc",
+      "thc": "Torch height control",
+      "probe": "Probing",
+      "motion": "Motion and safety",
+      "scribe": "Scribe, spotting and offsets"
+    }
   }
 }

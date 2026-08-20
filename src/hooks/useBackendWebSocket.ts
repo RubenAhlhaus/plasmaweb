@@ -5,6 +5,9 @@ import {
   mapCoordinatesChangedEventToStoreUpdates,
   isMachineIniConfigLoadedEventMessage,
   isPlasmaPinsChangedEventMessage,
+  isPlasmaConfigErrorEventMessage,
+  isPlasmaMaterialsChangedEventMessage,
+  isPlasmaParametersChangedEventMessage,
   isPlasmaPinsSnapshotEventMessage,
   isPlasmaStateChangedEventMessage,
   mapPlasmaPinsDiff,
@@ -36,6 +39,8 @@ export function useBackendWebSocket() {
   const setPlasmaSnapshot = useAppStore((s) => s.setPlasmaSnapshot);
   const mergePlasmaPins = useAppStore((s) => s.mergePlasmaPins);
   const setPlasmaState = useAppStore((s) => s.setPlasmaState);
+  const setPlasmaMaterials = useAppStore((s) => s.setPlasmaMaterials);
+  const setPlasmaParameters = useAppStore((s) => s.setPlasmaParameters);
   const resetPlasma = useAppStore((s) => s.resetPlasma);
   const showErrorToast = useAppStore((s) => s.showErrorToast);
   const setLastWsCommandResult = useAppStore((s) => s.setLastWsCommandResult);
@@ -222,6 +227,17 @@ export function useBackendWebSocket() {
           if (isPlasmaStateChangedEventMessage(msg)) {
             setPlasmaState(msg.payload);
           }
+          if (isPlasmaMaterialsChangedEventMessage(msg)) {
+            setPlasmaMaterials(msg.payload);
+          }
+          if (isPlasmaParametersChangedEventMessage(msg)) {
+            setPlasmaParameters(msg.payload);
+          }
+          if (isPlasmaConfigErrorEventMessage(msg)) {
+            // A material change the machine asked for and could not have. It comes from the
+            // machine rather than from a click, so it needs the toast stack to be seen.
+            showErrorToast({ message: msg.payload.message, kind: msg.payload.code });
+          }
           if (isToolChangeRequestedEventMessage(msg)) {
             const p = msg.payload;
             setPendingToolChange({
@@ -292,6 +308,8 @@ export function useBackendWebSocket() {
     setPlasmaSnapshot,
     mergePlasmaPins,
     setPlasmaState,
+    setPlasmaMaterials,
+    setPlasmaParameters,
     resetPlasma,
   ]);
 }

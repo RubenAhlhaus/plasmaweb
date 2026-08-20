@@ -48,6 +48,15 @@ export function usePlasmaCommands() {
       heightOverride: (volts: number) => send('height_override', { volts }),
       torchPulse: (action: TorchPulseAction, seconds?: number) =>
         send('torch_pulse', seconds === undefined ? { action } : { action, seconds }),
+      getMaterials: () => send('get_materials'),
+      selectMaterial: (number: number) => send('select_material', { number }),
+      saveMaterial: (number: number, name: string, values: Record<string, number>) =>
+        send('save_material', { number, name, values }),
+      deleteMaterial: (number: number) => send('delete_material', { number }),
+      setDefaultMaterial: (number: number) => send('set_default_material', { number }),
+      getParameters: () => send('get_parameters'),
+      saveParameters: (values: Record<string, number>) => send('save_parameters', { values }),
+      reloadConfig: () => send('reload_config'),
     }),
     [send],
   );
