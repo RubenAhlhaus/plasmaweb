@@ -440,6 +440,38 @@ where the operator can see it.
 - **Exit criterion:** golden tests — for each shape, our API output is byte-identical to
   calling the reference `plasmac` module directly with the same inputs.
 
+**Shapes done and verified on the sim VM.** `plasma/conversational.py` plus a CONVERSATIONAL
+tab. The exit criterion is met the only way that means anything: the golden tests import the
+reference `plasmac` modules (pure Python, so they run off the machine too) and compare our
+façade's output byte for byte — circle, rectangle, polygon, star, slot, bolt circle and sector,
+including the multi-shape job case.
+
+**The function signature is the schema.** Parameters are read off each module's `preview()` with
+`inspect`, so the backend has no copy of the parameter lists and neither does the UI: the form
+is built from what the installed LinuxCNC actually takes. A machine whose modules differ renders
+a different form rather than silently dropping a field.
+
+| Checked on the VM | Result |
+|---|---|
+| Shape list | all ten shapes, `ellipse` included (it needs numpy, which the sim has) |
+| Circle form | geometry only — kerf, leadin, leadout, hole diameter and hole speed come from the material and `[CONVERSATIONAL]`, as they do upstream |
+| PREVIEW | generated and drawn on the canvas, through the M3 preview parsing the unsaved text |
+| ADD then a second shape | the job carried through: one preamble, both shapes, one postamble |
+| SAVE | written to `nc_files/conversational.ngc` and loaded — `M190 P0`, `M66 P3 L3 Q1`, `F#<_hal[plasmac.cut-feed-rate]>`, `M3 $0` / `M5 $0` per shape |
+| Machine off | `SAVE` refused with LinuxCNC's own precondition ("machine must be ON"), not a silent failure |
+
+Two upstream quirks handled: the shape modules run `gettext.install` at import and derive their
+locale directory by scanning `sys.path` for `/lib/python`, raising `NameError` where there is
+none; and a shape whose own dependency is missing drops out of the list rather than taking the
+others down with it. A shape rejecting its input ("DIAMETER cannot be zero") comes back as a
+message for the operator rather than a failed command.
+
+**Still to build for M4:** the `line` module's multi-segment builder (point-to-point, by angle,
+three-point and two-point-radius arcs — a different API from the `preview()` shapes, plus the
+segment state machine `first_segment`/`next_segment`/`last_segment`), the `block` module's
+array/rotate/scale operations on an existing job, and an editor for the `[CONVERSATIONAL]`
+settings themselves (they are read and honoured today, just not editable here).
+
 ### M5 — Advanced feature parity
 
 Ordered by machine value, each independently shippable: probing and offset probing
