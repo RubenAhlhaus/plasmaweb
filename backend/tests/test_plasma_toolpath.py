@@ -8,6 +8,7 @@ because the interpreter's job is to *call* the canon, and here the stub does the
 
 from __future__ import annotations
 
+import os
 import sys
 import types
 from pathlib import Path
@@ -20,7 +21,15 @@ from backend.plasma.toolpath import ToolpathError, parse_toolpath
 
 
 class FakeTranslated:
-    """``rs274.interpret.Translated`` without the offsets: enough to route the callbacks."""
+    """``rs274.interpret.Translated``: identity transform, and the offsets it declares."""
+
+    g92_offset_x = g92_offset_y = g92_offset_z = 0
+    g92_offset_a = g92_offset_b = g92_offset_c = 0
+    g92_offset_u = g92_offset_v = g92_offset_w = 0
+    g5x_offset_x = g5x_offset_y = g5x_offset_z = 0
+    g5x_offset_a = g5x_offset_b = g5x_offset_c = 0
+    g5x_offset_u = g5x_offset_v = g5x_offset_w = 0
+    rotation_xy = 0
 
     def rotate_and_translate(self, *args):
         return args
@@ -33,7 +42,13 @@ class FakeTranslated:
 
 
 class FakeArcsToSegmentsMixin:
+    """Mirrors the real mixin, including the ``plane`` the arc converter reads."""
+
+    plane = 1
     arcdivision = 64
+
+    def set_plane(self, plane):
+        self.plane = plane
 
 
 class FakeState:
@@ -103,9 +118,14 @@ def test_a_rapid_then_a_cut_are_separate_polylines(program, monkeypatch) -> None
     assert kinds == ["rapid", "feed"]
     assert result["segments"][0]["line"] == 2
     assert result["segments"][1]["line"] == 4
-    # The feed starts where the rapid ended, so the drawing has no gap in it.
-    assert result["segments"][1]["pts"][0] == [10.0, 10.0, 5.0]
-    assert result["segments"][1]["pts"][-1] == [20.0, 10.0, 1.0]
+    # The feed starts where the rapid ended, so the drawing has no gap in it. Values are the
+    # interpreter's inches scaled to the machine's millimetres.
+    assert result["segments"][1]["pts"][0] == [
+        pytest.approx(v) for v in (10.0 * 25.4, 10.0 * 25.4, 5.0 * 25.4)
+    ]
+    assert result["segments"][1]["pts"][-1] == [
+        pytest.approx(v) for v in (20.0 * 25.4, 10.0 * 25.4, 1.0 * 25.4)
+    ]
 
 
 def test_moves_from_one_line_collapse_into_one_polyline(program, monkeypatch) -> None:
@@ -135,7 +155,8 @@ def test_arc_segments_are_recorded_as_feed(program, monkeypatch) -> None:
     result = parse_toolpath(program)
 
     assert result["segments"][0]["kind"] == "feed"
-    assert result["segments"][0]["pts"][-1] == [2.0, 1.0, 0.0]
+    # Interpreter inches × 25.4: with no INI to say otherwise the machine is assumed metric.
+    assert result["segments"][0]["pts"][-1] == [pytest.approx(50.8), pytest.approx(25.4), 0.0]
 
 
 def test_extents_cover_every_point(program, monkeypatch) -> None:
@@ -151,7 +172,10 @@ def test_extents_cover_every_point(program, monkeypatch) -> None:
 
     result = parse_toolpath(program)
 
-    assert result["extents"] == {"min": [0.0, -2.0, 0.0], "max": [30.0, 40.0, 10.0]}
+    assert result["extents"]["min"] == [pytest.approx(v) for v in (0.0, -2.0 * 25.4, 0.0)]
+    assert result["extents"]["max"] == [
+        pytest.approx(v) for v in (30.0 * 25.4, 40.0 * 25.4, 10.0 * 25.4)
+    ]
 
 
 def test_a_program_with_no_moves_has_no_extents(program, monkeypatch) -> None:
@@ -259,3 +283,174 @@ def test_the_preview_starts_in_the_machines_units(program, monkeypatch) -> None:
 
 def test_max_points_default_is_a_browser_sized_limit() -> None:
     assert toolpath.MAX_POINTS == 400_000
+
+
+def test_the_canon_exposes_what_the_arc_converter_reads(program, monkeypatch) -> None:
+    """`gcode.arc_to_segments` reads these off the canon; a no-op lambda there fails the parse."""
+    seen: dict = {}
+
+    def script_reader(canon):
+        seen["lo"] = canon.lo
+        seen["plane"] = canon.plane
+        seen["rotation_cos"] = canon.rotation_cos
+        seen["rotation_sin"] = canon.rotation_sin
+        seen["g5x_offset_x"] = canon.g5x_offset_x
+        seen["g92_offset_w"] = canon.g92_offset_w
+
+    interpret = types.ModuleType("rs274.interpret")
+    interpret.Translated = FakeTranslated  # type: ignore[attr-defined]
+    interpret.ArcsToSegmentsMixin = FakeArcsToSegmentsMixin  # type: ignore[attr-defined]
+    rs274 = types.ModuleType("rs274")
+    rs274.interpret = interpret  # type: ignore[attr-defined]
+    gcode = types.ModuleType("gcode")
+    gcode.MIN_ERROR = 0  # type: ignore[attr-defined]
+
+    def parse(path, canon, unitcode, initcode):
+        canon.next_line(FakeState(4))
+        canon.straight_feed(7.0, 8.0, 9.0, 0, 0, 0, 0, 0, 0)
+        script_reader(canon)
+        return 0, 0
+
+    gcode.parse = parse  # type: ignore[attr-defined]
+    gcode.strerror = lambda code: "" # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "rs274", rs274)
+    monkeypatch.setitem(sys.modules, "rs274.interpret", interpret)
+    monkeypatch.setitem(sys.modules, "gcode", gcode)
+
+    parse_toolpath(program)
+
+    # Nine doubles, ending at the last move — that is how the arc converter starts an arc.
+    assert len(seen["lo"]) == 9
+    assert seen["lo"][:3] == (7.0, 8.0, 9.0)
+    assert all(isinstance(value, float) for value in seen["lo"])
+    assert seen["plane"] == 1
+    assert (seen["rotation_cos"], seen["rotation_sin"]) == (1.0, 0.0)
+    assert seen["g5x_offset_x"] == 0
+    assert seen["g92_offset_w"] == 0
+
+
+def test_an_interpreter_that_gives_up_is_reported_as_such(program, monkeypatch) -> None:
+    interpret = types.ModuleType("rs274.interpret")
+    interpret.Translated = FakeTranslated  # type: ignore[attr-defined]
+    interpret.ArcsToSegmentsMixin = FakeArcsToSegmentsMixin  # type: ignore[attr-defined]
+    rs274 = types.ModuleType("rs274")
+    rs274.interpret = interpret  # type: ignore[attr-defined]
+    gcode = types.ModuleType("gcode")
+    gcode.MIN_ERROR = 0  # type: ignore[attr-defined]
+
+    def parse(path, canon, unitcode, initcode):
+        raise RuntimeError("parse_file interp_error")
+
+    gcode.parse = parse  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "rs274", rs274)
+    monkeypatch.setitem(sys.modules, "rs274.interpret", interpret)
+    monkeypatch.setitem(sys.modules, "gcode", gcode)
+
+    with pytest.raises(ToolpathError) as excinfo:
+        parse_toolpath(program)
+
+    assert excinfo.value.code == "interpreter_failed"
+    assert "interp_error" in excinfo.value.message
+
+
+def test_the_ini_is_put_in_the_environment_for_the_interpreter(
+    tmp_path: Path, program, monkeypatch
+) -> None:
+    """[RS274NGC] FEATURES decides whether `#<_hal[...]>` resolves, and it is read from there."""
+    ini = tmp_path / "machine.ini"
+    ini.write_text("[RS274NGC]\nFEATURES = 12\n")
+    monkeypatch.delenv("INI_FILE_NAME", raising=False)
+    seen: dict = {}
+
+    interpret = types.ModuleType("rs274.interpret")
+    interpret.Translated = FakeTranslated  # type: ignore[attr-defined]
+    interpret.ArcsToSegmentsMixin = FakeArcsToSegmentsMixin  # type: ignore[attr-defined]
+    rs274 = types.ModuleType("rs274")
+    rs274.interpret = interpret  # type: ignore[attr-defined]
+    gcode = types.ModuleType("gcode")
+    gcode.MIN_ERROR = 0  # type: ignore[attr-defined]
+
+    def parse(path, canon, unitcode, initcode):
+        import os as _os
+
+        seen["ini"] = _os.environ.get("INI_FILE_NAME")
+        return 0, 0
+
+    gcode.parse = parse  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "rs274", rs274)
+    monkeypatch.setitem(sys.modules, "rs274.interpret", interpret)
+    monkeypatch.setitem(sys.modules, "gcode", gcode)
+
+    parse_toolpath(program, ini_path=str(ini))
+
+    assert seen["ini"] == str(ini)
+    # …and put back afterwards, because this process shares its environment with the backend.
+    assert "INI_FILE_NAME" not in os.environ
+
+
+def test_points_come_back_in_machine_units_not_interpreter_inches(
+    tmp_path: Path, program, monkeypatch
+) -> None:
+    """The interpreter's canonical unit is the inch; a metric machine must not read 23 for 590."""
+    ini = tmp_path / "machine.ini"
+    ini.write_text("[TRAJ]\nLINEAR_UNITS = mm\n")
+    install_stubs(
+        monkeypatch,
+        [
+            ("next_line", FakeState(2)),
+            # 590 mm as the interpreter reports it.
+            ("straight_feed", 590.0 / 25.4, 0.0, 0.0, 0, 0, 0, 0, 0, 0),
+        ],
+    )
+
+    result = parse_toolpath(program, ini_path=str(ini))
+
+    assert result["units"] == "mm"
+    assert result["segments"][0]["pts"][-1][0] == pytest.approx(590.0)
+    assert result["extents"]["max"][0] == pytest.approx(590.0)
+
+
+def test_an_imperial_machine_keeps_the_interpreters_inches(
+    tmp_path: Path, program, monkeypatch
+) -> None:
+    ini = tmp_path / "machine.ini"
+    ini.write_text("[TRAJ]\nLINEAR_UNITS = inch\n")
+    install_stubs(
+        monkeypatch,
+        [("next_line", FakeState(2)), ("straight_feed", 12.5, 0.0, 0.0, 0, 0, 0, 0, 0, 0)],
+    )
+
+    result = parse_toolpath(program, ini_path=str(ini))
+
+    assert result["units"] == "inch"
+    assert result["segments"][0]["pts"][-1][0] == pytest.approx(12.5)
+
+
+def test_the_arc_converter_still_sees_interpreter_units(program, monkeypatch) -> None:
+    """`lo` feeds the arc converter, so it must not be scaled with the points we keep."""
+    seen: dict = {}
+
+    interpret = types.ModuleType("rs274.interpret")
+    interpret.Translated = FakeTranslated  # type: ignore[attr-defined]
+    interpret.ArcsToSegmentsMixin = FakeArcsToSegmentsMixin  # type: ignore[attr-defined]
+    rs274 = types.ModuleType("rs274")
+    rs274.interpret = interpret  # type: ignore[attr-defined]
+    gcode = types.ModuleType("gcode")
+    gcode.MIN_ERROR = 0  # type: ignore[attr-defined]
+
+    def parse(path, canon, unitcode, initcode):
+        canon.next_line(FakeState(1))
+        canon.straight_feed(2.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0)
+        seen["lo"] = canon.lo
+        seen["point"] = canon.segments[-1]["pts"][-1]
+        return 0, 0
+
+    gcode.parse = parse  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "rs274", rs274)
+    monkeypatch.setitem(sys.modules, "rs274.interpret", interpret)
+    monkeypatch.setitem(sys.modules, "gcode", gcode)
+
+    parse_toolpath(program)
+
+    assert seen["lo"][0] == 2.0
+    assert seen["point"][0] == pytest.approx(2.0 * 25.4)

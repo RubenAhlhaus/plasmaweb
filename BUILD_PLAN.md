@@ -383,6 +383,46 @@ and the RS485 link belong with M5, and the conversational settings with M4.
 - **Exit criterion:** load a plasma sample from `nc_files/plasmac`, preview matches
   QtPlasmaC's preview visually, and run-from-line restarts mid-cut correctly on the sim.
 
+**Done and verified on the sim VM.** `plasma/toolpath.py` and `plasma/run_from_line.py` on the
+backend, `components/plasma/ToolpathCanvas.tsx` plus a PREVIEW tab on the frontend, and the
+machine view on the home screen now draws the same preview instead of the placeholder.
+
+| Checked on the VM | Result |
+|---|---|
+| `metric_squares.ngc` | `o100 repeat [3]` expanded by the interpreter: three concentric squares, 34 points, extents 0→150 mm in X and Y |
+| `metric_wrench.ngc` | arcs and `#<holes>`: the outline and its hole, 399 points, extents 0→153.7 × 52.4 mm — the program's own numbers |
+| Rapids vs cuts | traverses dashed and grey, cuts solid, torch drawn at the live machine position |
+| Tap a cut | picks its source line (the hole's `G3` reported as line 15), and only cuts are hit-tested |
+| HERE TO END from line 15 | `rfl.ngc` written with the modal replay (`G21`, `G64`, `M52`, safe-Z retract), positioned at X149.739 Y27.45, then loaded |
+| Running it on the sim | probe → pierce → CUT_MODE_01 for 6 s with THC active, cut length 395.87 mm, one pierce, finished at `M2` and back to IDLE |
+| THIS CUTPATH on 2.9.4 | refused with "this LinuxCNC's helper cannot stop at the end of a cut; use here to end" — see below |
+| `[FILTER] ngc = qtplasmac_gcode` | still applied by LinuxCNC itself on open; nothing to port, and the filtered program is what the preview parses |
+
+Four things the interpreter forced into the open, none of them guessable from the docs:
+
+* **The canon is read as well as called.** `gcode.arc_to_segments` reads `lo`, `plane`,
+  `rotation_cos/sin` and the nine g5x/g92 offsets straight off the canon object
+  (`gcodemodule.cc:1457`). With a catch-all `__getattr__` absorbing the callbacks we ignore,
+  those reads returned *functions*, and every program containing an arc failed with
+  `parse_file interp_error` — while arc-free programs previewed perfectly.
+* **Canonical length units are inches**, whatever the program says. AXIS divides machine
+  values by `linear_units * 25.4` to get there (`glcanon.py:1086`); the preview multiplies
+  back, so a 590 mm line reads 590 mm and not 23.2.
+* **`[RS274NGC] FEATURES` decides whether `#<_hal[…]>` resolves**, and the interpreter reads it
+  from the INI named in the environment. Every QtPlasmaC program begins with
+  `F#<_hal[plasmac.cut-feed-rate]>`, so without `INI_FILE_NAME` set for the parse, a preview is
+  one immediate error.
+* **The installed helper is older than the reference tree.** 2.9.4 ships
+  `run_from_line_get(file, startLine)`; the `lastLine` argument that bounds a single cut is
+  2.10. Dropping it silently would turn THIS CUTPATH into HERE TO END — on a machine that then
+  keeps cutting past the cut the operator picked — so the capability is checked and the
+  operator is told instead.
+
+One deliberate difference from upstream: `rfl.ngc` is written into `[DISPLAY] PROGRAM_PREFIX`
+rather than `/tmp/qtplasmac`, because `program.open` only loads files under that prefix — a
+guard worth keeping with a browser on the other end of it — and it leaves the generated program
+where the operator can see it.
+
 ### M4 — Conversational
 
 - `plasma/conversational.py`: a `ConvShim` with `conv_is_float` / `conv_is_int` copied from

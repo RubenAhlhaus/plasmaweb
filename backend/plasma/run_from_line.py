@@ -97,6 +97,30 @@ def _helper() -> Any:
         ) from None
 
 
+def _supports_last_line(helper: Any) -> bool:
+    """Whether this LinuxCNC's helper can be told where the cut ends.
+
+    ``run_from_line_get(file, startLine, lastLine=0)`` is 2.10; 2.9.4 ships
+    ``run_from_line_get(file, startLine)`` and always runs to the end of the program. Passing
+    the third argument there is a ``TypeError``, and dropping it silently would turn THIS
+    CUTPATH into HERE TO END — on a machine that then keeps cutting past the cut the operator
+    picked. So the capability is checked, and the operator is told.
+    """
+    import inspect  # noqa: PLC0415
+
+    try:
+        parameters = inspect.signature(helper.run_from_line_get).parameters
+    except (TypeError, ValueError):  # a C or otherwise unintrospectable helper
+        return False
+    positional = [
+        parameter
+        for parameter in parameters.values()
+        if parameter.kind
+        in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+    ]
+    return "lastLine" in parameters or len(positional) >= 3
+
+
 def _describe_refusal(data: Dict[str, Any]) -> RunFromLineError:
     if data.get("compError"):
         return RunFromLineError(
@@ -137,13 +161,23 @@ def build_run_from_line(
         raise RunFromLineError("invalid_start_line", "the start line cannot be negative")
 
     helper = _helper()
+    bounded = _supports_last_line(helper)
 
     resolved_start = start_line
     last_line = 0
     if run_type == THIS_CUTPATH:
+        if not bounded:
+            raise RunFromLineError(
+                "cutpath_unsupported",
+                "This LinuxCNC's run-from-line helper cannot stop at the end of a cut; "
+                "use 'here to end' instead",
+            )
         resolved_start, last_line = cutpath_bounds(path, start_line)
 
-    data = helper.run_from_line_get(path, resolved_start, last_line)
+    if bounded:
+        data = helper.run_from_line_get(path, resolved_start, last_line)
+    else:
+        data = helper.run_from_line_get(path, resolved_start)
     if data.get("error"):
         raise _describe_refusal(data)
 

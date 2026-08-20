@@ -465,7 +465,10 @@ async def handle_plasma_run_from_line(
     command: CommandEnvelope, ctx: AppContext
 ) -> DispatchResult:
     """Build (and normally load) a program that restarts at one line, QtPlasmaC's RFL."""
+    import os
+
     from backend.plasma.run_from_line import (
+        DEFAULT_OUTPUT_DIR,
         RunFromLineError,
         build_run_from_line,
     )
@@ -489,6 +492,16 @@ async def handle_plasma_run_from_line(
     if ctx.plasma_config is not None:
         units_per_mm = ctx.plasma_config.files.units_per_mm
 
+    # QtPlasmaC writes its rfl.ngc under /tmp, but `program.open` only loads files under
+    # [DISPLAY] PROGRAM_PREFIX — a guard worth keeping, since a browser is on the other end of
+    # it. So the generated program goes into the machine's own program directory when there is
+    # a writable one, which also means the operator can see and reopen it afterwards.
+    output_dir = DEFAULT_OUTPUT_DIR
+    for prefix in ctx.gateway.get_program_prefix_directories():
+        if os.path.isdir(prefix) and os.access(prefix, os.W_OK):
+            output_dir = prefix
+            break
+
     try:
         result = await asyncio.to_thread(
             build_run_from_line,
@@ -498,6 +511,7 @@ async def handle_plasma_run_from_line(
             units_per_mm,
             params.leadinLength,
             params.leadinAngle,
+            output_dir,
         )
     except RunFromLineError as exc:
         return DispatchResult(

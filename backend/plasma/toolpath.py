@@ -16,7 +16,11 @@ Three details are load-bearing:
   this canon does not implement (the trap upstream's own test canon documents,
   ``tests/interp_initcode/test-ui.py:13``);
 * the unit and init codes come from ``preview_helpers``, so the preview starts in the machine's
-  current modal state and units rather than in a guessed one.
+  current modal state and units rather than in a guessed one;
+* the interpreter's canonical length unit is the **inch**, whatever the program says. AXIS
+  divides machine values by ``linear_units * 25.4`` to get there (``glcanon.py:1086``); we
+  multiply the other way, so the payload is in the machine's own units and the browser never
+  has to know about this.
 
 Everything LinuxCNC-specific is imported inside the functions, so this module imports on macOS
 and in CI, where the preview is simply unavailable.
@@ -65,8 +69,30 @@ def _segment_canon_class() -> type:
         #: See the module docstring — must not be answered by ``__getattr__``.
         use_move_batches = False
 
-        def __init__(self, parameter_file: str, max_points: int = MAX_POINTS) -> None:
+        #: ``gcode.arc_to_segments`` reads ``lo``, ``plane``, ``rotation_cos``,
+        #: ``rotation_sin`` and the nine g5x/g92 offsets straight off the canon
+        #: (``gcodemodule.cc:1457``). They must be real numbers: the catch-all
+        #: ``__getattr__`` below would hand the C code a function instead, which is a failed
+        #: parse of any program containing an arc. ``plane`` and the offsets come from the
+        #: rs274 bases; the rotation is the identity until a program rotates the XY plane.
+        plane = 1
+        rotation_cos = 1.0
+        rotation_sin = 0.0
+
+        def __init__(
+            self,
+            parameter_file: str,
+            max_points: int = MAX_POINTS,
+            scale: float = 1.0,
+        ) -> None:
             self.parameter_file = parameter_file
+            #: Internal-inches → machine units. Applied to the points we keep and *not* to
+            #: ``lo``, which the arc converter reads back in internal units.
+            self.scale = scale
+            #: Last position, all nine axes, the way GLCanon keeps it: the arc converter
+            #: starts each arc from here.
+            self.lo = (0.0,) * 9
+            self.first_move = True
             self.max_points = max_points
             self.segments: List[Dict[str, Any]] = []
             self.truncated = False
@@ -89,21 +115,21 @@ def _segment_canon_class() -> type:
         def next_line(self, state: Any) -> None:
             self.line = int(getattr(state, "sequence_number", self.line))
 
-        def straight_traverse_translated(self, x, y, z, *rest) -> None:
-            self._add(RAPID, x, y, z)
+        def straight_traverse_translated(self, *args) -> None:
+            self._move(RAPID, args)
 
-        def straight_feed_translated(self, x, y, z, *rest) -> None:
-            self._add(FEED, x, y, z)
+        def straight_feed_translated(self, *args) -> None:
+            self._move(FEED, args)
 
-        def straight_probe_translated(self, x, y, z, *rest) -> None:
-            self._add(FEED, x, y, z)
+        def straight_probe_translated(self, *args) -> None:
+            self._move(FEED, args)
 
         def straight_arcsegments(self, segments) -> None:
             for segment in segments:
-                self._add(FEED, segment[0], segment[1], segment[2])
+                self._move(FEED, segment)
 
         def rigid_tap(self, x, y, z, *rest) -> None:
-            self._add(FEED, x, y, z)
+            self._move(FEED, (x, y, z))
 
         def set_origin_offsets(self, *args) -> None:
             # Translated handles g5x/g92; nothing to record.
@@ -129,10 +155,22 @@ def _segment_canon_class() -> type:
 
         # ---- collection ------------------------------------------------------------
 
+        def _move(self, kind: str, position: Any) -> None:
+            """Record a move and remember where it left the tool.
+
+            ``lo`` has to keep all nine axes because the arc converter reads it as nine
+            doubles; the preview itself only ever draws the first three.
+            """
+            values = [float(value) for value in position[:9]]
+            values += [0.0] * (9 - len(values))
+            self.lo = tuple(values)
+            self.first_move = False
+            self._add(kind, values[0], values[1], values[2])
+
         def _add(self, kind: str, x: Any, y: Any, z: Any) -> None:
             if self.truncated:
                 return
-            point = (float(x), float(y), float(z))
+            point = (float(x) * self.scale, float(y) * self.scale, float(z) * self.scale)
             current = self._current
             if current is None or current["kind"] != kind or current["line"] != self.line:
                 # Start the new polyline where the last move ended, so a colour change does
@@ -164,6 +202,41 @@ def _segment_canon_class() -> type:
             return {"min": lows, "max": highs}
 
     return SegmentCanon
+
+
+def _machine_scale(ini_path: Optional[str]) -> Tuple[float, str]:
+    """``(internal inches → machine units, unit name)`` for this machine.
+
+    ``linear_units * 25.4`` is the factor AXIS uses (1 mm/unit → 25.4, inches → 1.0); the INI's
+    ``[TRAJ] LINEAR_UNITS`` is the fallback for a process with no ``linuxcnc`` module.
+    """
+    linear_units: Optional[float] = None
+    try:
+        import linuxcnc  # noqa: PLC0415
+
+        stat = linuxcnc.stat()
+        stat.poll()
+        value = float(getattr(stat, "linear_units", 0) or 0)
+        if value:
+            linear_units = value
+    except Exception:
+        logger.debug("plasma: no linuxcnc.stat for the preview unit scale", exc_info=True)
+
+    if linear_units is None and ini_path:
+        from backend.plasma.machine_files import INCH_UNITS_PER_MM, ini_value  # noqa: PLC0415
+
+        raw = (ini_value(ini_path, "TRAJ", "LINEAR_UNITS") or "mm").strip().lower()
+        linear_units = INCH_UNITS_PER_MM if raw in ("inch", "in", "imperial") else 1.0
+
+    if linear_units is None:
+        linear_units = 1.0
+    scale = linear_units * 25.4
+    # An imperial machine's linear_units is the rounded 0.03937, so the factor comes out at
+    # 0.999998 rather than 1. Snapping avoids a preview whose coordinates drift from the
+    # program's own numbers in the last decimal.
+    if abs(scale - 1.0) < 1e-3:
+        return 1.0, "inch"
+    return scale, "mm"
 
 
 def _init_codes(ini_path: Optional[str]) -> Tuple[str, str]:
@@ -227,9 +300,23 @@ def parse_toolpath(
     unitcode, initcode = _init_codes(ini_path)
 
     directory = tempfile.mkdtemp(prefix="lcncgui-preview-")
+    previous_ini = os.environ.get("INI_FILE_NAME")
     try:
-        canon = canon_class(_parameter_copy(ini_path, directory), max_points)
-        result, sequence = gcode.parse(path, canon, unitcode, initcode)
+        # The interpreter reads [RS274NGC] FEATURES from the INI named in the environment, and
+        # that bitmask is what decides whether `#<_hal[plasmac.cut-feed-rate]>` resolves at
+        # all — every QtPlasmaC program has that line, so without it a preview is one error.
+        if ini_path:
+            os.environ["INI_FILE_NAME"] = ini_path
+        scale, units = _machine_scale(ini_path)
+        canon = canon_class(_parameter_copy(ini_path, directory), max_points, scale)
+        try:
+            result, sequence = gcode.parse(path, canon, unitcode, initcode)
+        except RuntimeError as exc:
+            # gcodemodule raises this when a canon callback failed or the interpreter gave
+            # up mid-file; there is no error code to translate, only the message.
+            raise ToolpathError(
+                "interpreter_failed", f"{os.path.basename(path)}: {exc}"
+            ) from exc
         if result > gcode.MIN_ERROR:
             message = gcode.strerror(result)
             raise ToolpathError(
@@ -241,7 +328,11 @@ def parse_toolpath(
             "extents": canon.extents(),
             "points": canon.points,
             "truncated": canon.truncated,
-            "units": "mm" if unitcode == "G21" else "inch",
+            "units": units,
         }
     finally:
+        if previous_ini is None:
+            os.environ.pop("INI_FILE_NAME", None)
+        else:
+            os.environ["INI_FILE_NAME"] = previous_ini
         shutil.rmtree(directory, ignore_errors=True)

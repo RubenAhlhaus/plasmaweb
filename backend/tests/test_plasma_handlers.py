@@ -431,14 +431,24 @@ def test_saving_a_material_tells_every_client(tmp_path) -> None:
 class FakeGateway:
     """Just the two things the preview handlers ask the gateway for."""
 
-    def __init__(self, program: str | None, ini: str | None = None, open_ok: bool = True) -> None:
+    def __init__(
+        self,
+        program: str | None,
+        ini: str | None = None,
+        open_ok: bool = True,
+        prefixes: tuple[str, ...] = (),
+    ) -> None:
         self.program = program
         self.ini = ini
         self.open_ok = open_ok
+        self.prefixes = prefixes
         self.opened: list[str] = []
 
     def current_program_path(self):
         return self.program
+
+    def get_program_prefix_directories(self):
+        return list(self.prefixes)
 
     def resolve_ini_path(self):
         return self.ini
@@ -487,7 +497,8 @@ def test_toolpath_previews_the_loaded_program(tmp_path, monkeypatch) -> None:
 
     assert result.ack.ok is True
     assert [s["kind"] for s in result.ack.result["segments"]] == ["rapid", "feed"]
-    assert result.ack.result["extents"]["max"] == [20.0, 0.0, 5.0]
+    # Machine units: the interpreter reports inches, the payload carries millimetres.
+    assert result.ack.result["extents"]["max"] == [20.0 * 25.4, 0.0, 5.0 * 25.4]
 
 
 def test_toolpath_says_so_with_no_program_loaded() -> None:
@@ -590,3 +601,21 @@ def test_a_failed_open_is_reported_not_swallowed(tmp_path, monkeypatch) -> None:
 
     assert result.ack.ok is False
     assert result.ack.error.code == "not_idle"
+
+
+def test_run_from_line_writes_into_the_machines_program_directory(tmp_path, monkeypatch) -> None:
+    """`program.open` only loads files under PROGRAM_PREFIX, so that is where rfl.ngc goes."""
+    from backend.tests.test_plasma_run_from_line import PROGRAM, install_helper
+
+    install_helper(monkeypatch)
+    program = tmp_path / "nc_files" / "two_cuts.ngc"
+    program.parent.mkdir()
+    program.write_text(PROGRAM)
+    ctx = build_preview_ctx(str(program), prefixes=(str(program.parent),))
+
+    result = run(
+        handle_plasma_run_from_line, command("run_from_line", {"line": 6}), ctx
+    )
+
+    assert result.ack.ok is True
+    assert result.ack.result["path"] == str(program.parent / "rfl.ngc")

@@ -15,6 +15,7 @@ import { useJogEventSubscription } from './hooks/useJogCommand';
 import { useJogWheelScaleSync } from './hooks/useJogWheelScaleSync';
 import { useMachineEventBridge } from './hooks/useMachineEventBridge';
 import { useProgramExecutionEventBridge } from './hooks/useProgramExecutionEventBridge';
+import { usePlasmaToolpath } from './hooks/usePlasmaToolpath';
 import { useReloadToolOnStartup } from './hooks/useReloadToolOnStartup';
 import { useGlobalHotkeyListener } from './hooks/useGlobalHotkeyListener';
 import { useLiveProgramLineHighlight } from './hooks/useLiveProgramLineHighlight';
@@ -57,6 +58,9 @@ function AppContent() {
   useMachineEventBridge();
   useProgramExecutionEventBridge();
   useReloadToolOnStartup();
+  // App-level, not screen-level: the machine view on the home screen draws the same preview,
+  // so the program has to be parsed whether or not the plasma screen has been opened.
+  usePlasmaToolpath();
   useGlobalHotkeyListener();
   useLiveProgramLineHighlight();
 

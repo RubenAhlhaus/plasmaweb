@@ -57,8 +57,9 @@ def install_helper(
 
     module = types.ModuleType("plasmac.run_from_line")
 
-    def run_from_line_get(file: str, start_line: int, last_line: int = 0):
-        record["get"] = (file, start_line, last_line)
+    # Upstream's parameter names, because the capability check reads them.
+    def run_from_line_get(file: str, startLine: int, lastLine: int = 0):  # noqa: N803
+        record["get"] = (file, startLine, lastLine)
         return get_result if get_result is not None else {"error": False, "newData": []}
 
     def run_from_line_set(rfl_file: str, data: Any, leadin: Any, units_per_mm: float):
@@ -225,3 +226,49 @@ def test_cut_lines_lists_where_the_torch_fires(tmp_path: Path) -> None:
     lines: List[int] = cut_lines(write_program(tmp_path))
 
     assert lines == [4, 9]
+
+
+def install_old_helper(monkeypatch: pytest.MonkeyPatch) -> Dict[str, Any]:
+    """LinuxCNC 2.9.4's helper: `run_from_line_get(file, startLine)`, no end-of-cut bound."""
+    record: Dict[str, Any] = {}
+    module = types.ModuleType("plasmac.run_from_line")
+
+    def run_from_line_get(file: str, startLine: int):  # noqa: N803
+        record["get"] = (file, startLine)
+        return {"error": False, "newData": []}
+
+    def run_from_line_set(rfl_file: str, data: Any, leadin: Any, units_per_mm: float):
+        Path(rfl_file).write_text("G21\n")
+        return {"error": False}
+
+    module.run_from_line_get = run_from_line_get  # type: ignore[attr-defined]
+    module.run_from_line_set = run_from_line_set  # type: ignore[attr-defined]
+    package = types.ModuleType("plasmac")
+    package.run_from_line = module  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "plasmac", package)
+    monkeypatch.setitem(sys.modules, "plasmac.run_from_line", module)
+    return record
+
+
+def test_here_to_end_works_on_the_older_helper(tmp_path: Path, monkeypatch) -> None:
+    record = install_old_helper(monkeypatch)
+    path = write_program(tmp_path)
+
+    result = build_run_from_line(path, 6, HERE_TO_END, output_dir=str(tmp_path / "out"))
+
+    assert record["get"] == (path, 6)  # called without the argument it does not take
+    assert Path(result["path"]).is_file()
+
+
+def test_this_cutpath_is_refused_on_a_helper_that_cannot_bound_it(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """Dropping the bound silently would keep cutting past the cut the operator picked."""
+    install_old_helper(monkeypatch)
+
+    with pytest.raises(RunFromLineError) as excinfo:
+        build_run_from_line(
+            write_program(tmp_path), 6, THIS_CUTPATH, output_dir=str(tmp_path / "out")
+        )
+
+    assert excinfo.value.code == "cutpath_unsupported"

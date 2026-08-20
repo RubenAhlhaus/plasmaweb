@@ -1,8 +1,33 @@
 import { useTranslation } from 'react-i18next';
+
+import { ToolpathCanvas } from '@/components/plasma/ToolpathCanvas';
+import { useAppStore } from '@/store';
 import { Card } from './ui/card';
 
+/**
+ * The machine view: the loaded program's toolpath once there is one to draw.
+ *
+ * The placeholder below is what a machine without a preview still shows — no plasma layer,
+ * or nothing loaded yet. The toolpath comes from the store, so this needs no fetching of its
+ * own: whoever asked for the preview already filled it in.
+ */
 export function MachineVisualization() {
   const { t } = useTranslation('components');
+  const toolpath = useAppStore((s) => s.plasmaToolpath);
+  const coordinates = useAppStore((s) => s.coordinates);
+  const motionLine = useAppStore((s) => s.linuxCncStatus.program.motion_line);
+
+  if (toolpath) {
+    return (
+      <Card className="h-full w-full overflow-hidden surface-subtle" data-e2e="machine-toolpath">
+        <ToolpathCanvas
+          toolpath={toolpath}
+          torch={{ x: coordinates.x, y: coordinates.y }}
+          activeLine={typeof motionLine === 'number' ? motionLine : null}
+        />
+      </Card>
+    );
+  }
 
   return (
     <Card className="w-full h-full flex items-center justify-center surface-subtle">
