@@ -332,3 +332,23 @@ def test_the_validators_keep_upstreams_empty_versus_nonsense_distinction() -> No
     assert ConvShim.conv_is_float("nope") == (False, -1)
     assert ConvShim.conv_is_int("4") == (True, 4)
     assert ConvShim.conv_is_int("") == (False, 0)
+
+
+def test_machine_defaults_are_filtered_to_what_the_shape_takes() -> None:
+    """The machine cannot know which shape it is: a rectangle has no small-hole diameter."""
+    geometry = {key: value for key, value in RECTANGLE.items() if key not in ("kerfWidth",)}
+
+    result = generate(
+        "rectangle",
+        geometry,
+        defaults={"kerfWidth": 1.5, "smallHoleDia": 32.0, "smallHoleSpeed": 60},
+    )
+
+    assert result["error"] is None
+    assert result["gcode"] == reference_gcode("rectangle", RECTANGLE)
+
+
+def test_what_the_form_sends_wins_over_the_machine_default() -> None:
+    result = generate("circle", CIRCLE, defaults={"kerfWidth": 9.9})
+
+    assert result["gcode"] == reference_gcode("circle", CIRCLE)

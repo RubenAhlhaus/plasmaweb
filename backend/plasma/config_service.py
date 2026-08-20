@@ -102,6 +102,39 @@ class PlasmaConfigService:
             return 0, "Default"
         return material.number, material.name
 
+    def conversational_defaults(self) -> Dict[str, Any]:
+        """The shape parameters QtPlasmaC fills in from the machine rather than from the form.
+
+        Upstream's conversational tab takes the kerf width from the *selected material* and the
+        leadin, leadout, small-hole diameter, hole speed and origin mode from
+        ``[CONVERSATIONAL]`` (``conv_settings.py:94``). Filling them here keeps a form to the
+        shape's own geometry, and keeps one machine's cuts consistent between the two GUIs.
+        """
+        parser = read_config(self._files.prefs_path)
+
+        def pref(key: str, fallback: Any, kind: type) -> Any:
+            if not parser.has_option(CONVERSATIONAL_SECTION, key):
+                return fallback
+            raw = parser.get(CONVERSATIONAL_SECTION, key)
+            try:
+                return kind(float(raw))
+            except (TypeError, ValueError):
+                return fallback
+
+        material = self._materials.get(self._selected) if self._selected is not None else None
+        kerf = material.values["kerfWidth"] if material is not None else 1.0
+        # QtPlasmaC's own default hole diameter is 32 mm / 1.26 in (`unitCode[2]`).
+        hole_diameter = 1.26 if self._files.units_per_mm != 1.0 else 32.0
+        return {
+            "kerfWidth": kerf,
+            "leadinLength": pref("Leadin", 0.0, float),
+            "leadoutLength": pref("Leadout", 0.0, float),
+            "smallHoleDia": pref("Hole diameter", hole_diameter, float),
+            "smallHoleSpeed": pref("Hole speed", 60, int),
+            # Origin 0 means "the shape's own corner", 1 means centre — upstream's CENT/LEFT.
+            "isCenter": bool(pref("Origin", 0, int)),
+        }
+
     def conversational_ambles(self) -> Tuple[str, str]:
         """``[CONVERSATIONAL] Preamble/Postamble`` from the prefs, or QtPlasmaC's defaults."""
         from backend.plasma.conversational import default_ambles  # noqa: PLC0415

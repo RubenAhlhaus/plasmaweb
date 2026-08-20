@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 
 import pytest
 from typing import Any, Dict, Optional
@@ -756,3 +757,51 @@ def test_saving_a_job_writes_it_where_the_machine_can_open_it(reference_shapes, 
     assert result.ack.result["loaded"] is True
     assert "(conversational circle)" in Path(saved).read_text()
     assert ctx.gateway.opened == [str(saved)]
+
+
+def test_conversational_fills_the_kerf_from_the_selected_material(reference_shapes, tmp_path) -> None:
+    """A form carries the geometry; the machine supplies kerf, leadin and hole settings."""
+    ctx, _runtime, _bridge = build_config_ctx(tmp_path)
+    ctx.plasma_config.select_material(3)  # kerf 1.5 in the fixture's material file
+    ctx = AppContext(
+        manager=ctx.manager,
+        gateway=FakeGateway(None),
+        plasma=ctx.plasma,
+        plasma_config=ctx.plasma_config,
+    )
+    geometry = {key: value for key, value in CONV_CIRCLE.items() if key != "kerfWidth"}
+
+    result = run(
+        handle_plasma_conversational_generate,
+        command("conversational", {"shape": "circle", "params": geometry}),
+        ctx,
+    )
+
+    assert result.ack.ok is True, result.ack.error
+    assert result.ack.result["error"] is None
+
+
+def test_toolpath_can_preview_unsaved_gcode(tmp_path, monkeypatch) -> None:
+    """A conversational shape is previewed before anyone decides to keep it."""
+    from backend.tests.test_plasma_toolpath import FakeState, install_stubs
+
+    record = install_stubs(
+        monkeypatch,
+        [
+            ("next_line", FakeState(1)),
+            ("straight_feed", 1.0, 2.0, 0.0, 0, 0, 0, 0, 0, 0),
+        ],
+    )
+    ctx = build_preview_ctx(None)
+
+    result = run(
+        handle_plasma_toolpath,
+        command("toolpath", {"gcode": "G21\nG1 X10 Y20\nM2\n"}),
+        ctx,
+    )
+
+    assert result.ack.ok is True
+    assert result.ack.result["segments"][0]["kind"] == "feed"
+    # The scratch file is gone afterwards, so no stale path is handed back.
+    assert result.ack.result["path"] == ""
+    assert not os.path.exists(record["path"])

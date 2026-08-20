@@ -418,6 +418,8 @@ class PlasmaToolpathParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
     #: Defaults to whatever LinuxCNC has loaded.
     path: Optional[str] = None
+    #: Program text to preview instead of a file — a conversational job that is not saved yet.
+    gcode: Optional[str] = None
     maxPoints: Optional[int] = None
 
 
@@ -446,7 +448,19 @@ async def handle_plasma_toolpath(
     except ValidationError:
         return _invalid(command, 'plasma.toolpath params: {"path": string (optional)}')
 
-    path = params.path or ctx.gateway.current_program_path()
+    import os
+    import tempfile
+
+    scratch = None
+    if params.gcode is not None:
+        # The interpreter parses files, so unsaved text gets one — which is also how the
+        # conversational screen previews a shape before anyone decides to keep it.
+        handle, scratch = tempfile.mkstemp(prefix="lcncgui-preview-", suffix=".ngc")
+        with os.fdopen(handle, "w", encoding="utf-8") as sink:
+            sink.write(params.gcode)
+        path: Optional[str] = scratch
+    else:
+        path = params.path or ctx.gateway.current_program_path()
     if not path:
         return DispatchResult(
             ack=build_error(command.commandId, "no_program", "No program is loaded.")
@@ -461,6 +475,15 @@ async def handle_plasma_toolpath(
         )
     except ToolpathError as exc:
         return DispatchResult(ack=build_error(command.commandId, exc.code, exc.message))
+    finally:
+        if scratch:
+            try:
+                os.unlink(scratch)
+            except OSError:
+                pass
+    if scratch:
+        # Do not hand back a path that no longer exists.
+        preview["path"] = ""
     return DispatchResult(ack=build_ok(command.commandId, preview))
 
 
@@ -578,10 +601,14 @@ async def handle_plasma_conversational_generate(
     preamble = None
     postamble = None
     units = "mm"
+    defaults: dict = {}
     if ctx.plasma_config is not None:
         material = ctx.plasma_config.selected_material
         preamble, postamble = ctx.plasma_config.conversational_ambles()
         units = "inch" if ctx.plasma_config.files.units_per_mm != 1.0 else "mm"
+        # Machine-supplied values (kerf from the material, leadin from the prefs), so a form
+        # only has to carry the shape's geometry. Anything the form does send wins.
+        defaults = ctx.plasma_config.conversational_defaults()
 
     try:
         result = await asyncio.to_thread(
@@ -593,6 +620,7 @@ async def handle_plasma_conversational_generate(
             preamble,
             postamble,
             units,
+            defaults,
         )
     except ConversationalError as exc:
         return DispatchResult(ack=build_error(command.commandId, exc.code, exc.message))

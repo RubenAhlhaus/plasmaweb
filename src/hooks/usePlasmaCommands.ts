@@ -77,6 +77,15 @@ export function usePlasmaCommands() {
       saveParameters: (values: Record<string, number>) => send('save_parameters', { values }),
       reloadConfig: () => send('reload_config'),
       toolpath: (path?: string) => sendForResult('toolpath', path ? { path } : {}),
+      /** Preview program text that is not saved anywhere yet (a conversational shape). */
+      toolpathFromGcode: (gcode: string) => sendForResult('toolpath', { gcode }),
+      conversationalShapes: () => sendForResult('conversational_shapes'),
+      conversational: (params: {
+        shape: string;
+        params: Record<string, unknown>;
+        job?: string;
+        save?: boolean;
+      }) => sendForResult('conversational', { ...params }),
       runFromLine: (params: {
         line: number;
         runType?: 'here' | 'cut';

@@ -186,8 +186,14 @@ def generate(
     preamble: Optional[str] = None,
     postamble: Optional[str] = None,
     units: str = "mm",
+    defaults: Optional[Mapping[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Generate ``shape`` and return the whole job's G-code.
+
+    ``defaults`` are machine-supplied values (kerf width from the material, leadin from the
+    prefs); unlike ``params`` they are filtered to what the shape actually takes, because the
+    machine has no way of knowing which shape is being asked for and a rectangle has no
+    small-hole diameter.
 
     ``job`` is the program the shape is added to; ``None`` starts a new one. The returned
     ``gcode`` is the complete program, which is also what to pass back as ``job`` to add the
@@ -219,6 +225,9 @@ def generate(
         "preAmble": preamble if preamble is not None else amble,
         "postAmble": postamble if postamble is not None else amble,
     }
+    values.update(
+        {name: value for name, value in (defaults or {}).items() if name in expected}
+    )
     values.update(params)
 
     missing = [
