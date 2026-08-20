@@ -128,6 +128,9 @@ async def handle_plasma_set_enable(
         pin = ctx.plasma.set_enable(params.name, params.enabled)
     except PinWriteRejected as exc:
         return _rejected(command, exc)
+    # QtPlasmaC remembers six of these between runs; the rest are session-only.
+    if ctx.plasma_config is not None:
+        ctx.plasma_config.save_enable(pin, params.enabled)
     return DispatchResult(ack=build_ok(command.commandId, {"pin": pin}))
 
 
@@ -160,6 +163,8 @@ async def handle_plasma_thc_enable(
         ctx.plasma.thc_enable(params.enabled)
     except PinWriteRejected as exc:
         return _rejected(command, exc)
+    if ctx.plasma_config is not None:
+        ctx.plasma_config.save_enable("thc-enable", params.enabled)
     return DispatchResult(ack=build_ok(command.commandId, {"enabled": params.enabled}))
 
 

@@ -146,6 +146,36 @@ def make_material(
     return Material(number=number, name=str(name), values=resolved)
 
 
+def default_material(units_per_mm: float = 1.0) -> Material:
+    """Material 0 as QtPlasmaC creates it for a machine that has never had a material file.
+
+    Values from ``updater.move_default_material()``, which is where upstream ends up when it
+    finds no ``[MATERIAL_NUMBER_0]``: a 1 mm kerf, 3 mm pierce height, 4000 mm/min and 99 V.
+    They are not good cut settings for any particular torch, but they are the settings
+    QtPlasmaC would show, and they are not zeros — a material of zeros cannot cut at all.
+    """
+    return make_material(
+        0,
+        "Default",
+        {
+            "kerfWidth": round(1.0 * units_per_mm, 2),
+            "pierceHeight": round(3.0 * units_per_mm, 2),
+            "pierceDelay": 0.0,
+            "puddleJumpHeight": 0.0,
+            "puddleJumpDelay": 0.0,
+            "cutHeight": round(1.0 * units_per_mm, 2),
+            "cutSpeed": round(4000.0 * units_per_mm, 0),
+            "cutAmps": 45.0,
+            "cutVolts": 99.0,
+            "pauseAtEnd": 0.0,
+            "gasPressure": 0.0,
+            "cutMode": 1.0,
+            "thickness": 0.0,
+        },
+        units_per_mm,
+    )
+
+
 def read_materials(path: str, units_per_mm: float = 1.0) -> List[Material]:
     """Every material in the file, lowest number first, which is the order QtPlasmaC shows.
 

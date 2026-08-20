@@ -195,3 +195,75 @@ def parameter_pin_values(values: Mapping[str, Any]) -> Dict[str, Any]:
             continue
         pins[param.pin] = param.kind(float(value))
     return pins
+
+
+ENABLE_SECTION = "ENABLE_OPTIONS"
+
+
+class PlasmaEnable(NamedTuple):
+    """One ``[ENABLE_OPTIONS]`` toggle: its prefs key, its pin, and its default."""
+
+    key: str
+    pin: str
+    default: bool
+
+
+#: The toggles QtPlasmaC remembers between runs (``qtplasmac_handler.py:1097``). They are
+#: state, not parameters, but they live in the same file and they matter just as much: with
+#: ``THC enable`` unset the torch height never moves during a cut, however good the
+#: parameters are.
+#:
+#: Torch enable is deliberately absent — upstream does not persist it, and a machine that
+#: came up with the torch already armed would be a nasty surprise.
+PLASMA_ENABLES: Tuple[PlasmaEnable, ...] = (
+    PlasmaEnable("THC enable", "thc-enable", True),
+    PlasmaEnable("Corner lock enable", "cornerlock-enable", True),
+    PlasmaEnable("Void lock enable", "voidlock-enable", False),
+    PlasmaEnable("Use auto volts", "use-auto-volts", True),
+    PlasmaEnable("Ohmic probe enable", "ohmic-probe-enable", False),
+    PlasmaEnable("THC auto", "thc-auto", False),
+)
+
+_ENABLES_BY_PIN: Dict[str, PlasmaEnable] = {enable.pin: enable for enable in PLASMA_ENABLES}
+
+
+def enable_for_pin(pin: str) -> Optional[PlasmaEnable]:
+    """The persisted toggle a ``plasmac.*`` pin belongs to, if it is one of them."""
+    return _ENABLES_BY_PIN.get(pin)
+
+
+def read_enables(path: str) -> Dict[str, bool]:
+    """``{plasmac pin: on}`` for the six remembered toggles, defaults where the file is silent."""
+    parser = read_config(path)
+    values: Dict[str, bool] = {}
+    for enable in PLASMA_ENABLES:
+        value = enable.default
+        if parser.has_option(ENABLE_SECTION, enable.key):
+            raw = parser.get(ENABLE_SECTION, enable.key).strip().lower()
+            if raw in ("true", "1", "yes", "on"):
+                value = True
+            elif raw in ("false", "0", "no", "off"):
+                value = False
+            else:
+                logger.warning(
+                    "plasma: %s: [%s] %s is not a boolean (%r); using %s",
+                    path,
+                    ENABLE_SECTION,
+                    enable.key,
+                    raw,
+                    value,
+                )
+        values[enable.pin] = value
+    return values
+
+
+def write_enable(path: str, pin: str, value: bool) -> None:
+    """Remember one toggle, in the ``True``/``False`` spelling QtPlasmaC's reader expects."""
+    enable = _ENABLES_BY_PIN.get(pin)
+    if enable is None:
+        return
+    parser = read_config(path)
+    if not parser.has_section(ENABLE_SECTION):
+        parser.add_section(ENABLE_SECTION)
+    parser.set(ENABLE_SECTION, enable.key, "True" if value else "False")
+    write_config(path, parser)

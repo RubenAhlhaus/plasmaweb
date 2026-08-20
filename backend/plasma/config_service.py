@@ -35,6 +35,7 @@ from backend.plasma.machine_files import MachineFiles, read_config, write_config
 from backend.plasma.materials import (
     Material,
     MaterialError,
+    default_material,
     make_material,
     material_pin_values,
     read_materials,
@@ -43,8 +44,11 @@ from backend.plasma.materials import (
 )
 from backend.plasma.parameters import (
     default_parameters,
+    enable_for_pin,
     parameter_pin_values,
+    read_enables,
     read_parameters,
+    write_enable,
     write_parameters,
 )
 from backend.plasma.pins import PLASMAC_COMPONENT, QTPLASMAC_COMPONENT
@@ -83,6 +87,7 @@ class PlasmaConfigService:
         )
         self._materials: Dict[int, Material] = {}
         self._parameters: Dict[str, Any] = {}
+        self._enables: Dict[str, bool] = {}
         self._selected: Optional[int] = None
         self._default: Optional[int] = None
 
@@ -93,13 +98,34 @@ class PlasmaConfigService:
         self._parameters = read_parameters(
             self._files.prefs_path, default_parameters(self._files)
         )
+        self._enables = read_enables(self._files.prefs_path)
         self._materials = {
             material.number: material
             for material in read_materials(self._files.materials_path, self._files.units_per_mm)
         }
+        if not self._materials:
+            self._create_default_material()
         self._default = self._resolve_default_material()
         if self._selected not in self._materials:
             self._selected = self._default
+
+    def _create_default_material(self) -> None:
+        """A machine with no materials gets QtPlasmaC's material 0, written to the file.
+
+        Upstream does the same on the update that introduced the material file, and without
+        it there is nothing to select, so the cut parameters stay at zero and nothing cuts.
+        """
+        material = default_material(self._files.units_per_mm)
+        self._materials = {material.number: material}
+        try:
+            write_materials(self._files.materials_path, [material])
+            logger.info(
+                "plasma: no materials in %s; wrote QtPlasmaC's default material 0",
+                self._files.materials_path,
+            )
+        except OSError:
+            # A read-only config directory is not a reason to run without a material.
+            logger.exception("plasma: could not create %s", self._files.materials_path)
 
     def _resolve_default_material(self) -> Optional[int]:
         if not self._materials:
@@ -130,6 +156,7 @@ class PlasmaConfigService:
     def parameters_payload(self) -> Dict[str, Any]:
         return {
             "values": dict(self._parameters),
+            "enables": dict(self._enables),
             "defaults": default_parameters(self._files),
             "unitsPerMm": self._files.units_per_mm,
             "path": self._files.prefs_path,
@@ -144,6 +171,20 @@ class PlasmaConfigService:
         the first pierce dead, and a ``Pid P Gain`` of 0 freezes the THC.
         """
         return self._write_plasmac(parameter_pin_values(self._parameters))
+
+    def apply_enables(self) -> Tuple[str, ...]:
+        """Restore the remembered toggles. Without ``THC enable`` the torch height never moves."""
+        return self._write_plasmac(self._enables)
+
+    def save_enable(self, pin: str, value: bool) -> None:
+        """Remember a toggle the operator flipped, so it survives a restart as it does upstream."""
+        if enable_for_pin(pin) is None:
+            return
+        self._enables[pin] = bool(value)
+        try:
+            write_enable(self._files.prefs_path, pin, bool(value))
+        except OSError:
+            logger.exception("plasma: could not remember %s in %s", pin, self._files.prefs_path)
 
     def apply_selected_material(self) -> Tuple[str, ...]:
         if self._selected is None:
@@ -245,6 +286,7 @@ class PlasmaConfigService:
         """Re-read both files and re-apply them, which is QtPlasmaC's RELOAD button."""
         self.load()
         self.apply_parameters()
+        self.apply_enables()
         self.apply_selected_material()
 
     # ---- the material change protocol ----------------------------------------------

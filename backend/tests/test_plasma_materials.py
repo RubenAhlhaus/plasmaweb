@@ -10,6 +10,7 @@ from backend.plasma.machine_files import INCH_UNITS_PER_MM
 from backend.plasma.materials import (
     TEMPORARY_FROM,
     MaterialError,
+    default_material,
     make_material,
     material_number,
     material_pin_values,
@@ -193,3 +194,13 @@ def test_a_program_declared_material_is_read_from_the_flat_gcode_file(tmp_path: 
 def test_material_number_parsing() -> None:
     assert material_number("MATERIAL_NUMBER_12") == 12
     assert material_number("GUI_OPTIONS") is None
+
+
+def test_qtplasmacs_default_material_is_not_a_material_of_zeros() -> None:
+    material = default_material()
+
+    assert material.number == 0
+    assert material.name == "Default"
+    assert material.values["cutSpeed"] == 4000.0
+    assert material.values["cutVolts"] == 99.0
+    assert material.values["pierceHeight"] == 3.0

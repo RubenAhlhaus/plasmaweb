@@ -497,6 +497,18 @@ main() {
 
   wait "$BROWSER_PID" || true
   BROWSER_PID=""
+
+  # The browser exiting must not end the LinuxCNC session. Firefox in particular hands the
+  # URL to an already-running instance and returns immediately, and LinuxCNC shuts the
+  # machine down as soon as its [DISPLAY] program exits — so exiting here would tear down
+  # the machine seconds after start, for no better reason than a stray browser window.
+  # The backend is the real UI process; keep serving for as long as it lives.
+  if [[ -n "$UVICORN_PID" ]] && kill -0 "$UVICORN_PID" 2>/dev/null; then
+    echo "lcncgui: browser exited; backend still serving on ${app_url}" >&2
+    wait "$UVICORN_PID" || true
+    UVICORN_PID=""
+  fi
+
   maybe_shutdown_system
   exit 0
 }

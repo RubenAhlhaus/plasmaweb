@@ -147,3 +147,49 @@ def test_pin_values_skip_the_gui_only_parameters(files) -> None:
     assert isinstance(pins["arc-max-starts"], int)
     assert parameter("X Pierce Offset").pin is None
     assert "x-pierce-offset" not in pins
+
+
+# ---- [ENABLE_OPTIONS] ---------------------------------------------------------------
+
+
+def test_the_remembered_toggles_default_the_way_qtplasmac_does(files) -> None:
+    from backend.plasma.parameters import read_enables
+
+    enables = read_enables(files.prefs_path)
+
+    assert enables["thc-enable"] is True
+    assert enables["cornerlock-enable"] is True
+    assert enables["voidlock-enable"] is False
+    assert enables["thc-auto"] is False
+    # Torch enable is not remembered: a machine must not come up with the torch armed.
+    assert "torch-enable" not in enables
+
+
+def test_a_toggle_round_trips_through_the_prefs_file(files) -> None:
+    from backend.plasma.parameters import read_enables, write_enable
+
+    write_enable(files.prefs_path, "thc-enable", False)
+
+    assert "THC enable = False" in Path(files.prefs_path).read_text()
+    assert read_enables(files.prefs_path)["thc-enable"] is False
+
+
+def test_a_toggle_that_is_not_remembered_is_not_written(files) -> None:
+    from backend.plasma.parameters import enable_for_pin, write_enable
+
+    write_enable(files.prefs_path, "torch-enable", True)
+
+    assert enable_for_pin("torch-enable") is None
+    assert not Path(files.prefs_path).exists() or "Torch" not in Path(files.prefs_path).read_text()
+
+
+def test_a_non_boolean_in_the_file_falls_back_with_a_warning(files, caplog) -> None:
+    from backend.plasma.parameters import read_enables
+
+    Path(files.prefs_path).write_text("[ENABLE_OPTIONS]\nTHC enable = sometimes\n")
+
+    with caplog.at_level("WARNING"):
+        enables = read_enables(files.prefs_path)
+
+    assert enables["thc-enable"] is True
+    assert "THC enable" in caplog.text

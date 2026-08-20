@@ -370,3 +370,47 @@ def test_only_the_handshake_pin_may_be_written_outside_the_plasma_components(ser
         bridge.request_external_write("motion.digital-out-01", True)
 
     assert excinfo.value.code == "pin_not_writable"
+
+
+def test_a_machine_with_no_material_file_gets_qtplasmacs_default(tmp_path: Path) -> None:
+    """Without a material there is nothing to select, so the cut parameters stay at zero."""
+    (tmp_path / "machine.ini").write_text(INI)
+    files = machine_files(str(tmp_path / "machine.ini"))
+    assert files is not None
+    runtime = FakeHalRuntime()
+    bridge = HalBridge(runtime)
+    bridge.create_component()
+    bridge.ready()
+
+    config = PlasmaConfigService(bridge, files)
+    config.load()
+    config.apply_selected_material()
+    flush(bridge)
+
+    assert [m["number"] for m in config.materials_payload()["materials"]] == [0]
+    assert written(runtime)["plasmac.cut-feed-rate"] == "4000.0"
+    assert Path(files.materials_path).exists()
+
+
+def test_the_remembered_toggles_are_restored_to_hal(service) -> None:
+    """A cut with THC enable off never moves the torch, however good the parameters are."""
+    config, bridge, runtime = service
+
+    config.apply_enables()
+    flush(bridge)
+
+    assert written(runtime)["plasmac.thc-enable"] == "1"
+    assert written(runtime)["plasmac.cornerlock-enable"] == "1"
+    assert written(runtime)["plasmac.voidlock-enable"] == "0"
+
+
+def test_flipping_a_toggle_is_remembered_for_next_start(service) -> None:
+    config, bridge, runtime = service
+
+    config.save_enable("thc-enable", False)
+    reloaded = PlasmaConfigService(bridge, config._files)  # noqa: SLF001 — reads the file back
+    reloaded.load()
+    reloaded.apply_enables()
+    flush(bridge)
+
+    assert written(runtime)["plasmac.thc-enable"] == "0"
