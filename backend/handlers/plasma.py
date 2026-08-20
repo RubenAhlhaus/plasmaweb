@@ -409,3 +409,113 @@ async def _broadcast_config(ctx: AppContext, materials: bool, parameters: bool) 
                 "payload": payload,
             }
         )
+
+
+class PlasmaToolpathParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    #: Defaults to whatever LinuxCNC has loaded.
+    path: Optional[str] = None
+    maxPoints: Optional[int] = None
+
+
+class PlasmaRunFromLineParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    line: int
+    runType: str = "here"
+    leadinLength: float = 0.0
+    leadinAngle: float = 0.0
+    #: Load the generated program afterwards, as QtPlasmaC's RUN does. Off for a dry check.
+    load: bool = True
+
+
+async def handle_plasma_toolpath(
+    command: CommandEnvelope, ctx: AppContext
+) -> DispatchResult:
+    """Preview a program by running LinuxCNC's interpreter over it.
+
+    The parse is CPU-bound C code, so it goes to a thread: a big program must not stall the
+    event loop, and with it every other client's status stream.
+    """
+    from backend.plasma.toolpath import MAX_POINTS, ToolpathError, parse_toolpath
+
+    try:
+        params = PlasmaToolpathParams.model_validate(command.params or {})
+    except ValidationError:
+        return _invalid(command, 'plasma.toolpath params: {"path": string (optional)}')
+
+    path = params.path or ctx.gateway.current_program_path()
+    if not path:
+        return DispatchResult(
+            ack=build_error(command.commandId, "no_program", "No program is loaded.")
+        )
+
+    try:
+        preview = await asyncio.to_thread(
+            parse_toolpath,
+            path,
+            ctx.gateway.resolve_ini_path(),
+            params.maxPoints or MAX_POINTS,
+        )
+    except ToolpathError as exc:
+        return DispatchResult(ack=build_error(command.commandId, exc.code, exc.message))
+    return DispatchResult(ack=build_ok(command.commandId, preview))
+
+
+async def handle_plasma_run_from_line(
+    command: CommandEnvelope, ctx: AppContext
+) -> DispatchResult:
+    """Build (and normally load) a program that restarts at one line, QtPlasmaC's RFL."""
+    from backend.plasma.run_from_line import (
+        RunFromLineError,
+        build_run_from_line,
+    )
+
+    try:
+        params = PlasmaRunFromLineParams.model_validate(command.params)
+    except ValidationError:
+        return _invalid(
+            command,
+            'plasma.run_from_line params: {"line": int, "runType": "here"|"cut", '
+            '"leadinLength": number, "leadinAngle": number}',
+        )
+
+    path = ctx.gateway.current_program_path()
+    if not path:
+        return DispatchResult(
+            ack=build_error(command.commandId, "no_program", "No program is loaded.")
+        )
+
+    units_per_mm = 1.0
+    if ctx.plasma_config is not None:
+        units_per_mm = ctx.plasma_config.files.units_per_mm
+
+    try:
+        result = await asyncio.to_thread(
+            build_run_from_line,
+            path,
+            params.line,
+            params.runType,
+            units_per_mm,
+            params.leadinLength,
+            params.leadinAngle,
+        )
+    except RunFromLineError as exc:
+        return DispatchResult(
+            ack=build_error(command.commandId, exc.code, exc.message)
+        )
+    except OSError as exc:
+        return DispatchResult(ack=build_error(command.commandId, "write_failed", str(exc)))
+
+    result["source"] = path
+    if params.load:
+        opened = ctx.gateway.program_open(result["path"])
+        if not opened.ok:
+            return DispatchResult(
+                ack=build_error(
+                    command.commandId,
+                    opened.error_code or "open_failed",
+                    opened.error_message or "Could not load the run-from-line program.",
+                )
+            )
+        result["loaded"] = True
+    return DispatchResult(ack=build_ok(command.commandId, result))

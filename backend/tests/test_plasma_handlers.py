@@ -14,6 +14,7 @@ from backend.handlers.plasma import (
     handle_plasma_get_snapshot,
     handle_plasma_height_override,
     handle_plasma_reload_config,
+    handle_plasma_run_from_line,
     handle_plasma_save_material,
     handle_plasma_save_parameters,
     handle_plasma_select_material,
@@ -21,6 +22,7 @@ from backend.handlers.plasma import (
     handle_plasma_set_enable,
     handle_plasma_set_param,
     handle_plasma_thc_enable,
+    handle_plasma_toolpath,
     handle_plasma_torch_enable,
     handle_plasma_torch_pulse,
 )
@@ -421,3 +423,170 @@ def test_saving_a_material_tells_every_client(tmp_path) -> None:
 
     events = [msg["event"] for msg in ctx.manager.broadcasts]
     assert "plasma.materials.changed" in events
+
+
+# ---- toolpath preview and run from line ---------------------------------------------
+
+
+class FakeGateway:
+    """Just the two things the preview handlers ask the gateway for."""
+
+    def __init__(self, program: str | None, ini: str | None = None, open_ok: bool = True) -> None:
+        self.program = program
+        self.ini = ini
+        self.open_ok = open_ok
+        self.opened: list[str] = []
+
+    def current_program_path(self):
+        return self.program
+
+    def resolve_ini_path(self):
+        return self.ini
+
+    def program_open(self, path: str):
+        self.opened.append(path)
+        from backend.adapters.linuxcnc_gateway import GatewayCommandResult
+
+        if self.open_ok:
+            return GatewayCommandResult(ok=True, noop=False)
+        return GatewayCommandResult(
+            ok=False, error_code="not_idle", error_message="interpreter is busy"
+        )
+
+
+def build_preview_ctx(program: str | None, **kwargs):
+    from backend.plasma.service import PlasmaService
+
+    runtime = FakeHalRuntime()
+    bridge = make_bridge(runtime)
+    bridge.poll_once()
+    return AppContext(
+        manager=FakeManager(),
+        gateway=FakeGateway(program, **kwargs),
+        plasma=PlasmaService(bridge),
+    )
+
+
+def test_toolpath_previews_the_loaded_program(tmp_path, monkeypatch) -> None:
+    from backend.tests.test_plasma_toolpath import FakeState, install_stubs
+
+    program = tmp_path / "cut.ngc"
+    program.write_text("G21\nG0 X0 Y0\nG1 X10\nM2\n")
+    install_stubs(
+        monkeypatch,
+        [
+            ("next_line", FakeState(2)),
+            ("straight_traverse", 10.0, 0.0, 5.0, 0, 0, 0, 0, 0, 0),
+            ("next_line", FakeState(3)),
+            ("straight_feed", 20.0, 0.0, 1.0, 0, 0, 0, 0, 0, 0),
+        ],
+    )
+    ctx = build_preview_ctx(str(program))
+
+    result = run(handle_plasma_toolpath, command("toolpath"), ctx)
+
+    assert result.ack.ok is True
+    assert [s["kind"] for s in result.ack.result["segments"]] == ["rapid", "feed"]
+    assert result.ack.result["extents"]["max"] == [20.0, 0.0, 5.0]
+
+
+def test_toolpath_says_so_with_no_program_loaded() -> None:
+    ctx = build_preview_ctx(None)
+
+    result = run(handle_plasma_toolpath, command("toolpath"), ctx)
+
+    assert result.ack.ok is False
+    assert result.ack.error.code == "no_program"
+
+
+def test_toolpath_reports_a_gcode_error_rather_than_an_empty_preview(tmp_path, monkeypatch) -> None:
+    from backend.tests.test_plasma_toolpath import install_stubs
+
+    program = tmp_path / "bad.ngc"
+    program.write_text("G1 X\n")
+    install_stubs(monkeypatch, [], result=9)
+    ctx = build_preview_ctx(str(program))
+
+    result = run(handle_plasma_toolpath, command("toolpath"), ctx)
+
+    assert result.ack.ok is False
+    assert result.ack.error.code == "gcode_error"
+
+
+def test_run_from_line_builds_and_loads_the_program(tmp_path, monkeypatch) -> None:
+    from backend.tests.test_plasma_run_from_line import PROGRAM, install_helper
+
+    install_helper(monkeypatch)
+    program = tmp_path / "two_cuts.ngc"
+    program.write_text(PROGRAM)
+    ctx = build_preview_ctx(str(program))
+    monkeypatch.setattr(
+        "backend.plasma.run_from_line.DEFAULT_OUTPUT_DIR", str(tmp_path / "tmpout")
+    )
+
+    result = run(
+        handle_plasma_run_from_line,
+        command("run_from_line", {"line": 6, "runType": "cut"}),
+        ctx,
+    )
+
+    assert result.ack.ok is True
+    assert result.ack.result["startLine"] == 3
+    assert result.ack.result["loaded"] is True
+    assert ctx.gateway.opened == [result.ack.result["path"]]
+
+
+def test_run_from_line_can_be_asked_not_to_load(tmp_path, monkeypatch) -> None:
+    from backend.tests.test_plasma_run_from_line import PROGRAM, install_helper
+
+    install_helper(monkeypatch)
+    program = tmp_path / "two_cuts.ngc"
+    program.write_text(PROGRAM)
+    ctx = build_preview_ctx(str(program))
+    monkeypatch.setattr(
+        "backend.plasma.run_from_line.DEFAULT_OUTPUT_DIR", str(tmp_path / "tmpout")
+    )
+
+    result = run(
+        handle_plasma_run_from_line,
+        command("run_from_line", {"line": 6, "load": False}),
+        ctx,
+    )
+
+    assert result.ack.ok is True
+    assert ctx.gateway.opened == []
+
+
+def test_run_from_line_passes_the_refusal_through(tmp_path, monkeypatch) -> None:
+    from backend.tests.test_plasma_run_from_line import PROGRAM, install_helper
+
+    install_helper(monkeypatch, get_result={"error": True, "compError": True, "subError": []})
+    program = tmp_path / "two_cuts.ngc"
+    program.write_text(PROGRAM)
+    ctx = build_preview_ctx(str(program))
+
+    result = run(
+        handle_plasma_run_from_line, command("run_from_line", {"line": 6}), ctx
+    )
+
+    assert result.ack.ok is False
+    assert result.ack.error.code == "cutter_compensation_active"
+
+
+def test_a_failed_open_is_reported_not_swallowed(tmp_path, monkeypatch) -> None:
+    from backend.tests.test_plasma_run_from_line import PROGRAM, install_helper
+
+    install_helper(monkeypatch)
+    program = tmp_path / "two_cuts.ngc"
+    program.write_text(PROGRAM)
+    ctx = build_preview_ctx(str(program), open_ok=False)
+    monkeypatch.setattr(
+        "backend.plasma.run_from_line.DEFAULT_OUTPUT_DIR", str(tmp_path / "tmpout")
+    )
+
+    result = run(
+        handle_plasma_run_from_line, command("run_from_line", {"line": 6}), ctx
+    )
+
+    assert result.ack.ok is False
+    assert result.ack.error.code == "not_idle"

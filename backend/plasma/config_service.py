@@ -91,6 +91,11 @@ class PlasmaConfigService:
         self._selected: Optional[int] = None
         self._default: Optional[int] = None
 
+    @property
+    def files(self) -> MachineFiles:
+        """Where this machine's plasma files are, and the unit scale they are written in."""
+        return self._files
+
     # ---- loading -------------------------------------------------------------------
 
     def load(self) -> None:

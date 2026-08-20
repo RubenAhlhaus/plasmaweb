@@ -47,6 +47,7 @@ from backend.handlers.plasma import (
     handle_plasma_get_snapshot,
     handle_plasma_height_override,
     handle_plasma_reload_config,
+    handle_plasma_run_from_line,
     handle_plasma_save_material,
     handle_plasma_save_parameters,
     handle_plasma_select_material,
@@ -54,6 +55,7 @@ from backend.handlers.plasma import (
     handle_plasma_set_enable,
     handle_plasma_set_param,
     handle_plasma_thc_enable,
+    handle_plasma_toolpath,
     handle_plasma_torch_enable,
     handle_plasma_torch_pulse,
 )
@@ -238,6 +240,8 @@ command_bus.register("plasma", "set_default_material", handle_plasma_set_default
 command_bus.register("plasma", "get_parameters", handle_plasma_get_parameters)
 command_bus.register("plasma", "save_parameters", handle_plasma_save_parameters)
 command_bus.register("plasma", "reload_config", handle_plasma_reload_config)
+command_bus.register("plasma", "toolpath", handle_plasma_toolpath)
+command_bus.register("plasma", "run_from_line", handle_plasma_run_from_line)
 
 
 @asynccontextmanager

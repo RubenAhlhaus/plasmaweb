@@ -1159,6 +1159,20 @@ class LinuxCncGateway:
         """Active LinuxCNC INI path from stat or environment (public API)."""
         return self._resolve_ini_path()
 
+    def current_program_path(self) -> Optional[str]:
+        """The program LinuxCNC has loaded (``stat.file``), or ``None`` when there is none."""
+        if self._stat is None:
+            return None
+        with self._stat_lock:
+            try:
+                self._stat.poll()
+                raw = getattr(self._stat, "file", None)
+            except Exception:
+                return None
+        if isinstance(raw, str) and raw.strip():
+            return raw.strip()
+        return None
+
     def _resolve_ini_path(self) -> Optional[str]:
         """Resolve active LinuxCNC INI path from stat or environment."""
         # 1) linuxcnc.stat().ini_filename (preferred if available)
