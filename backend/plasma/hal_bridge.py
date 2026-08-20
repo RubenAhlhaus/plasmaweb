@@ -270,6 +270,38 @@ class HalBridge:
             logger.info("plasma: %d net members left alone (absent or already linked)", len(skipped))
         return tuple(skipped)
 
+    def apply_startup_values(self, values: Mapping[str, Any]) -> Tuple[str, ...]:
+        """Give our own output pins the values QtPlasmaC's handler gives them at startup.
+
+        A HAL pin starts at zero, and for ``gcode_scale`` zero is not a neutral value:
+        plasmac divides its requested feed rate by it, so the requested feed rate comes out
+        infinite, the "at cut speed" test never passes, ``target-volts`` is never set and the
+        THC never engages — a cut runs with the torch height frozen. ``thc_feed_rate`` is the
+        Z velocity the THC may use, and is likewise useless at zero.
+
+        Returns the names it could not set, for logging.
+        """
+        if not self._ready:
+            raise RuntimeError("ready() must run before apply_startup_values()")
+
+        failed: List[str] = []
+        for name, value in values.items():
+            try:
+                pin = qtplasmac_pin(name)
+            except KeyError:
+                logger.warning("plasma: no such own pin to initialise: %s", name)
+                failed.append(name)
+                continue
+            if pin.direction != "out" or self._comp is None:
+                failed.append(name)
+                continue
+            try:
+                self._comp[pin.name] = _coerce_own_pin_value(pin, format_hal_value(pin, value))
+            except Exception as exc:
+                logger.warning("plasma: could not initialise %s to %s: %s", name, value, exc)
+                failed.append(name)
+        return tuple(failed)
+
     def start(self) -> None:
         if not self._ready:
             raise RuntimeError("ready() must run before start()")

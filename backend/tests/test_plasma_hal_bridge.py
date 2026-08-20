@@ -417,3 +417,31 @@ def test_apply_nets_requires_ready() -> None:
     with pytest.raises(RuntimeError):
         bridge.apply_nets()
 
+
+def test_apply_startup_values_sets_our_own_output_pins() -> None:
+    """gcode_scale at 0 makes plasmac's requested feed rate infinite, so the THC never runs."""
+    runtime = FakeHalRuntime()
+    bridge = make_bridge(runtime)
+
+    failed = bridge.apply_startup_values({"gcode_scale": 1.0, "thc_feed_rate": 3600.0})
+
+    own = runtime.components[QTPLASMAC_COMPONENT]
+    assert own.values["gcode_scale"] == 1.0
+    assert own.values["thc_feed_rate"] == 3600.0
+    assert failed == ()
+
+
+def test_apply_startup_values_reports_pins_it_cannot_set() -> None:
+    runtime = FakeHalRuntime()
+    bridge = make_bridge(runtime)
+
+    failed = bridge.apply_startup_values({"not_a_pin": 1.0, "ext_abort": True})
+
+    assert set(failed) == {"not_a_pin", "ext_abort"}
+
+
+def test_apply_startup_values_requires_ready() -> None:
+    bridge = HalBridge(FakeHalRuntime())
+    bridge.create_component()
+    with pytest.raises(RuntimeError):
+        bridge.apply_startup_values({"gcode_scale": 1.0})
