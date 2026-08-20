@@ -51,6 +51,18 @@ class FakeHalRuntime:
     ) -> None:
         self.components: Dict[str, FakeComponent] = {}
         self.set_p_calls: List[Tuple[str, str]] = []
+        #: pins outside the two plasma components, e.g. ini.z.min_limit and motion.feed-upm
+        self.extra_pins: Dict[str, str] = {
+            "ini.x.min_limit": "float",
+            "ini.x.max_limit": "float",
+            "ini.y.min_limit": "float",
+            "ini.y.max_limit": "float",
+            "ini.z.min_limit": "float",
+            "ini.z.max_limit": "float",
+            "motion.feed-upm": "float",
+        }
+        self.signals: Dict[str, str] = {}
+        self.links: Dict[str, str] = {}
         self._absent = set(absent)
         self._written_by_hal = set(written_by_hal)
         self.plasmac_values: Dict[str, Any] = {
@@ -97,6 +109,29 @@ class FakeHalRuntime:
     def pin_has_writer(self, name: str) -> bool:
         return name in self._written_by_hal
 
+    def pin_types(self) -> Dict[str, str]:
+        types = {
+            hal_name(PLASMAC_COMPONENT, pin): pin.type
+            for pin in PLASMAC_PINS
+            if pin.name not in self._absent
+        }
+        types.update(
+            {hal_name(QTPLASMAC_COMPONENT, pin): pin.type for pin in QTPLASMAC_PINS}
+        )
+        types.update(self.extra_pins)
+        return types
+
+    def signal_names(self) -> Tuple[str, ...]:
+        return tuple(self.signals)
+
+    def new_signal(self, name: str, pin_type: str) -> None:
+        self.signals[name] = pin_type
+
+    def connect(self, pin: str, signal: str) -> None:
+        if pin in self.links:
+            raise RuntimeError(f"pin {pin} is already linked")
+        self.links[pin] = signal
+
 
 def _wait_until(predicate, timeout_s: float = 2.0) -> None:
     deadline = time.monotonic() + timeout_s
@@ -118,8 +153,8 @@ def test_create_component_exports_every_qtplasmac_pin() -> None:
 
     comp = runtime.components[QTPLASMAC_COMPONENT]
     assert len(comp.pins) == len(QTPLASMAC_PINS) == 91
-    assert comp.pins["ext-abort"] == ("bit", "in")
-    assert comp.pins["laser-on"] == ("bit", "out")
+    assert comp.pins["ext_abort"] == ("bit", "in")
+    assert comp.pins["laser_on"] == ("bit", "out")
     assert not comp.is_ready, "ready() is the launcher's cue to load POSTGUI halfiles"
 
     bridge.ready()
@@ -187,9 +222,9 @@ def test_own_pins_are_polled_from_the_component() -> None:
     bridge = make_bridge(runtime)
     bridge.poll_once()
 
-    runtime.components[QTPLASMAC_COMPONENT].values["ext-torch-enable"] = True
+    runtime.components[QTPLASMAC_COMPONENT].values["ext_torch_enable"] = True
     diff = bridge.poll_once()
-    assert diff == {QTPLASMAC_COMPONENT: {"ext-torch-enable": True}}
+    assert diff == {QTPLASMAC_COMPONENT: {"ext_torch_enable": True}}
 
 
 @pytest.mark.parametrize(
@@ -213,7 +248,7 @@ def test_hal_driven_pins_cannot_be_written() -> None:
 def test_external_input_on_our_own_component_cannot_be_written() -> None:
     bridge = make_bridge(FakeHalRuntime())
     with pytest.raises(PinWriteRejected) as excinfo:
-        bridge.request_write(QTPLASMAC_COMPONENT, "ext-abort", True)
+        bridge.request_write(QTPLASMAC_COMPONENT, "ext_abort", True)
     assert excinfo.value.code == "pin_not_writable"
 
 
@@ -252,7 +287,7 @@ def test_writes_reach_hal_only_from_the_bridge_thread_pass() -> None:
 
     bridge.request_write(PLASMAC_COMPONENT, "pierce-height", 3.5)
     bridge.request_write(PLASMAC_COMPONENT, "torch-enable", True)
-    bridge.request_write(QTPLASMAC_COMPONENT, "laser-on", True)
+    bridge.request_write(QTPLASMAC_COMPONENT, "laser_on", True)
     assert runtime.set_p_calls == []
 
     bridge._apply_pending_writes()
@@ -260,7 +295,7 @@ def test_writes_reach_hal_only_from_the_bridge_thread_pass() -> None:
     assert ("plasmac.pierce-height", "3.5") in runtime.set_p_calls
     assert ("plasmac.torch-enable", "1") in runtime.set_p_calls
     # our own pins are assigned, not set_p'd
-    assert runtime.components[QTPLASMAC_COMPONENT].values["laser-on"] is True
+    assert runtime.components[QTPLASMAC_COMPONENT].values["laser_on"] is True
 
 
 @pytest.mark.parametrize(
@@ -283,11 +318,11 @@ def test_hal_value_formatting_matches_pin_type(name: str, value: Any, expected: 
 def test_bit_output_on_own_component_is_assigned_as_bool() -> None:
     runtime = FakeHalRuntime()
     bridge = make_bridge(runtime)
-    bridge.request_write(QTPLASMAC_COMPONENT, "thc-feed-rate", 1234.5)
+    bridge.request_write(QTPLASMAC_COMPONENT, "thc_feed_rate", 1234.5)
     bridge._apply_pending_writes()
     values = runtime.components[QTPLASMAC_COMPONENT].values
-    assert values["thc-feed-rate"] == 1234.5
-    assert qtplasmac_pin("thc-feed-rate").type == "float"
+    assert values["thc_feed_rate"] == 1234.5
+    assert qtplasmac_pin("thc_feed_rate").type == "float"
 
 
 def test_start_stop_runs_the_thread_and_polls() -> None:
@@ -319,8 +354,66 @@ def test_failing_write_does_not_kill_the_loop() -> None:
 
 
 def test_rising_edges_only_reports_false_to_true() -> None:
-    previous = {"ext-pause": False, "ext-run": True, "ext-abort": False}
-    current = {"ext-pause": True, "ext-run": True, "ext-abort": False}
-    names = ("ext-pause", "ext-run", "ext-abort", "ext-probe")
-    assert rising_edges(previous, current, names) == ("ext-pause",)
+    previous = {"ext_pause": False, "ext_run": True, "ext_abort": False}
+    current = {"ext_pause": True, "ext_run": True, "ext_abort": False}
+    names = ("ext_pause", "ext_run", "ext_abort", "ext_probe")
+    assert rising_edges(previous, current, names) == ("ext_pause",)
     assert rising_edges(current, previous, names) == ()
+
+
+def test_apply_nets_recreates_the_links_qtplasmac_makes() -> None:
+    """The axis limits are the load-bearing ones: at 0 every probe fails."""
+    runtime = FakeHalRuntime()
+    bridge = make_bridge(runtime)
+
+    skipped = bridge.apply_nets()
+
+    assert runtime.links["plasmac.axis-z-min-limit"] == "plasmac:axis-z-min-limit"
+    assert runtime.links["ini.z.min_limit"] == "plasmac:axis-z-min-limit"
+    assert runtime.links["qtplasmac.plasmac_state"] == "plasmac:state"
+    assert runtime.links["plasmac.state-out"] == "plasmac:state"
+    assert runtime.signals["plasmac:axis-z-min-limit"] == "float"
+    assert runtime.signals["plasmac:state"] == "s32"
+    assert skipped == ()
+
+
+def test_apply_nets_joins_a_signal_that_already_exists() -> None:
+    runtime = FakeHalRuntime()
+    runtime.signals["plasmac:state"] = "s32"
+    bridge = make_bridge(runtime)
+
+    bridge.apply_nets()
+
+    assert runtime.links["qtplasmac.plasmac_state"] == "plasmac:state"
+
+
+def test_apply_nets_leaves_pins_the_machine_already_wired_alone() -> None:
+    """A config may net these itself; its wiring wins and we carry on."""
+    runtime = FakeHalRuntime()
+    bridge = make_bridge(runtime)
+    runtime.links["plasmac.feed-upm"] = "some-machine-signal"
+
+    skipped = bridge.apply_nets()
+
+    assert runtime.links["plasmac.feed-upm"] == "some-machine-signal"
+    assert "plasmac.feed-upm" in skipped
+    assert runtime.links["plasmac.axis-z-min-limit"] == "plasmac:axis-z-min-limit"
+
+
+def test_apply_nets_skips_pins_this_linuxcnc_does_not_have() -> None:
+    runtime = FakeHalRuntime()
+    del runtime.extra_pins["ini.z.max_limit"]
+    bridge = make_bridge(runtime)
+
+    skipped = bridge.apply_nets()
+
+    assert "ini.z.max_limit" in skipped
+    assert runtime.links["plasmac.axis-z-max-limit"] == "plasmac:axis-z-max-limit"
+
+
+def test_apply_nets_requires_ready() -> None:
+    bridge = HalBridge(FakeHalRuntime())
+    bridge.create_component()
+    with pytest.raises(RuntimeError):
+        bridge.apply_nets()
+

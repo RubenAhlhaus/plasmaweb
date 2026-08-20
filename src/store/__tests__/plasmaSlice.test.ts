@@ -16,7 +16,7 @@ describe('plasmaSlice', () => {
 
   it('marks the layer available and stores the full snapshot', () => {
     useAppStore.getState().setPlasmaSnapshot({
-      pins: { plasmac: { 'torch-on': false, 'arc-voltage-out': 12.5 }, qtplasmac: { 'laser-on': true } },
+      pins: { plasmac: { 'torch-on': false, 'arc-voltage-out': 12.5 }, qtplasmac: { 'laser_on': true } },
       state: {
         state: 11,
         stateName: 'CUT_MODE_01',
@@ -31,7 +31,7 @@ describe('plasmaSlice', () => {
     const state = useAppStore.getState();
     expect(state.plasmaAvailable).toBe(true);
     expect(state.plasmaPins.plasmac['arc-voltage-out']).toBe(12.5);
-    expect(state.plasmaPins.qtplasmac['laser-on']).toBe(true);
+    expect(state.plasmaPins.qtplasmac['laser_on']).toBe(true);
     expect(state.plasmaState.stateName).toBe('CUT_MODE_01');
     expect(state.plasmaMissingPins).toEqual(['plasmac.dry-run']);
   });
@@ -50,13 +50,13 @@ describe('plasmaSlice', () => {
 
   it('merges each component independently', () => {
     useAppStore.getState().setPlasmaSnapshot({
-      pins: { plasmac: { 'torch-on': false }, qtplasmac: { 'ext-pause': false } },
+      pins: { plasmac: { 'torch-on': false }, qtplasmac: { 'ext_pause': false } },
     });
 
-    useAppStore.getState().mergePlasmaPins({ qtplasmac: { 'ext-pause': true } });
+    useAppStore.getState().mergePlasmaPins({ qtplasmac: { 'ext_pause': true } });
 
     const pins = useAppStore.getState().plasmaPins;
-    expect(pins.qtplasmac['ext-pause']).toBe(true);
+    expect(pins.qtplasmac['ext_pause']).toBe(true);
     expect(pins.plasmac['torch-on']).toBe(false);
   });
 

@@ -24,6 +24,7 @@ import time
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Protocol, Tuple
 
 from backend.plasma.pins import (
+    HAL_NETS,
     PLASMAC_COMPONENT,
     PLASMAC_PINS,
     QTPLASMAC_COMPONENT,
@@ -69,6 +70,14 @@ class HalRuntime(Protocol):
 
     def pin_has_writer(self, name: str) -> bool: ...
 
+    def pin_types(self) -> Dict[str, str]: ...
+
+    def signal_names(self) -> Tuple[str, ...]: ...
+
+    def new_signal(self, name: str, pin_type: str) -> None: ...
+
+    def connect(self, pin: str, signal: str) -> None: ...
+
 
 class NativeHalRuntime:
     """Adapter over LinuxCNC's ``hal`` module. Imported lazily so macOS/CI can import us."""
@@ -106,6 +115,24 @@ class NativeHalRuntime:
 
     def pin_has_writer(self, name: str) -> bool:
         return bool(self._hal.pin_has_writer(name))
+
+    #: hal reports pin/signal types as ints; keep the table's vocabulary instead.
+    _TYPE_NAMES = {1: "bit", 2: "float", 3: "s32", 4: "u32"}
+
+    def pin_types(self) -> Dict[str, str]:
+        return {
+            info["NAME"]: self._TYPE_NAMES.get(int(info["TYPE"]), "float")
+            for info in self._hal.get_info_pins()
+        }
+
+    def signal_names(self) -> Tuple[str, ...]:
+        return tuple(info["NAME"] for info in self._hal.get_info_signals())
+
+    def new_signal(self, name: str, pin_type: str) -> None:
+        self._hal.new_sig(name, getattr(self._hal, self._TYPES[pin_type]))
+
+    def connect(self, pin: str, signal: str) -> None:
+        self._hal.connect(pin, signal)
 
 
 def format_hal_value(pin: PlasmaPin, value: Any) -> str:
@@ -195,6 +222,53 @@ class HalBridge:
                 "plasma: this LinuxCNC build has no %s — those pins stay absent",
                 ", ".join(self._missing),
             )
+
+    def apply_nets(self) -> Tuple[str, ...]:
+        """Recreate the HAL links QtPlasmaC's ``link_hal_pins()`` makes.
+
+        Without them the component exports pins that nothing is wired to, and — the part
+        that actually breaks cutting — ``plasmac.axis-*-limit`` stays at 0, so every probe
+        fails immediately. Signals that already exist are joined rather than recreated, and
+        a member that is already linked is left alone: machine configs are allowed to have
+        wired these themselves, and their wiring wins.
+
+        Returns the names of links that could not be made, for logging.
+        """
+        if not self._ready:
+            raise RuntimeError("ready() must run before apply_nets()")
+
+        pin_types = self._runtime.pin_types()
+        existing_pins = set(pin_types)
+        signals = set(self._runtime.signal_names())
+        skipped: List[str] = []
+
+        for net in HAL_NETS:
+            members = [name for name in net.members if name in existing_pins]
+            missing = [name for name in net.members if name not in existing_pins]
+            skipped.extend(missing)
+            if not members:
+                continue
+
+            if net.signal not in signals:
+                try:
+                    self._runtime.new_signal(net.signal, pin_types[members[0]])
+                    signals.add(net.signal)
+                except Exception as exc:
+                    logger.warning("plasma: could not create signal %s: %s", net.signal, exc)
+                    skipped.extend(members)
+                    continue
+
+            for member in members:
+                try:
+                    self._runtime.connect(member, net.signal)
+                except Exception as exc:
+                    # Already linked is the common case and not an error worth shouting about.
+                    logger.debug("plasma: net %s <- %s: %s", net.signal, member, exc)
+                    skipped.append(member)
+
+        if skipped:
+            logger.info("plasma: %d net members left alone (absent or already linked)", len(skipped))
+        return tuple(skipped)
 
     def start(self) -> None:
         if not self._ready:

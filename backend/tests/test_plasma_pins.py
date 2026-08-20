@@ -50,9 +50,25 @@ def test_pin_names_are_unique_and_hal_shaped() -> None:
         assert len(names) == len(set(names))
         for pin in table:
             assert pin.name == pin.name.lower()
-            assert "_" not in pin.name, f"{pin.name} must use HAL dashes"
             assert pin.type in VALID_TYPES
             assert pin.direction in ("in", "out")
+
+
+def test_component_pins_use_dashes_and_own_pins_keep_upstream_underscores() -> None:
+    """halcompile rewrites _ to - for .comp files; hal.component() does not.
+
+    So plasmac's pins really are dashed and QtPlasmaC's really are not, and getting this
+    backwards would silently break every existing *_connections.hal file.
+    """
+    for pin in PLASMAC_PINS:
+        assert "_" not in pin.name, f"plasmac.{pin.name} should be dashed"
+    assert {pin.name for pin in QTPLASMAC_PINS} >= {
+        "ext_abort",
+        "ext_torch_enable",
+        "plasmac_state",
+        "material_change",
+        "thc_feed_rate",
+    }
 
 
 @pytest.mark.parametrize(
@@ -167,9 +183,9 @@ def test_own_component_pins_split_by_direction() -> None:
 
 def test_own_component_keeps_the_qtplasmac_names() -> None:
     """Drop-in compatibility: existing *_connections.hal files net these names."""
-    for name in ("ext-abort", "ext-torch-enable", "ext-height-ovr-plus", "laser-on"):
+    for name in ("ext_abort", "ext_torch_enable", "ext_height_ovr_plus", "laser_on"):
         assert qtplasmac_pin(name).name == name
-    assert hal_name(QTPLASMAC_COMPONENT, qtplasmac_pin("laser-on")) == "qtplasmac.laser-on"
+    assert hal_name(QTPLASMAC_COMPONENT, qtplasmac_pin("laser_on")) == "qtplasmac.laser_on"
     assert hal_name(PLASMAC_COMPONENT, plasmac_pin("torch-on")) == "plasmac.torch-on"
 
 

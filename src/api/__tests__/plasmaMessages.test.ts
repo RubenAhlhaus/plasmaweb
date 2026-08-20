@@ -60,8 +60,8 @@ describe('plasma message predicates', () => {
 describe('mapPlasmaPinsDiff', () => {
   it('keeps the known components', () => {
     expect(
-      mapPlasmaPinsDiff({ pins: { plasmac: { 'torch-on': true }, qtplasmac: { 'ext-pause': true } } }),
-    ).toEqual({ plasmac: { 'torch-on': true }, qtplasmac: { 'ext-pause': true } });
+      mapPlasmaPinsDiff({ pins: { plasmac: { 'torch-on': true }, qtplasmac: { 'ext_pause': true } } }),
+    ).toEqual({ plasmac: { 'torch-on': true }, qtplasmac: { 'ext_pause': true } });
   });
 
   it('drops unknown components instead of creating a third pin bucket', () => {

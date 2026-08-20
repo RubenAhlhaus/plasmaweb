@@ -21,7 +21,7 @@ from __future__ import annotations
 import re
 import subprocess
 from pathlib import Path
-from typing import Dict, Iterable, List, NamedTuple, Set
+from typing import Dict, Iterable, List, NamedTuple, Set, Tuple
 
 ROOT = Path(__file__).resolve().parent.parent
 REFERENCE = ROOT / "reference" / "linuxcnc"
@@ -45,6 +45,8 @@ COMP_PIN_RE = re.compile(
     r'^pin\s+(?P<dir>in|out)\s+(?P<type>bool|real|si32|u32)\s+'
     r'(?P<name>\w+)\s*(?:=\s*(?P<default>\S+))?\s*"(?P<doc>.*)"\s*;'
 )
+# `CALL(['halcmd', 'net', 'plasmac:z-height', 'plasmac.z-height', 'qtplasmac.z_height'])`
+NET_RE = re.compile(r"CALL\(\['halcmd',\s*'net',\s*(?P<members>[^\]]+)\]\)")
 # `self.xPin = self.h.newpin('ext_abort', hal.HAL_BIT, hal.HAL_IN)`
 NEWPIN_RE = re.compile(
     r"newpin\(\s*'(?P<name>[\w]+)'\s*,\s*hal\.HAL_(?P<type>BIT|FLOAT|S32|U32)\s*,"
@@ -82,11 +84,18 @@ def parse_comp(path: Path) -> List[Pin]:
 
 
 def parse_handler(path: Path) -> List[Pin]:
+    """QtPlasmaC's own component pins, with their names exactly as upstream exports them.
+
+    No underscore/dash conversion here: ``halcompile`` rewrites ``_`` to ``-`` for .comp
+    files, but ``hal.component().newpin()`` takes the name verbatim, so QtPlasmaC's pins
+    really are ``qtplasmac.ext_abort``. Existing ``*_connections.hal`` files net those
+    names, and drop-in compatibility is the whole point of reusing the component name.
+    """
     pins: List[Pin] = []
     for m in NEWPIN_RE.finditer(path.read_text(encoding="utf-8", errors="replace")):
         pins.append(
             Pin(
-                name=m.group("name").replace("_", "-"),
+                name=m.group("name"),
                 type=HANDLER_TYPES[m.group("type")],
                 direction=m.group("dir").lower(),
                 doc="",
@@ -95,6 +104,34 @@ def parse_handler(path: Path) -> List[Pin]:
     if not pins:
         raise SystemExit(f"no newpin() calls parsed from {path}")
     return pins
+
+
+def parse_nets(path: Path, own_pins: Set[str]) -> List[Tuple[str, Tuple[str, ...]]]:
+    """The HAL links QtPlasmaC's ``link_hal_pins`` creates, minus the ones we cannot make.
+
+    Upstream nets two families of pin: its own component's pins, and the HAL pins QtVCP
+    creates for HAL-aware *widgets* (``qtplasmac.arc_fail_delay-f`` and friends). We have no
+    widgets, and our backend writes those parameters straight to ``plasmac.*`` instead, so
+    widget nets are dropped and only links we can actually satisfy are kept.
+    """
+    nets: List[Tuple[str, Tuple[str, ...]]] = []
+    for match in NET_RE.finditer(path.read_text(encoding="utf-8", errors="replace")):
+        members = [token.strip().strip("'\"") for token in match.group("members").split(",")]
+        members = [token for token in members if token]
+        if len(members) < 2:
+            continue
+        signal, endpoints = members[0], tuple(members[1:])
+        keep = True
+        for endpoint in endpoints:
+            component, _, pin = endpoint.partition(".")
+            if component == "qtplasmac" and pin not in own_pins:
+                keep = False  # a QtVCP widget pin; we have no widgets
+                break
+        if keep:
+            nets.append((signal, endpoints))
+    if not nets:
+        raise SystemExit(f"no link_hal_pins nets parsed from {path}")
+    return nets
 
 
 def parse_hal_driven(paths: Iterable[Path]) -> Set[str]:
@@ -145,7 +182,12 @@ def reference_revision() -> str:
         return "unknown"
 
 
-def render(plasmac: List[Pin], qtplasmac: List[Pin], hal_driven: Set[str]) -> str:
+def render(
+    plasmac: List[Pin],
+    qtplasmac: List[Pin],
+    hal_driven: Set[str],
+    nets: List[Tuple[str, Tuple[str, ...]]],
+) -> str:
     def policy_of(pin: Pin) -> str:
         if pin.direction == "out":
             return "REALTIME_OUT"
@@ -168,6 +210,10 @@ def render(plasmac: List[Pin], qtplasmac: List[Pin], hal_driven: Set[str]) -> st
     def qt_policy(pin: Pin) -> str:
         return "OWNED_OUT" if pin.direction == "out" else "EXTERNAL_IN"
 
+    net_rows = "\n".join(
+        f'    HalNet("{signal}", ({", ".join(chr(34) + m + chr(34) for m in members)},)),'
+        for signal, members in nets
+    )
     setpoints = sum(1 for p in plasmac if policy_of(p) == "SETPOINT")
     hal_driven_count = sum(
         1 for p in plasmac if policy_of(p) in ("HAL_DRIVEN", "DEPRECATED")
@@ -236,10 +282,26 @@ PLASMAC_PINS: Tuple[PlasmaPin, ...] = (
 {rows(plasmac, policy_of)}
 )
 
-#: ``qtplasmac.*`` — the userspace component QtPlasmaC exports and we must recreate.
+#: ``qtplasmac.*`` — the userspace component QtPlasmaC exports and we must recreate,
+#: with upstream's exact pin names (underscores) so existing HAL wiring keeps working.
 QTPLASMAC_PINS: Tuple[PlasmaPin, ...] = (
 {rows(qtplasmac, qt_policy)}
 )
+
+class HalNet(NamedTuple):
+    """One ``halcmd net`` line: a signal name and the pins to link to it."""
+
+    signal: str
+    members: Tuple[str, ...]
+
+
+#: The links QtPlasmaC's ``link_hal_pins()`` makes, restricted to ones we can satisfy.
+#: Without these the plasma layer runs but the machine misbehaves — most visibly, the
+#: ``plasmac.axis-*-limit`` inputs stay at 0 and every probe fails.
+HAL_NETS: Tuple[HalNet, ...] = (
+{net_rows}
+)
+
 
 _PLASMAC_BY_NAME: Dict[str, PlasmaPin] = {{pin.name: pin for pin in PLASMAC_PINS}}
 _QTPLASMAC_BY_NAME: Dict[str, PlasmaPin] = {{pin.name: pin for pin in QTPLASMAC_PINS}}
@@ -300,12 +362,14 @@ def main() -> None:
     in_pins = {pin.name for pin in plasmac if pin.direction == "in"}
     hal_driven &= in_pins
 
+    nets = parse_nets(HANDLER, {pin.name for pin in qtplasmac})
+
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     (OUTPUT.parent / "__init__.py").touch()
-    OUTPUT.write_text(render(plasmac, qtplasmac, hal_driven), encoding="utf-8")
+    OUTPUT.write_text(render(plasmac, qtplasmac, hal_driven, nets), encoding="utf-8")
     print(
         f"{OUTPUT.relative_to(ROOT)}: {len(plasmac)} plasmac pins "
-        f"({len(hal_driven)} HAL-driven), {len(qtplasmac)} qtplasmac pins"
+        f"({len(hal_driven)} HAL-driven), {len(qtplasmac)} qtplasmac pins, {len(nets)} nets"
     )
 
 

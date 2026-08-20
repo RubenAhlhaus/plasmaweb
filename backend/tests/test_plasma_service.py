@@ -146,6 +146,6 @@ def test_invalid_torch_pulse_action_is_rejected() -> None:
 
 def test_own_outputs_are_written_on_our_component() -> None:
     service, runtime, bridge = build()
-    service.set_own_output("laser-on", True)
+    service.set_own_output("laser_on", True)
     bridge._apply_pending_writes()
-    assert runtime.components[QTPLASMAC_COMPONENT].values["laser-on"] is True
+    assert runtime.components[QTPLASMAC_COMPONENT].values["laser_on"] is True
