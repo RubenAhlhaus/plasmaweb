@@ -322,6 +322,45 @@ switching units (QtPlasmaC re-scales it to 25.4 or 1/25.4 on G20/G21 against mac
   the web UI byte-comparably (modulo intentional edits), and QtPlasmaC can still open them
   afterwards.
 
+**Done and verified on the sim VM.** `plasma/machine_files.py`, `plasma/materials.py`,
+`plasma/parameters.py` and `plasma/config_service.py` on the backend; `PlasmaScreen` with its
+MAIN / MATERIAL / PARAMETERS tabs on the frontend.
+
+Both files are read and written through `configparser.RawConfigParser` with
+`optionxform = str` — the same class qtvcp's `Access` uses — so key case survives and the
+output is byte-identical to what QtPlasmaC writes. Writes go through a temp file in the same
+directory, so a crash cannot truncate a machine's config.
+
+| Checked on the VM | Result |
+|---|---|
+| The shipped `qtplasmac-metric.prefs` | read as-is: `Pid P Gain` 10, `Arc Maximum Starts` 3, `Setup Feed Rate` 2880, `Safe Height` 25 all land on their `plasmac.*` setpoints at startup |
+| Machine with no material file | material 0 written as QtPlasmaC's updater would (`4000 mm/min`, `99 V`, 3 mm pierce), then selected — so the cut parameters are real rather than zero |
+| `[ENABLE_OPTIONS]` | `THC enable`, `Corner lock enable` and `Use auto volts` restored to their pins; flipping a toggle in the UI is written back |
+| A cut, with **no `halcmd setp` at all** | probe → pierce → arc at 100 V → `thc-active` for 162 samples with `target-volts` learned at 100.08 → torch held at cut height → 580 mm cut, `pierce-count` 1 |
+| MATERIAL tab, new material | `NEW` → name, `CUT_VOLTS` 137 → `SAVE` wrote `[MATERIAL_NUMBER_1]` in QtPlasmaC's exact format; selecting it put 137 on `plasmac.cut-volts` and 1 on `qtplasmac.material_change_number` |
+| PARAMETERS tab | `Pid P Gain` 10 → 12.5 saved to the file *and* to the pin, with all 11 other prefs sections untouched |
+| **Real QtPlasmaC opening our files** | `qtplasmac_s_metric.ini` (QtPlasmaC v2.9-238.315) started on the same config, showed `MATERIAL = 00000: Default` with `FR 4000 / PH 3.00 / CH 1.00 / KW 1.00`, and the anti-dive and auto-volts toggles lit — and both files were **byte-identical** afterwards |
+
+The material change protocol is upstream's handshake, not a notification: `M190` raises
+`qtplasmac.material_change`, writes the number it wants, and then polls
+`motion.digital-in-03` for half a second before reporting a failed material change. Answering
+it means writing pins HAL calls inputs — QtPlasmaC does the same with the pins it owns — so
+those six pins carry an `OWNED_ACK` policy in the generated table rather than a hole in the
+write check, and the one pin outside our two components goes through a one-entry allowlist.
+
+Two upstream details worth keeping. QtPlasmaC's `read_one_material` *divides* its defaults by
+`unitsPerMm`, which on an imperial machine defaults a 1 mm kerf to 25.4 inches; ours multiply,
+so a missing key gets a sane value instead. And QtPlasmaC's `Pid P Gain` spinbox has no
+decimals, so the 12.5 we saved came back as 13 on its pins — the file keeps 12.5, and this is
+its widget precision rather than a disagreement about the value.
+
+Deliberately not built: `GUI_OPTIONS`, `COLOR_OPTIONS`, `BUTTONS`, `CAMERA_OFFSET`,
+`LASER_OFFSET`, `SINGLE CUT` and `CONVERSATIONAL`. Those configure QtPlasmaC's *own* widgets
+(estop button style, DRO position, custom stylesheet, its user buttons), and this UI has its
+own settings screen; writing them would be storing settings that change nothing here. They
+are preserved on save, which is what matters for running both against one config. `POWERMAX`
+and the RS485 link belong with M5, and the conversational settings with M4.
+
 ### M3 — Toolpath preview, program load, run from line
 
 - `plasma/toolpath.py`: a headless canon subclassing `rs274.interpret.Translated` +

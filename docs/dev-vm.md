@@ -176,3 +176,58 @@ then `pkill -x linuxcncsvr` clears the session; a restart that overlaps the old 
 check nothing is left running before starting again. `pkill -f <pattern>` over ssh is a trap
 here: the pattern matches the `bash -c` line running it, so the shell kills itself before the
 rest of the command runs — match on something narrower (`pkill -x linuxcncsvr`).
+
+## Traps when restarting the sim
+
+Three failure modes cost a session's worth of debugging each; all three are cheap to avoid.
+
+**`pkill -f <pattern>` over ssh kills the shell running it.** The pattern matches the
+`bash -c …` command line ssh built, so the shell dies before the rest of the command runs and
+the call returns nothing. Match on something the command line does not contain — `pkill -x
+linuxcncsvr`, or `pkill -f 'uvicor[n] backend'`.
+
+**A stale `/tmp/linuxcnc.lock` stops the start dead.** With no tty and a `DISPLAY` set, the
+launcher pops a Tk *"LinuxCNC is still running. Restart it?"* dialog and waits for a human
+forever. Clear the lock when nothing is running:
+
+```bash
+cat > /tmp/startlcnc.sh <<'EOS'
+#!/bin/bash
+if ! pgrep -x linuxcncsvr > /dev/null; then rm -f /tmp/linuxcnc.lock; fi
+export DISPLAY=:0 XAUTHORITY=/home/ruben/.Xauthority XDG_RUNTIME_DIR=/run/user/1000
+cd /home/ruben/linuxcnc/configs/qtplasmac
+exec linuxcnc plasmacweb_metric.ini
+EOS
+chmod +x /tmp/startlcnc.sh
+setsid nohup /tmp/startlcnc.sh > /tmp/lcnc.log 2>&1 < /dev/null &
+```
+
+**A stray kiosk browser used to take the machine down with it.** LinuxCNC shuts down as soon
+as its `[DISPLAY]` program exits, and `firefox-esr` hands the URL to an already-running
+instance and returns immediately — so every start died seconds in, with nothing in the logs
+after the config summary. `bin/lcncgui` now keeps serving while the backend lives, but a pile
+of stray `firefox-esr` processes is still worth clearing (`pkill -x firefox-esr`).
+
+To see where a start actually stops, trace past the launcher's own output redirect:
+
+```bash
+setsid nohup bash -c 'exec 9>/tmp/xtrace.log; BASH_XTRACEFD=9 bash -x /usr/bin/linuxcnc plasmacweb_metric.ini' &
+tail -40 /tmp/xtrace.log
+```
+
+## Checking parity against real QtPlasmaC
+
+The same config directory runs both, which is the point: `qtplasmac_s_metric.ini` starts the
+real QtPlasmaC GUI against the files the web UI just wrote.
+
+```bash
+cp .../qtplasmac-metric.prefs /tmp/prefs.ours        # snapshot first
+cp .../qtplasmac-metric_material.cfg /tmp/material.ours
+# stop our stack (halrun -U; pkill -x linuxcncsvr; …), then:
+cd /home/ruben/linuxcnc/configs/qtplasmac && linuxcnc qtplasmac_s_metric.ini
+diff /tmp/prefs.ours .../qtplasmac-metric.prefs      # must be empty
+```
+
+Both files came back byte-identical after QtPlasmaC opened and closed them, and its header
+showed the material the web UI had saved. Note the display session must be unlocked and the
+monitor awake (`xset s off -dpms; xset dpms force on`) or the screenshot is solid black.
