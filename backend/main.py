@@ -41,8 +41,16 @@ from backend.handlers.program import (
 )
 from backend.handlers.app import handle_app_exit
 from backend.handlers.plasma import (
+    handle_plasma_delete_material,
+    handle_plasma_get_materials,
+    handle_plasma_get_parameters,
     handle_plasma_get_snapshot,
     handle_plasma_height_override,
+    handle_plasma_reload_config,
+    handle_plasma_save_material,
+    handle_plasma_save_parameters,
+    handle_plasma_select_material,
+    handle_plasma_set_default_material,
     handle_plasma_set_enable,
     handle_plasma_set_param,
     handle_plasma_thc_enable,
@@ -111,11 +119,16 @@ command_bus = CommandBus()
 # The qtplasmac HAL component must exist before [HAL] POSTGUI_HALFILE runs, and the
 # launcher runs those halfiles once HTTP answers — so this happens during import, not in
 # the lifespan handler. Both are None off the machine (no hal module).
-plasma_bridge, plasma_service = create_plasma_stack()
+plasma_bridge, plasma_service, plasma_config = create_plasma_stack()
 
-app_context = AppContext(manager=manager, gateway=gateway, plasma=plasma_service)
+app_context = AppContext(
+    manager=manager,
+    gateway=gateway,
+    plasma=plasma_service,
+    plasma_config=plasma_config,
+)
 plasma_publisher = (
-    PlasmaPublisher(manager=manager, service=plasma_service)
+    PlasmaPublisher(manager=manager, service=plasma_service, config=plasma_config)
     if plasma_service is not None
     else None
 )
@@ -217,6 +230,14 @@ command_bus.register("plasma", "torch_enable", handle_plasma_torch_enable)
 command_bus.register("plasma", "thc_enable", handle_plasma_thc_enable)
 command_bus.register("plasma", "height_override", handle_plasma_height_override)
 command_bus.register("plasma", "torch_pulse", handle_plasma_torch_pulse)
+command_bus.register("plasma", "get_materials", handle_plasma_get_materials)
+command_bus.register("plasma", "select_material", handle_plasma_select_material)
+command_bus.register("plasma", "save_material", handle_plasma_save_material)
+command_bus.register("plasma", "delete_material", handle_plasma_delete_material)
+command_bus.register("plasma", "set_default_material", handle_plasma_set_default_material)
+command_bus.register("plasma", "get_parameters", handle_plasma_get_parameters)
+command_bus.register("plasma", "save_parameters", handle_plasma_save_parameters)
+command_bus.register("plasma", "reload_config", handle_plasma_reload_config)
 
 
 @asynccontextmanager

@@ -38,6 +38,22 @@ HALFILES = (
     REFERENCE / "configs" / "sim" / "qtplasmac" / "custom.hal",
 )
 HANDLER = REFERENCE / "share" / "qtvcp" / "screens" / "qtplasmac" / "qtplasmac_handler.py"
+
+#: Own-component pins QtPlasmaC declares HAL_IN yet writes itself (``…Pin.set(…)`` in the
+#: handler). They are its half of a handshake with a G-code filter or an M-code remap — the
+#: material change protocol and the cut type — so the GUI has to be able to drive them even
+#: though HAL calls them inputs. Everything else on our component that is an input really is
+#: driven from outside and stays read-only.
+GUI_DRIVEN_OWN_PINS = frozenset(
+    {
+        "cut_type",
+        "material_change",
+        "material_change_number",
+        "material_change_timeout",
+        "material_reload",
+        "material_temp",
+    }
+)
 OUTPUT = ROOT / "backend" / "plasma" / "pins.py"
 
 # `pin in  real    arc_ok_high = 1   "docs";`
@@ -208,7 +224,9 @@ def render(
         return "\n".join(lines)
 
     def qt_policy(pin: Pin) -> str:
-        return "OWNED_OUT" if pin.direction == "out" else "EXTERNAL_IN"
+        if pin.direction == "out":
+            return "OWNED_OUT"
+        return "OWNED_ACK" if pin.name in GUI_DRIVEN_OWN_PINS else "EXTERNAL_IN"
 
     net_rows = "\n".join(
         f'    HalNet("{signal}", ({", ".join(chr(34) + m + chr(34) for m in members)},)),'
@@ -236,10 +254,12 @@ The write policy is the safety boundary from BUILD_PLAN.md expressed as data:
   DEPRECATED    plasmac in-pin upstream marks dead — read-only
   REALTIME_OUT  plasmac out-pin produced by the realtime component — read-only
   EXTERNAL_IN   pin on our own ``qtplasmac`` component driven from outside — read-only
+  OWNED_ACK     input on our own component that the GUI answers with (material change
+                handshake, cut type) — writable
   OWNED_OUT     pin on our own ``qtplasmac`` component — we drive it
 
-Only SETPOINT and OWNED_OUT are writable. ``is_writable`` is the single check the HAL
-bridge makes; nothing else may bypass it.
+Only SETPOINT, OWNED_ACK and OWNED_OUT are writable. ``is_writable`` is the single check the
+HAL bridge makes; nothing else may bypass it.
 
 Pin sets differ between LinuxCNC releases (2.9.4 ships 127 plasmac in-pins, the 2.10
 reference 144), so callers must treat a missing pin as absent rather than fatal — see
@@ -261,9 +281,10 @@ HAL_DRIVEN = "hal_driven"
 REALTIME_OUT = "realtime_out"
 DEPRECATED = "deprecated"
 EXTERNAL_IN = "external_in"
+OWNED_ACK = "owned_ack"
 OWNED_OUT = "owned_out"
 
-WRITABLE_POLICIES = frozenset({{SETPOINT, OWNED_OUT}})
+WRITABLE_POLICIES = frozenset({{SETPOINT, OWNED_ACK, OWNED_OUT}})
 
 
 class PlasmaPin(NamedTuple):

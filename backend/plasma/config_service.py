@@ -1,0 +1,363 @@
+"""Materials and plasma parameters: the files, the HAL setpoints, and the M190 handshake.
+
+Three jobs, all about the same two files:
+
+* hold what ``<machine>_material.cfg`` and ``<machine>.prefs`` say, and save edits back
+* push a selection onto the ``plasmac.*`` setpoints, which is what makes a cut cut
+* answer the material-change protocol a G-code program drives through our own pins
+
+The protocol is upstream's, and it is a genuine handshake — ``nc_files/plasmac/m_files/M190``
+raises ``qtplasmac.material_change`` and waits on ``motion.digital-in-03``:
+
+===============================  ========================================================
+``material_change`` reads        what the GUI must do
+===============================  ========================================================
+1, with a new ``…_number``       select that material, answer 2, raise digital-in-03
+3 (already the current material)  raise digital-in-03, answer 0
+0 (M190 finished)                 drop digital-in-03
+===============================  ========================================================
+
+Miss any of those and every ``M190`` in a program stalls for its half-second timeout and then
+reports a material change failure, so this is worth getting exactly right.
+
+Kept free of asyncio: :meth:`PlasmaConfigService.observe` returns the events it wants
+published and lets the publisher do the sending.
+"""
+
+from __future__ import annotations
+
+import logging
+import os
+from typing import Any, Dict, List, Mapping, Optional, Tuple
+
+from backend.plasma.hal_bridge import HalBridge, PinWriteRejected
+from backend.plasma.machine_files import MachineFiles, read_config, write_config
+from backend.plasma.materials import (
+    Material,
+    MaterialError,
+    make_material,
+    material_pin_values,
+    read_materials,
+    read_temporary_material,
+    write_materials,
+)
+from backend.plasma.parameters import (
+    default_parameters,
+    parameter_pin_values,
+    read_parameters,
+    write_parameters,
+)
+from backend.plasma.pins import PLASMAC_COMPONENT, QTPLASMAC_COMPONENT
+
+logger = logging.getLogger(__name__)
+
+MATERIALS_EVENT = "plasma.materials.changed"
+PARAMETERS_EVENT = "plasma.parameters.changed"
+ERROR_EVENT = "plasma.config.error"
+
+#: ``[GUI_OPTIONS] Default material`` in the prefs file — the one selected at startup and the
+#: one ``material_change_number = -1`` means.
+GUI_SECTION = "GUI_OPTIONS"
+DEFAULT_MATERIAL_KEY = "Default material"
+
+#: QtPlasmaC's temporary-material drop box, written by its G-code filter.
+TEMP_MATERIAL_DIR = "/tmp/qtplasmac"
+
+#: The pin ``M190`` polls while it waits for the GUI to change material.
+MATERIAL_ACK_PIN = "motion.digital-in-03"
+
+
+class PlasmaConfigService:
+    """The machine's materials and parameters, and the HAL side of both."""
+
+    def __init__(
+        self,
+        bridge: HalBridge,
+        files: MachineFiles,
+        temp_material_path: Optional[str] = None,
+    ) -> None:
+        self._bridge = bridge
+        self._files = files
+        self._temp_material_path = temp_material_path or os.path.join(
+            TEMP_MATERIAL_DIR, f"{files.machine}_material.gcode"
+        )
+        self._materials: Dict[int, Material] = {}
+        self._parameters: Dict[str, Any] = {}
+        self._selected: Optional[int] = None
+        self._default: Optional[int] = None
+
+    # ---- loading -------------------------------------------------------------------
+
+    def load(self) -> None:
+        """Read both files. Temporary materials do not survive, exactly as upstream."""
+        self._parameters = read_parameters(
+            self._files.prefs_path, default_parameters(self._files)
+        )
+        self._materials = {
+            material.number: material
+            for material in read_materials(self._files.materials_path, self._files.units_per_mm)
+        }
+        self._default = self._resolve_default_material()
+        if self._selected not in self._materials:
+            self._selected = self._default
+
+    def _resolve_default_material(self) -> Optional[int]:
+        if not self._materials:
+            return None
+        numbers = sorted(self._materials)
+        parser = read_config(self._files.prefs_path)
+        if parser.has_option(GUI_SECTION, DEFAULT_MATERIAL_KEY):
+            try:
+                stored = int(float(parser.get(GUI_SECTION, DEFAULT_MATERIAL_KEY)))
+            except ValueError:
+                stored = None
+            if stored is not None and stored in self._materials:
+                return stored
+        return numbers[0]
+
+    # ---- payloads ------------------------------------------------------------------
+
+    def materials_payload(self) -> Dict[str, Any]:
+        return {
+            "materials": [
+                self._materials[number].as_dict() for number in sorted(self._materials)
+            ],
+            "selected": self._selected,
+            "default": self._default,
+            "path": self._files.materials_path,
+        }
+
+    def parameters_payload(self) -> Dict[str, Any]:
+        return {
+            "values": dict(self._parameters),
+            "defaults": default_parameters(self._files),
+            "unitsPerMm": self._files.units_per_mm,
+            "path": self._files.prefs_path,
+        }
+
+    # ---- HAL ------------------------------------------------------------------------
+
+    def apply_parameters(self) -> Tuple[str, ...]:
+        """Push the parameters onto their ``plasmac.*`` setpoints. Returns pins refused.
+
+        This is what a machine needs before it can cut: an ``Arc Maximum Starts`` of 0 stops
+        the first pierce dead, and a ``Pid P Gain`` of 0 freezes the THC.
+        """
+        return self._write_plasmac(parameter_pin_values(self._parameters))
+
+    def apply_selected_material(self) -> Tuple[str, ...]:
+        if self._selected is None:
+            return ()
+        return self.select_material(self._selected)
+
+    def select_material(self, number: int) -> Tuple[str, ...]:
+        """Select a material: write its setpoints and tell HAL which one is current."""
+        material = self._materials.get(number)
+        if material is None:
+            raise MaterialError("unknown_material", f"no material numbered {number}")
+        self._selected = number
+        refused = self._write_plasmac(material_pin_values(material))
+        # Panels and the M190 handshake both read the selection back off this pin.
+        self._write_own("material_change_number", number)
+        return refused
+
+    def _write_plasmac(self, pins: Mapping[str, Any]) -> Tuple[str, ...]:
+        refused: List[str] = []
+        for name, value in pins.items():
+            try:
+                self._bridge.request_write(PLASMAC_COMPONENT, name, value)
+            except PinWriteRejected as exc:
+                # A build without the pin, or a machine that wires it itself: both are the
+                # machine's business, not a reason to abandon the rest of the parameters.
+                logger.info("plasma: not writing plasmac.%s: %s", name, exc.message)
+                refused.append(name)
+        return tuple(refused)
+
+    def _write_own(self, name: str, value: Any) -> None:
+        try:
+            self._bridge.request_write(QTPLASMAC_COMPONENT, name, value)
+        except PinWriteRejected:
+            logger.exception("plasma: could not write qtplasmac.%s", name)
+
+    def _write_material_ack(self, raised: bool) -> None:
+        """``motion.digital-in-03`` is the pin ``M190`` waits on."""
+        try:
+            self._bridge.request_external_write(MATERIAL_ACK_PIN, raised)
+        except PinWriteRejected:
+            logger.exception("plasma: could not answer the material change handshake")
+
+    # ---- editing -------------------------------------------------------------------
+
+    def save_material(self, number: int, name: str, values: Mapping[str, Any]) -> Material:
+        """Add or update one material and write the file. Returns the stored material.
+
+        Fields the caller leaves out keep whatever the material already had, and only fall
+        back to QtPlasmaC's defaults for a material that does not exist yet — an edit of one
+        field must not quietly reset a shop's pierce height.
+        """
+        existing = self._materials.get(number)
+        merged: Dict[str, Any] = dict(existing.values) if existing is not None else {}
+        merged.update(values)
+        material = make_material(number, name, merged, self._files.units_per_mm)
+        if material.temporary:
+            raise MaterialError(
+                "temporary_material",
+                f"material numbers from {material.number} up belong to a program, not the file",
+            )
+        self._materials[material.number] = material
+        write_materials(self._files.materials_path, list(self._materials.values()))
+        self.load()
+        if self._selected == material.number:
+            self.select_material(material.number)
+        return self._materials[material.number]
+
+    def delete_material(self, number: int) -> None:
+        if number not in self._materials:
+            raise MaterialError("unknown_material", f"no material numbered {number}")
+        del self._materials[number]
+        write_materials(self._files.materials_path, list(self._materials.values()))
+        self.load()
+        if self._selected is not None and self._selected in self._materials:
+            self.select_material(self._selected)
+
+    def set_default_material(self, number: int) -> None:
+        if number not in self._materials:
+            raise MaterialError("unknown_material", f"no material numbered {number}")
+        parser = read_config(self._files.prefs_path)
+        if not parser.has_section(GUI_SECTION):
+            parser.add_section(GUI_SECTION)
+        parser.set(GUI_SECTION, DEFAULT_MATERIAL_KEY, str(number))
+        write_config(self._files.prefs_path, parser)
+        self._default = number
+
+    def save_parameters(self, values: Mapping[str, Any]) -> Dict[str, Any]:
+        """Store parameter edits, then push them to HAL so they take effect immediately."""
+        merged = dict(self._parameters)
+        merged.update(values)
+        write_parameters(self._files.prefs_path, merged)
+        self._parameters = read_parameters(
+            self._files.prefs_path, default_parameters(self._files)
+        )
+        self.apply_parameters()
+        return dict(self._parameters)
+
+    def reload(self) -> None:
+        """Re-read both files and re-apply them, which is QtPlasmaC's RELOAD button."""
+        self.load()
+        self.apply_parameters()
+        self.apply_selected_material()
+
+    # ---- the material change protocol ----------------------------------------------
+
+    def observe(self, diff: Mapping[str, Mapping[str, Any]]) -> List[Tuple[str, Dict[str, Any]]]:
+        """React to our own pins changing. Returns ``(event, payload)`` pairs to publish.
+
+        Only pins in ``diff`` are looked at, so a program's ``M190`` is handled on the poll
+        it happens and nothing is re-run on unrelated pin traffic.
+        """
+        own = diff.get(QTPLASMAC_COMPONENT, {})
+        events: List[Tuple[str, Dict[str, Any]]] = []
+
+        if "material_temp" in own:
+            events += self._on_material_temp(own["material_temp"])
+        if "material_reload" in own and own["material_reload"]:
+            self.reload()
+            events.append((MATERIALS_EVENT, self.materials_payload()))
+            events.append((PARAMETERS_EVENT, self.parameters_payload()))
+        if "material_change_number" in own:
+            events += self._on_material_number(own["material_change_number"])
+        if "material_change" in own:
+            self._on_material_change(own["material_change"])
+        if "material_change_timeout" in own and own["material_change_timeout"]:
+            events += self._on_material_timeout()
+        return events
+
+    def _on_material_number(self, raw: Any) -> List[Tuple[str, Dict[str, Any]]]:
+        try:
+            number = int(raw)
+        except (TypeError, ValueError):
+            return []
+        if number == -1:
+            if self._default is None:
+                return []
+            number = self._default
+        if number == self._selected:
+            return []
+
+        if number not in self._materials:
+            # Upstream reports this and leaves the selection alone; M190 then times out.
+            return [
+                (
+                    ERROR_EVENT,
+                    {
+                        "code": "unknown_material",
+                        "message": f"Material #{number} is not in the material list",
+                    },
+                )
+            ]
+
+        automatic = self._own_value("material_change") == 1
+        self.select_material(number)
+        if automatic:
+            self._write_material_ack(False)
+            self._write_own("material_change", 2)
+            self._write_material_ack(True)
+        return [(MATERIALS_EVENT, self.materials_payload())]
+
+    def _on_material_change(self, raw: Any) -> None:
+        try:
+            value = int(raw)
+        except (TypeError, ValueError):
+            return
+        if value == 0:
+            self._write_material_ack(False)
+        elif value == 3:
+            # M190 asked for the material that is already selected: just acknowledge.
+            self._write_material_ack(True)
+            self._write_own("material_change", 0)
+
+    def _on_material_timeout(self) -> List[Tuple[str, Dict[str, Any]]]:
+        if self._selected is not None:
+            self._write_own("material_change_number", self._selected)
+        self._write_own("material_change_timeout", False)
+        self._write_material_ack(False)
+        return [
+            (
+                ERROR_EVENT,
+                {
+                    "code": "material_change_timeout",
+                    "message": f"Material change timeout occurred for material #{self._selected}",
+                },
+            )
+        ]
+
+    def _on_material_temp(self, raw: Any) -> List[Tuple[str, Dict[str, Any]]]:
+        try:
+            number = int(raw)
+        except (TypeError, ValueError):
+            return []
+        if not number:
+            return []
+        try:
+            material = read_temporary_material(
+                self._temp_material_path, number, self._files.units_per_mm
+            )
+        except (OSError, MaterialError) as exc:
+            self._write_own("material_temp", 0)
+            return [
+                (
+                    ERROR_EVENT,
+                    {"code": "temporary_material_failed", "message": str(exc)},
+                )
+            ]
+
+        self._materials[material.number] = material
+        if self._selected == material.number:
+            self.select_material(material.number)
+        self._write_own("material_temp", 0)
+        return [(MATERIALS_EVENT, self.materials_payload())]
+
+    # ---- helpers -------------------------------------------------------------------
+
+    def _own_value(self, name: str) -> Any:
+        return self._bridge.snapshot().get(QTPLASMAC_COMPONENT, {}).get(name)

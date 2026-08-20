@@ -16,6 +16,7 @@ from contextlib import suppress
 from typing import Any, Dict, Optional
 
 from backend.contracts.messages import EventMessage
+from backend.plasma.config_service import PlasmaConfigService
 from backend.plasma.hal_bridge import Snapshot
 from backend.plasma.pins import PLASMAC_COMPONENT
 from backend.plasma.service import PlasmaService
@@ -33,9 +34,17 @@ _STATE_PINS = ("state-out", "stop-type-out")
 
 
 class PlasmaPublisher:
-    def __init__(self, manager: ConnectionManager, service: PlasmaService) -> None:
+    def __init__(
+        self,
+        manager: ConnectionManager,
+        service: PlasmaService,
+        config: Optional[PlasmaConfigService] = None,
+    ) -> None:
         self._manager = manager
         self._service = service
+        #: Watches our own pins for the material-change handshake. It answers HAL itself and
+        #: hands back the events to broadcast, so the protocol never touches asyncio.
+        self._config = config
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._queue: "asyncio.Queue[Snapshot]" = asyncio.Queue()
         self._task: Optional[asyncio.Task[None]] = None
@@ -93,7 +102,12 @@ class PlasmaPublisher:
                 merged.setdefault(component, {}).update(values)
 
     async def publish_diff(self, diff: Snapshot) -> None:
-        if not diff or not self._manager.active_connections:
+        if not diff:
+            return
+        # The M190 handshake has to be answered whether or not a browser is listening.
+        for event, payload in self._config_events(diff):
+            await self._broadcast(event, payload)
+        if not self._manager.active_connections:
             return
         await self._manager.broadcast_json(
             EventMessage(
@@ -123,6 +137,24 @@ class PlasmaPublisher:
 
     async def send_snapshot(self, websocket: Any) -> None:
         await self._manager.send_json(websocket, self.snapshot_event())
+
+    # ---- helpers -------------------------------------------------------------------
+
+    def _config_events(self, diff: Snapshot) -> list:
+        if self._config is None:
+            return []
+        try:
+            return self._config.observe(diff)
+        except Exception:
+            logger.exception("plasma: handling a material pin change failed")
+            return []
+
+    async def _broadcast(self, event: str, payload: Dict[str, Any]) -> None:
+        if not self._manager.active_connections:
+            return
+        await self._manager.broadcast_json(
+            EventMessage(type="machine_event", event=event, payload=payload).model_dump()
+        )
 
 
 def snapshot_event(service: PlasmaService) -> Dict[str, Any]:

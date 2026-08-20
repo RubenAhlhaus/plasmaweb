@@ -17,6 +17,7 @@ from backend.plasma.pins import (
     DEPRECATED,
     EXTERNAL_IN,
     HAL_DRIVEN,
+    OWNED_ACK,
     OWNED_OUT,
     PLASMAC_COMPONENT,
     PLASMAC_PINS,
@@ -176,9 +177,28 @@ def test_own_component_pins_split_by_direction() -> None:
         if pin.direction == "out":
             assert pin.policy == OWNED_OUT
             assert is_writable(pin)
+        elif pin.policy == OWNED_ACK:
+            assert is_writable(pin)
         else:
             assert pin.policy == EXTERNAL_IN
             assert not is_writable(pin)
+
+
+def test_the_handshake_inputs_qtplasmac_drives_itself_are_writable() -> None:
+    """QtPlasmaC declares these HAL_IN yet sets them: they are its half of a handshake."""
+    for name in (
+        "material_change",
+        "material_change_number",
+        "material_change_timeout",
+        "material_reload",
+        "material_temp",
+        "cut_type",
+    ):
+        assert qtplasmac_pin(name).policy == OWNED_ACK
+        assert is_writable(qtplasmac_pin(name))
+
+    # A pin an operator's panel drives stays read-only.
+    assert not is_writable(qtplasmac_pin("ext_abort"))
 
 
 def test_own_component_keeps_the_qtplasmac_names() -> None:

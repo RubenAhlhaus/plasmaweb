@@ -43,6 +43,14 @@ Snapshot = Dict[str, Dict[str, Any]]
 
 DEFAULT_POLL_INTERVAL_S = 0.05
 
+#: HAL pins outside the two plasma components that this layer may write. One entry, and it is
+#: a handshake rather than control: ``M190`` raises ``qtplasmac.material_change`` and then
+#: polls ``motion.digital-in-03`` for the GUI's answer.
+EXTERNAL_WRITABLE_PINS = frozenset({"motion.digital-in-03"})
+
+#: Marker component for a queued :meth:`HalBridge.request_external_write`.
+_EXTERNAL = "<external>"
+
 
 class PinWriteRejected(RuntimeError):
     """A write was refused before it reached HAL. Carries a machine-readable ``code``."""
@@ -380,6 +388,21 @@ class HalBridge:
         pin = self._resolve_writable(component, name)
         self._writes.put((component, pin.name, format_hal_value(pin, value)))
 
+    def request_external_write(self, name: str, value: Any) -> None:
+        """Queue a write to one of the few HAL pins outside the plasma components.
+
+        Deliberately an allowlist of one: ``motion.digital-in-03`` is the pin ``M190`` polls
+        while it waits for a material change, so answering it is not optional — but a general
+        "write any HAL pin" door would undo the whole point of the write policy.
+        """
+        if name not in EXTERNAL_WRITABLE_PINS:
+            raise PinWriteRejected(
+                "pin_not_writable",
+                f"{name} is not one of the pins the plasma layer may write "
+                f"({', '.join(sorted(EXTERNAL_WRITABLE_PINS))})",
+            )
+        self._writes.put((_EXTERNAL, name, "1" if bool(value) else "0"))
+
     def _resolve_writable(self, component: str, name: str) -> PlasmaPin:
         if component == PLASMAC_COMPONENT:
             try:
@@ -426,7 +449,9 @@ class HalBridge:
             except queue.Empty:
                 return
             try:
-                if component == self._component_name and self._comp is not None:
+                if component == _EXTERNAL:
+                    self._runtime.set_p(name, value)
+                elif component == self._component_name and self._comp is not None:
                     self._comp[name] = _coerce_own_pin_value(qtplasmac_pin(name), value)
                 else:
                     self._runtime.set_p(f"{component}.{name}", value)

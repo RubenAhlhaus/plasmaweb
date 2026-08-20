@@ -14,10 +14,12 @@ The write policy is the safety boundary from BUILD_PLAN.md expressed as data:
   DEPRECATED    plasmac in-pin upstream marks dead — read-only
   REALTIME_OUT  plasmac out-pin produced by the realtime component — read-only
   EXTERNAL_IN   pin on our own ``qtplasmac`` component driven from outside — read-only
+  OWNED_ACK     input on our own component that the GUI answers with (material change
+                handshake, cut type) — writable
   OWNED_OUT     pin on our own ``qtplasmac`` component — we drive it
 
-Only SETPOINT and OWNED_OUT are writable. ``is_writable`` is the single check the HAL
-bridge makes; nothing else may bypass it.
+Only SETPOINT, OWNED_ACK and OWNED_OUT are writable. ``is_writable`` is the single check the
+HAL bridge makes; nothing else may bypass it.
 
 Pin sets differ between LinuxCNC releases (2.9.4 ships 127 plasmac in-pins, the 2.10
 reference 144), so callers must treat a missing pin as absent rather than fatal — see
@@ -39,9 +41,10 @@ HAL_DRIVEN = "hal_driven"
 REALTIME_OUT = "realtime_out"
 DEPRECATED = "deprecated"
 EXTERNAL_IN = "external_in"
+OWNED_ACK = "owned_ack"
 OWNED_OUT = "owned_out"
 
-WRITABLE_POLICIES = frozenset({SETPOINT, OWNED_OUT})
+WRITABLE_POLICIES = frozenset({SETPOINT, OWNED_ACK, OWNED_OUT})
 
 
 class PlasmaPin(NamedTuple):
@@ -258,7 +261,7 @@ PLASMAC_PINS: Tuple[PlasmaPin, ...] = (
 QTPLASMAC_PINS: Tuple[PlasmaPin, ...] = (
     PlasmaPin("consumable_changing", "bit", "in", EXTERNAL_IN, ""),
     PlasmaPin("conv_disable", "bit", "in", EXTERNAL_IN, ""),
-    PlasmaPin("cut_type", "s32", "in", EXTERNAL_IN, ""),
+    PlasmaPin("cut_type", "s32", "in", OWNED_ACK, ""),
     PlasmaPin("development", "bit", "in", EXTERNAL_IN, ""),
     PlasmaPin("ext_abort", "bit", "in", EXTERNAL_IN, ""),
     PlasmaPin("ext_auto_volts_enable", "bit", "in", EXTERNAL_IN, ""),
@@ -310,11 +313,11 @@ QTPLASMAC_PINS: Tuple[PlasmaPin, ...] = (
     PlasmaPin("jog_inhibited", "bit", "in", EXTERNAL_IN, ""),
     PlasmaPin("laser_on", "bit", "out", OWNED_OUT, ""),
     PlasmaPin("laser_recovery_state", "s32", "in", EXTERNAL_IN, ""),
-    PlasmaPin("material_change", "s32", "in", EXTERNAL_IN, ""),
-    PlasmaPin("material_change_number", "s32", "in", EXTERNAL_IN, ""),
-    PlasmaPin("material_change_timeout", "bit", "in", EXTERNAL_IN, ""),
-    PlasmaPin("material_reload", "bit", "in", EXTERNAL_IN, ""),
-    PlasmaPin("material_temp", "s32", "in", EXTERNAL_IN, ""),
+    PlasmaPin("material_change", "s32", "in", OWNED_ACK, ""),
+    PlasmaPin("material_change_number", "s32", "in", OWNED_ACK, ""),
+    PlasmaPin("material_change_timeout", "bit", "in", OWNED_ACK, ""),
+    PlasmaPin("material_reload", "bit", "in", OWNED_ACK, ""),
+    PlasmaPin("material_temp", "s32", "in", OWNED_ACK, ""),
     PlasmaPin("offset_set_probe", "bit", "out", OWNED_OUT, ""),
     PlasmaPin("offset_set_scribe", "bit", "out", OWNED_OUT, ""),
     PlasmaPin("offsets_active", "bit", "in", EXTERNAL_IN, ""),
