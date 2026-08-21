@@ -193,3 +193,57 @@ def test_a_non_boolean_in_the_file_falls_back_with_a_warning(files, caplog) -> N
 
     assert enables["thc-enable"] is True
     assert "THC enable" in caplog.text
+
+
+# ---- [CONVERSATIONAL] ---------------------------------------------------------------
+
+
+def test_conversational_settings_default_the_way_qtplasmac_does(files) -> None:
+    from backend.plasma.parameters import read_conversational_settings
+
+    settings = read_conversational_settings(files.prefs_path)
+
+    assert settings["Origin"] == 0
+    assert settings["Leadin"] == 0.0
+    assert settings["Hole diameter"] == 32.0
+    assert settings["Hole speed"] == 60
+    assert isinstance(settings["Hole speed"], int)
+
+
+def test_an_imperial_machines_hole_diameter_is_in_inches(files) -> None:
+    from backend.plasma.parameters import read_conversational_settings
+
+    settings = read_conversational_settings(files.prefs_path, units_per_mm=0.03937)
+
+    assert settings["Hole diameter"] == 1.26
+
+
+def test_conversational_settings_round_trip(files) -> None:
+    from backend.plasma.parameters import (
+        read_conversational_settings,
+        write_conversational_settings,
+    )
+
+    write_conversational_settings(
+        files.prefs_path,
+        {"Leadin": 4.5, "Hole speed": 55, "Preamble": "G21\\nG64P0.25"},
+    )
+    text = Path(files.prefs_path).read_text()
+
+    assert "[CONVERSATIONAL]" in text
+    assert "Leadin = 4.5" in text
+    # int keys stay ints, so QtPlasmaC's getint still reads them.
+    assert "Hole speed = 55" in text
+    settings = read_conversational_settings(files.prefs_path)
+    assert settings["Leadin"] == 4.5
+    assert settings["Preamble"] == "G21\\nG64P0.25"
+
+
+def test_an_unknown_conversational_setting_is_refused(files, caplog) -> None:
+    from backend.plasma.parameters import write_conversational_settings
+
+    with caplog.at_level("WARNING"):
+        write_conversational_settings(files.prefs_path, {"Sparkle": 1})
+
+    assert "Sparkle" not in Path(files.prefs_path).read_text()
+    assert "Sparkle" in caplog.text

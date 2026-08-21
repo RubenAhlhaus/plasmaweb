@@ -414,3 +414,17 @@ def test_flipping_a_toggle_is_remembered_for_next_start(service) -> None:
     flush(bridge)
 
     assert written(runtime)["plasmac.thc-enable"] == "0"
+
+
+def test_conversational_settings_are_read_and_saved(service) -> None:
+    config, _bridge, _runtime = service
+
+    before = config.conversational_settings()
+    after = config.save_conversational_settings({"Leadin": 6.0, "Hole speed": 55})
+
+    assert before["Leadin"] == 0.0
+    assert after["Leadin"] == 6.0
+    assert after["Hole speed"] == 55
+    # And they are what the next generated shape will use.
+    assert config.conversational_defaults()["leadinLength"] == 6.0
+    assert config.conversational_defaults()["smallHoleSpeed"] == 55

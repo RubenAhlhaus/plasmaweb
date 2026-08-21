@@ -2,6 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { TouchNumericPickerField } from '@/components/numeric';
+import {
+  ConversationalLineEditor,
+  type LineSegment,
+} from '@/components/plasma/ConversationalLineEditor';
 import { ToolpathCanvas } from '@/components/plasma/ToolpathCanvas';
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
 import { usePendingWsCommandResult } from '@/hooks/usePendingWsCommandResult';
@@ -59,6 +63,46 @@ const TEXT_PARAMETERS = new Set([
 const buttonClass =
   'rounded-md border border-white/10 bg-slate-900/60 px-4 py-2 text-sm font-semibold uppercase tracking-wide hover:border-white/25 disabled:opacity-40';
 
+/** Two modes that are not `preview()` shapes: the line builder and the block operations. */
+const LINE_MODE = 'line';
+const BLOCK_MODE = 'block';
+const SETTINGS_MODE = 'settings';
+
+/** The numeric `[CONVERSATIONAL]` settings, and whether QtPlasmaC stores each as an integer. */
+const SETTINGS_FIELDS: Array<{ key: string; integer?: boolean }> = [
+  { key: 'Leadin' },
+  { key: 'Leadout' },
+  { key: 'Hole diameter' },
+  { key: 'Hole speed', integer: true },
+  { key: 'Origin', integer: true },
+  { key: 'Grid Size' },
+];
+
+/** `block.preview`'s parameters, with the two that are toggles rather than numbers. */
+const BLOCK_FIELDS = [
+  'columns',
+  'rows',
+  'cSpacing',
+  'rSpacing',
+  'xOffset',
+  'yOffset',
+  'angle',
+  'scale',
+  'rotation',
+];
+const BLOCK_TOGGLES = ['doMirror', 'doFlip'];
+const BLOCK_DEFAULTS: Record<string, string> = {
+  columns: '2',
+  rows: '2',
+  cSpacing: '100',
+  rSpacing: '100',
+  xOffset: '0',
+  yOffset: '0',
+  angle: '0',
+  scale: '1',
+  rotation: '0',
+};
+
 function initialValue(parameter: ShapeParameter): string | boolean {
   if (BOOLEAN_PARAMETERS.has(parameter.name)) {
     return parameter.default === true;
@@ -97,8 +141,17 @@ export function PlasmaConversationalScreen() {
   // The last generated job is state rather than a ref: ADD is disabled until there is one, and
   // a ref would leave that button stale until some other render happened to come along.
   const [generated, setGenerated] = useState<string | null>(null);
+  const [segments, setSegments] = useState<LineSegment[]>([]);
+  const [start, setStart] = useState({ x: '0', y: '0' });
+  const [settings, setSettings] = useState<Record<string, string> | null>(null);
+  const [block, setBlock] = useState<Record<string, string | boolean>>({
+    ...BLOCK_DEFAULTS,
+    doMirror: false,
+    doFlip: false,
+  });
 
   const shapesRef = useRef<string | null>(null);
+  const settingsRef = useRef<string | null>(null);
   const generateRef = useRef<string | null>(null);
   const previewRef = useRef<string | null>(null);
 
@@ -146,6 +199,22 @@ export function PlasmaConversationalScreen() {
     },
   });
 
+  usePendingWsCommandResult(settingsRef, {
+    onResult: (result) => {
+      settingsRef.current = null;
+      if (!result.ok || !result.result) {
+        setMessage(result.error?.message ?? t('conversational.settingsFailed'));
+        return;
+      }
+      const payload = (result.result as { settings?: Record<string, unknown> }).settings ?? {};
+      setSettings(
+        Object.fromEntries(
+          SETTINGS_FIELDS.map(({ key }) => [key, String(payload[key] ?? '0')]),
+        ),
+      );
+    },
+  });
+
   usePendingWsCommandResult(previewRef, {
     onResult: (result) => {
       previewRef.current = null;
@@ -159,6 +228,11 @@ export function PlasmaConversationalScreen() {
 
   const selectShape = (name: string, from?: ShapeSchemas) => {
     const schema = (from ?? schemas)?.[name] ?? [];
+    if (name === LINE_MODE) setSegments([]);
+    if (name === SETTINGS_MODE && !settings) {
+      const commandId = commands.conversationalSettings();
+      if (commandId) settingsRef.current = commandId;
+    }
     setShape(name);
     setValues(
       Object.fromEntries(
@@ -173,12 +247,58 @@ export function PlasmaConversationalScreen() {
   };
 
   const fields = useMemo(
-    () => (shape && schemas ? schemas[shape].filter((p) => !MACHINE_SUPPLIED.has(p.name)) : []),
+    () =>
+      shape && schemas && schemas[shape]
+        ? schemas[shape].filter((p) => !MACHINE_SUPPLIED.has(p.name))
+        : [],
     [shape, schemas],
   );
 
   const send = (save: boolean) => {
     if (!shape) return;
+
+    if (shape === LINE_MODE) {
+      const commandId = commands.conversationalLine({
+        segments: segments.map((segment) => {
+          const converted: Record<string, unknown> = { kind: segment.kind };
+          for (const [field, value] of Object.entries(segment)) {
+            if (field === 'kind') continue;
+            converted[field] = field === 'arcType' ? String(value) : Number(value);
+          }
+          return converted;
+        }),
+        startX: Number(start.x) || 0,
+        startY: Number(start.y) || 0,
+        job: job ?? undefined,
+        save,
+      });
+      if (commandId) {
+        generateRef.current = commandId;
+        setMessage(null);
+      }
+      return;
+    }
+
+    if (shape === BLOCK_MODE) {
+      const blockParams: Record<string, unknown> = {};
+      for (const field of BLOCK_FIELDS) {
+        blockParams[field] = Number(block[field]);
+      }
+      for (const field of BLOCK_TOGGLES) {
+        blockParams[field] = block[field] === true;
+      }
+      const commandId = commands.conversationalBlock({
+        params: blockParams,
+        job: job ?? undefined,
+        save,
+      });
+      if (commandId) {
+        generateRef.current = commandId;
+        setMessage(null);
+      }
+      return;
+    }
+
     const params: Record<string, unknown> = {};
     for (const [name, value] of Object.entries(values)) {
       if (typeof value === 'boolean' || TEXT_PARAMETERS.has(name)) {
@@ -213,7 +333,7 @@ export function PlasmaConversationalScreen() {
     >
       <div className="flex min-h-0 flex-col gap-3 overflow-y-auto">
         <div className="flex flex-wrap gap-1" data-e2e="plasma-conversational-shapes">
-          {Object.keys(schemas).map((name) => (
+          {[...Object.keys(schemas), LINE_MODE, BLOCK_MODE, SETTINGS_MODE].map((name) => (
             <button
               key={name}
               type="button"
@@ -229,6 +349,90 @@ export function PlasmaConversationalScreen() {
             </button>
           ))}
         </div>
+
+        {shape === LINE_MODE && (
+          <ConversationalLineEditor
+            segments={segments}
+            onChange={setSegments}
+            startX={start.x}
+            startY={start.y}
+            onStartChange={(axis, value) =>
+              setStart((prev) => ({ ...prev, [axis]: value }))
+            }
+          />
+        )}
+
+        {shape === SETTINGS_MODE && (
+          <div className="flex flex-col gap-3" data-e2e="plasma-conversational-settings">
+            <p className="text-xs text-muted-foreground">{t('conversational.settingsHint')}</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {SETTINGS_FIELDS.map(({ key, integer }) => (
+                <TouchNumericPickerField
+                  key={key}
+                  label={t(`conversational.setting.${key}`, { defaultValue: key })}
+                  value={settings?.[key] ?? ''}
+                  integerOnly={integer === true}
+                  onChange={(value) =>
+                    setSettings((prev) => ({ ...(prev ?? {}), [key]: value }))
+                  }
+                  data-e2e={`plasma-setting-${key.replace(/\s+/g, '-').toLowerCase()}`}
+                />
+              ))}
+            </div>
+            <button
+              type="button"
+              className={buttonClass}
+              data-e2e="plasma-conversational-settings-save"
+              disabled={!settings}
+              onClick={() => {
+                if (!settings) return;
+                const values: Record<string, unknown> = {};
+                for (const { key, integer } of SETTINGS_FIELDS) {
+                  const parsed = Number(settings[key]);
+                  if (!Number.isFinite(parsed)) continue;
+                  values[key] = integer ? Math.round(parsed) : parsed;
+                }
+                const commandId = commands.saveConversationalSettings(values);
+                if (commandId) settingsRef.current = commandId;
+                setMessage(t('conversational.settingsSaved'));
+              }}
+            >
+              {t('conversational.saveSettings')}
+            </button>
+          </div>
+        )}
+
+        {shape === BLOCK_MODE && (
+          <div className="flex flex-col gap-3" data-e2e="plasma-block-editor">
+            <p className="text-xs text-muted-foreground">{t('conversational.blockHint')}</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {BLOCK_FIELDS.map((field) => (
+                <TouchNumericPickerField
+                  key={field}
+                  label={t(`conversational.field.${field}`, { defaultValue: field })}
+                  value={String(block[field] ?? '')}
+                  integerOnly={field === 'columns' || field === 'rows'}
+                  onChange={(value) => setBlock((prev) => ({ ...prev, [field]: value }))}
+                  data-e2e={`plasma-block-${field}`}
+                />
+              ))}
+              {BLOCK_TOGGLES.map((field) => (
+                <div key={field} className="flex items-center justify-between gap-2">
+                  <span className="text-sm text-muted-foreground">
+                    {t(`conversational.field.${field}`, { defaultValue: field })}
+                  </span>
+                  <ToggleSwitch
+                    checked={block[field] === true}
+                    onCheckedChange={() =>
+                      setBlock((prev) => ({ ...prev, [field]: prev[field] !== true }))
+                    }
+                    data-e2e={`plasma-block-${field}`}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="grid gap-3 sm:grid-cols-2">
           {fields.map((parameter) =>
@@ -261,7 +465,9 @@ export function PlasmaConversationalScreen() {
           )}
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div
+          className={`flex flex-wrap gap-2 ${shape === SETTINGS_MODE ? 'hidden' : ''}`}
+        >
           <button
             type="button"
             className={buttonClass}

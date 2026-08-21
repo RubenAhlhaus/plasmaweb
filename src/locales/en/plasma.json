@@ -148,7 +148,10 @@
       "slot": "Slot",
       "star": "Star",
       "gusset": "Gusset",
-      "sector": "Sector"
+      "sector": "Sector",
+      "line": "Line / arc",
+      "block": "Array",
+      "settings": "Settings"
     },
     "field": {
       "isCenter": "From centre",
@@ -194,7 +197,47 @@
       "textR1": "Corner 1",
       "textR2": "Corner 2",
       "textR3": "Corner 3",
-      "textR4": "Corner 4"
+      "textR4": "Corner 4",
+      "startX": "X start",
+      "startY": "Y start",
+      "xEnd": "X end",
+      "yEnd": "Y end",
+      "xNext": "X mid",
+      "yNext": "Y mid",
+      "columns": "Columns",
+      "rows": "Rows",
+      "cSpacing": "Column spacing",
+      "rSpacing": "Row spacing",
+      "scale": "Scale",
+      "rotation": "Shape rotation",
+      "doMirror": "Mirror",
+      "doFlip": "Flip"
+    },
+    "addSegment": "Add segment",
+    "removeSegment": "Remove last",
+    "blockHint": "Arrays the current job (or the loaded program) across the sheet.",
+    "segment": {
+      "point": "To point",
+      "angle": "By angle",
+      "arc3": "Arc: 3 points",
+      "arcRadius": "Arc: radius",
+      "arcAngleRadius": "Arc: angle + radius"
+    },
+    "arcType": {
+      "02": "CW",
+      "03": "CCW"
+    },
+    "saveSettings": "Save settings",
+    "settingsHint": "Used for every generated shape: lead-ins, hole handling and the origin mode.",
+    "settingsSaved": "Conversational settings saved.",
+    "settingsFailed": "Could not read the conversational settings.",
+    "setting": {
+      "Leadin": "Lead-in",
+      "Leadout": "Lead-out",
+      "Hole diameter": "Small hole below",
+      "Hole speed": "Small hole speed %",
+      "Origin": "Origin (0 corner, 1 centre)",
+      "Grid Size": "Grid size"
     }
   }
 }

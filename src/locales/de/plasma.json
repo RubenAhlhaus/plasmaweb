@@ -148,7 +148,10 @@
       "slot": "Langloch",
       "star": "Stern",
       "gusset": "Knotenblech",
-      "sector": "Sektor"
+      "sector": "Sektor",
+      "line": "Linie / Bogen",
+      "block": "Anordnung",
+      "settings": "Einstellungen"
     },
     "field": {
       "isCenter": "Ab Mitte",
@@ -194,7 +197,47 @@
       "textR1": "Ecke 1",
       "textR2": "Ecke 2",
       "textR3": "Ecke 3",
-      "textR4": "Ecke 4"
+      "textR4": "Ecke 4",
+      "startX": "X Start",
+      "startY": "Y Start",
+      "xEnd": "X Ende",
+      "yEnd": "Y Ende",
+      "xNext": "X Mitte",
+      "yNext": "Y Mitte",
+      "columns": "Spalten",
+      "rows": "Reihen",
+      "cSpacing": "Spaltenabstand",
+      "rSpacing": "Reihenabstand",
+      "scale": "Skalierung",
+      "rotation": "Formdrehung",
+      "doMirror": "Spiegeln",
+      "doFlip": "Umklappen"
+    },
+    "addSegment": "Segment hinzufügen",
+    "removeSegment": "Letztes entfernen",
+    "blockHint": "Ordnet den aktuellen Job (oder das geladene Programm) auf der Platte an.",
+    "segment": {
+      "point": "Zum Punkt",
+      "angle": "Nach Winkel",
+      "arc3": "Bogen: 3 Punkte",
+      "arcRadius": "Bogen: Radius",
+      "arcAngleRadius": "Bogen: Winkel + Radius"
+    },
+    "arcType": {
+      "02": "CW",
+      "03": "CCW"
+    },
+    "saveSettings": "Einstellungen speichern",
+    "settingsHint": "Gilt für jede erzeugte Form: Ein-/Ausfahrten, Kleinlochverhalten und Ursprung.",
+    "settingsSaved": "Conversational-Einstellungen gespeichert.",
+    "settingsFailed": "Conversational-Einstellungen nicht lesbar.",
+    "setting": {
+      "Leadin": "Einfahrt",
+      "Leadout": "Ausfahrt",
+      "Hole diameter": "Kleinloch unter",
+      "Hole speed": "Kleinloch-Vorschub %",
+      "Origin": "Ursprung (0 Ecke, 1 Mitte)",
+      "Grid Size": "Rastergröße"
     }
   }
 }

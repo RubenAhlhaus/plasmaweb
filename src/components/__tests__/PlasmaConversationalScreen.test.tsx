@@ -194,3 +194,127 @@ describe('PlasmaConversationalScreen', () => {
     expect(generate!.params.save).toBe(true);
   });
 });
+
+describe('PlasmaConversationalScreen — lines and arrays', () => {
+  beforeEach(() => {
+    useAppStore.getState().resetPlasma();
+    useAppStore.setState({
+      backendWebSocket: null,
+      commandResultHistory: [],
+      lastWsCommandResult: null,
+    });
+  });
+
+  it('offers the line builder and the array alongside the shapes', () => {
+    const sent = installFakeSocket();
+    render(<PlasmaConversationalScreen />);
+
+    deliverShapes(sent);
+
+    expect(findE2e('plasma-conversational-shape-line')).not.toBeNull();
+    expect(findE2e('plasma-conversational-shape-block')).not.toBeNull();
+  });
+
+  it('builds a cut from segments, each starting where the last ended', async () => {
+    const sent = installFakeSocket();
+    render(<PlasmaConversationalScreen />);
+    deliverShapes(sent);
+
+    await userEvent.click(e2e('plasma-conversational-shape-line'));
+    await userEvent.click(e2e('plasma-line-kind-point'));
+    await userEvent.click(e2e('plasma-line-add'));
+    await userEvent.click(e2e('plasma-line-kind-arcRadius'));
+    await userEvent.click(e2e('plasma-line-add'));
+    await userEvent.click(e2e('plasma-conversational-preview'));
+
+    const request = sent.find((command) => command.action === 'conversational_line');
+    expect(request).toBeDefined();
+    const segments = request!.params.segments as Array<Record<string, unknown>>;
+    expect(segments.map((segment) => segment.kind)).toEqual(['point', 'arcRadius']);
+    // The arc direction is the G-code word, kept as a string.
+    expect(segments[1].arcType).toBe('02');
+    expect(segments[0].xEnd).toBe(0);
+  });
+
+  it('removing the last segment takes it off the list', async () => {
+    const sent = installFakeSocket();
+    render(<PlasmaConversationalScreen />);
+    deliverShapes(sent);
+    await userEvent.click(e2e('plasma-conversational-shape-line'));
+    await userEvent.click(e2e('plasma-line-add'));
+    await userEvent.click(e2e('plasma-line-add'));
+
+    await userEvent.click(e2e('plasma-line-remove'));
+
+    expect(findE2e('plasma-line-segment-0')).not.toBeNull();
+    expect(findE2e('plasma-line-segment-1')).toBeNull();
+  });
+
+  it('the array sends the block parameters and its toggles', async () => {
+    const sent = installFakeSocket();
+    render(<PlasmaConversationalScreen />);
+    deliverShapes(sent);
+
+    await userEvent.click(e2e('plasma-conversational-shape-block'));
+    await userEvent.click(e2e('plasma-block-doMirror'));
+    await userEvent.click(e2e('plasma-conversational-preview'));
+
+    const request = sent.find((command) => command.action === 'conversational_block');
+    expect(request).toBeDefined();
+    const params = request!.params.params as Record<string, unknown>;
+    expect(params.columns).toBe(2);
+    expect(params.rows).toBe(2);
+    expect(params.scale).toBe(1);
+    expect(params.doMirror).toBe(true);
+    expect(params.doFlip).toBe(false);
+  });
+});
+
+describe('PlasmaConversationalScreen — settings', () => {
+  beforeEach(() => {
+    useAppStore.getState().resetPlasma();
+    useAppStore.setState({
+      backendWebSocket: null,
+      commandResultHistory: [],
+      lastWsCommandResult: null,
+    });
+  });
+
+  it('reads the conversational settings when the tab is opened, then saves them', async () => {
+    const sent = installFakeSocket();
+    render(<PlasmaConversationalScreen />);
+    deliverShapes(sent);
+
+    await userEvent.click(e2e('plasma-conversational-shape-settings'));
+
+    const request = sent.find((command) => command.action === 'get_conversational_settings');
+    expect(request).toBeDefined();
+    answer({
+      commandId: request!.commandId,
+      ok: true,
+      result: { settings: { Leadin: 5, Leadout: 5, 'Hole speed': 60, Origin: 1 } },
+    });
+
+    expect(e2e('plasma-setting-leadin').textContent).toContain('5');
+
+    await userEvent.click(e2e('plasma-conversational-settings-save'));
+
+    const save = sent.find((command) => command.action === 'save_conversational_settings');
+    const values = save!.params.values as Record<string, unknown>;
+    expect(values.Leadin).toBe(5);
+    // Integers stay integers, so QtPlasmaC's getint still reads them.
+    expect(values['Hole speed']).toBe(60);
+    expect(values.Origin).toBe(1);
+  });
+
+  it('the shape buttons are hidden behind nothing: settings has no preview row', async () => {
+    const sent = installFakeSocket();
+    render(<PlasmaConversationalScreen />);
+    deliverShapes(sent);
+
+    await userEvent.click(e2e('plasma-conversational-shape-settings'));
+
+    expect(findE2e('plasma-conversational-settings')).not.toBeNull();
+    expect(e2e('plasma-conversational-preview').closest('div')?.className).toContain('hidden');
+  });
+});

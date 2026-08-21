@@ -46,12 +46,14 @@ from backend.handlers.plasma import (
     handle_plasma_conversational_line,
     handle_plasma_conversational_shapes,
     handle_plasma_delete_material,
+    handle_plasma_get_conversational_settings,
     handle_plasma_get_materials,
     handle_plasma_get_parameters,
     handle_plasma_get_snapshot,
     handle_plasma_height_override,
     handle_plasma_reload_config,
     handle_plasma_run_from_line,
+    handle_plasma_save_conversational_settings,
     handle_plasma_save_material,
     handle_plasma_save_parameters,
     handle_plasma_select_material,
@@ -250,6 +252,12 @@ command_bus.register("plasma", "conversational_shapes", handle_plasma_conversati
 command_bus.register("plasma", "conversational", handle_plasma_conversational_generate)
 command_bus.register("plasma", "conversational_line", handle_plasma_conversational_line)
 command_bus.register("plasma", "conversational_block", handle_plasma_conversational_block)
+command_bus.register(
+    "plasma", "get_conversational_settings", handle_plasma_get_conversational_settings
+)
+command_bus.register(
+    "plasma", "save_conversational_settings", handle_plasma_save_conversational_settings
+)
 
 
 @asynccontextmanager

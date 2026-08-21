@@ -86,6 +86,21 @@ export function usePlasmaCommands() {
         job?: string;
         save?: boolean;
       }) => sendForResult('conversational', { ...params }),
+      conversationalLine: (params: {
+        segments: Array<Record<string, unknown>>;
+        startX?: number;
+        startY?: number;
+        job?: string;
+        save?: boolean;
+      }) => sendForResult('conversational_line', { ...params }),
+      conversationalSettings: () => sendForResult('get_conversational_settings'),
+      saveConversationalSettings: (values: Record<string, unknown>) =>
+        sendForResult('save_conversational_settings', { values }),
+      conversationalBlock: (params: {
+        params: Record<string, unknown>;
+        job?: string;
+        save?: boolean;
+      }) => sendForResult('conversational_block', { ...params }),
       runFromLine: (params: {
         line: number;
         runType?: 'here' | 'cut';

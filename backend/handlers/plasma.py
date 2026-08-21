@@ -844,3 +844,39 @@ async def handle_plasma_conversational_block(
     result["path"] = saved
     result["loaded"] = True
     return DispatchResult(ack=build_ok(command.commandId, result))
+
+
+class PlasmaConversationalSettingsParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    values: dict
+
+
+async def handle_plasma_get_conversational_settings(
+    command: CommandEnvelope, ctx: AppContext
+) -> DispatchResult:
+    if ctx.plasma_config is None:
+        return _no_config(command)
+    return DispatchResult(
+        ack=build_ok(
+            command.commandId, {"settings": ctx.plasma_config.conversational_settings()}
+        )
+    )
+
+
+async def handle_plasma_save_conversational_settings(
+    command: CommandEnvelope, ctx: AppContext
+) -> DispatchResult:
+    """Store the conversational settings; they take effect on the next generated shape."""
+    if ctx.plasma_config is None:
+        return _no_config(command)
+    try:
+        params = PlasmaConversationalSettingsParams.model_validate(command.params)
+    except ValidationError:
+        return _invalid(command, 'plasma.save_conversational_settings params: {"values": object}')
+    try:
+        settings = ctx.plasma_config.save_conversational_settings(params.values)
+    except (TypeError, ValueError) as exc:
+        return DispatchResult(ack=build_error(command.commandId, "invalid_value", str(exc)))
+    except OSError as exc:
+        return DispatchResult(ack=build_error(command.commandId, "write_failed", str(exc)))
+    return DispatchResult(ack=build_ok(command.commandId, {"settings": settings}))

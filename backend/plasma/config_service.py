@@ -44,6 +44,8 @@ from backend.plasma.materials import (
 )
 from backend.plasma.parameters import (
     default_parameters,
+    read_conversational_settings,
+    write_conversational_settings,
     enable_for_pin,
     parameter_pin_values,
     read_enables,
@@ -134,6 +136,17 @@ class PlasmaConfigService:
             # Origin 0 means "the shape's own corner", 1 means centre — upstream's CENT/LEFT.
             "isCenter": bool(pref("Origin", 0, int)),
         }
+
+    def conversational_settings(self) -> Dict[str, Any]:
+        """``[CONVERSATIONAL]`` as the UI sees it: the numeric settings plus the ambles."""
+        return read_conversational_settings(
+            self._files.prefs_path, self._files.units_per_mm
+        )
+
+    def save_conversational_settings(self, values: Mapping[str, Any]) -> Dict[str, Any]:
+        """Store conversational settings and report them back as stored."""
+        write_conversational_settings(self._files.prefs_path, values)
+        return self.conversational_settings()
 
     def conversational_ambles(self) -> Tuple[str, str]:
         """``[CONVERSATIONAL] Preamble/Postamble`` from the prefs, or QtPlasmaC's defaults."""

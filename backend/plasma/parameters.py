@@ -267,3 +267,77 @@ def write_enable(path: str, pin: str, value: bool) -> None:
         parser.add_section(ENABLE_SECTION)
     parser.set(ENABLE_SECTION, enable.key, "True" if value else "False")
     write_config(path, parser)
+
+
+CONVERSATIONAL_SECTION = "CONVERSATIONAL"
+
+
+class ConversationalSetting(NamedTuple):
+    """One ``[CONVERSATIONAL]`` key: how it is stored, and what it means without a value."""
+
+    key: str
+    kind: type
+    default: Callable[[float], Any]
+
+
+#: QtPlasmaC's conversational settings (``conv_settings.py:94``). ``Preamble``/``Postamble`` are
+#: strings and are handled separately; these are the numeric ones the UI can edit.
+CONVERSATIONAL_SETTINGS: Tuple[ConversationalSetting, ...] = (
+    ConversationalSetting("Origin", int, _fixed(0)),
+    ConversationalSetting("Leadin", float, _fixed(0.0)),
+    ConversationalSetting("Leadout", float, _fixed(0.0)),
+    # 32 mm / 1.26 in, QtPlasmaC's `unitCode[2]`.
+    ConversationalSetting("Hole diameter", float, lambda units: 1.26 if units != 1.0 else 32.0),
+    ConversationalSetting("Hole speed", int, _fixed(60)),
+    ConversationalSetting("Grid Size", float, _fixed(0.0)),
+)
+
+_CONVERSATIONAL_BY_KEY: Dict[str, ConversationalSetting] = {
+    setting.key: setting for setting in CONVERSATIONAL_SETTINGS
+}
+
+
+def read_conversational_settings(path: str, units_per_mm: float = 1.0) -> Dict[str, Any]:
+    """The conversational settings, defaults where the file is silent, plus the ambles."""
+    parser = read_config(path)
+    values: Dict[str, Any] = {}
+    for setting in CONVERSATIONAL_SETTINGS:
+        fallback = setting.default(units_per_mm)
+        if not parser.has_option(CONVERSATIONAL_SECTION, setting.key):
+            values[setting.key] = fallback
+            continue
+        raw = parser.get(CONVERSATIONAL_SECTION, setting.key)
+        try:
+            values[setting.key] = setting.kind(float(raw))
+        except (TypeError, ValueError):
+            logger.warning(
+                "plasma: %s: [%s] %s is not a number (%r); using %s",
+                path,
+                CONVERSATIONAL_SECTION,
+                setting.key,
+                raw,
+                fallback,
+            )
+            values[setting.key] = fallback
+
+    for amble in ("Preamble", "Postamble"):
+        if parser.has_option(CONVERSATIONAL_SECTION, amble):
+            values[amble] = parser.get(CONVERSATIONAL_SECTION, amble)
+    return values
+
+
+def write_conversational_settings(path: str, values: Mapping[str, Any]) -> None:
+    """Store conversational settings, refusing keys QtPlasmaC does not keep there."""
+    parser = read_config(path)
+    if not parser.has_section(CONVERSATIONAL_SECTION):
+        parser.add_section(CONVERSATIONAL_SECTION)
+    for key, value in values.items():
+        if key in ("Preamble", "Postamble"):
+            parser.set(CONVERSATIONAL_SECTION, key, str(value))
+            continue
+        setting = _CONVERSATIONAL_BY_KEY.get(key)
+        if setting is None:
+            logger.warning("plasma: refusing to write unknown conversational setting %r", key)
+            continue
+        parser.set(CONVERSATIONAL_SECTION, key, str(setting.kind(float(value))))
+    write_config(path, parser)
