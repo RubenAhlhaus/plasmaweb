@@ -29,6 +29,25 @@ _ABORT_RELEASE_DELAY_S = 0.05
 CONVERSATIONAL_JOB_NAME = "conversational.ngc"
 
 
+def parse_toolpath_text(gcode: str, ini_path: Optional[str]) -> Any:
+    """Preview program text: the interpreter parses files, so the text gets one."""
+    import os
+    import tempfile
+
+    from backend.plasma.toolpath import parse_toolpath
+
+    handle, path = tempfile.mkstemp(prefix="lcncgui-preview-", suffix=".ngc")
+    try:
+        with os.fdopen(handle, "w", encoding="utf-8") as sink:
+            sink.write(gcode)
+        return parse_toolpath(path, ini_path)
+    finally:
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
+
+
 class PlasmaSetParamParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
     pin: str
@@ -661,5 +680,167 @@ async def handle_plasma_conversational_generate(
             )
         )
     result["path"] = path
+    result["loaded"] = True
+    return DispatchResult(ack=build_ok(command.commandId, result))
+
+
+class PlasmaConversationalLineParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    segments: list
+    startX: float = 0.0
+    startY: float = 0.0
+    job: Optional[str] = None
+    save: bool = False
+
+
+class PlasmaConversationalBlockParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    params: dict
+    #: The job to array. Defaults to the loaded program, which is how QtPlasmaC's block works.
+    job: Optional[str] = None
+    save: bool = False
+
+
+async def _save_job(ctx: AppContext, gcode: str) -> Any:
+    """Write a job where the machine can open it and load it. Returns the path or an error dict."""
+    import os
+
+    directory = None
+    for prefix in ctx.gateway.get_program_prefix_directories():
+        if os.path.isdir(prefix) and os.access(prefix, os.W_OK):
+            directory = prefix
+            break
+    if directory is None:
+        return {
+            "code": "no_program_directory",
+            "message": "No writable [DISPLAY] PROGRAM_PREFIX directory to save the job into.",
+        }
+
+    path = os.path.join(directory, CONVERSATIONAL_JOB_NAME)
+    try:
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(gcode)
+    except OSError as exc:
+        return {"code": "write_failed", "message": str(exc)}
+
+    opened = ctx.gateway.program_open(path)
+    if not opened.ok:
+        return {
+            "code": opened.error_code or "open_failed",
+            "message": opened.error_message or "Could not load the job.",
+        }
+    return path
+
+
+async def handle_plasma_conversational_line(
+    command: CommandEnvelope, ctx: AppContext
+) -> DispatchResult:
+    """Build a multi-segment cut of lines and arcs through LinuxCNC's own line module."""
+    from backend.plasma.conversational import ConversationalError, generate_line
+
+    try:
+        params = PlasmaConversationalLineParams.model_validate(command.params)
+    except ValidationError:
+        return _invalid(
+            command,
+            'plasma.conversational_line params: {"segments": [{"kind": …}], '
+            '"startX": number, "startY": number}',
+        )
+
+    material = (0, "Default")
+    preamble = postamble = None
+    units = "mm"
+    if ctx.plasma_config is not None:
+        material = ctx.plasma_config.selected_material
+        preamble, postamble = ctx.plasma_config.conversational_ambles()
+        units = "inch" if ctx.plasma_config.files.units_per_mm != 1.0 else "mm"
+
+    try:
+        result = await asyncio.to_thread(
+            generate_line,
+            params.segments,
+            (params.startX, params.startY),
+            params.job,
+            material,
+            preamble,
+            postamble,
+            units,
+        )
+    except ConversationalError as exc:
+        return DispatchResult(ack=build_error(command.commandId, exc.code, exc.message))
+
+    if result.get("error") or not params.save:
+        return DispatchResult(ack=build_ok(command.commandId, result))
+
+    saved = await _save_job(ctx, result["gcode"])
+    if isinstance(saved, dict):
+        return DispatchResult(
+            ack=build_error(command.commandId, saved["code"], saved["message"])
+        )
+    result["path"] = saved
+    result["loaded"] = True
+    return DispatchResult(ack=build_ok(command.commandId, result))
+
+
+async def handle_plasma_conversational_block(
+    command: CommandEnvelope, ctx: AppContext
+) -> DispatchResult:
+    """Array, rotate, scale, mirror or flip a job — QtPlasmaC's block operations."""
+    from backend.plasma.conversational import ConversationalError, generate_block
+    from backend.plasma.toolpath import ToolpathError, parse_toolpath
+
+    try:
+        params = PlasmaConversationalBlockParams.model_validate(command.params)
+    except ValidationError:
+        return _invalid(command, 'plasma.conversational_block params: {"params": object}')
+
+    job = params.job
+    if job is None:
+        path = ctx.gateway.current_program_path()
+        if not path:
+            return DispatchResult(
+                ack=build_error(command.commandId, "no_program", "No program is loaded.")
+            )
+        try:
+            with open(path, "r", encoding="utf-8", errors="replace") as handle:
+                job = handle.read()
+        except OSError as exc:
+            return DispatchResult(ack=build_error(command.commandId, "read_failed", str(exc)))
+
+    # Upstream measures the shape's centre off its preview widget; we measure it off the
+    # toolpath, which is the same measurement taken from the same interpreter output.
+    try:
+        preview = await asyncio.to_thread(
+            parse_toolpath_text, job, ctx.gateway.resolve_ini_path()
+        )
+    except ToolpathError as exc:
+        return DispatchResult(ack=build_error(command.commandId, exc.code, exc.message))
+
+    extents = preview.get("extents")
+    if not extents:
+        return DispatchResult(
+            ack=build_error(
+                command.commandId, "empty_program", "That program has nothing to array."
+            )
+        )
+    midpoint = (
+        (extents["min"][0] + extents["max"][0]) / 2,
+        (extents["min"][1] + extents["max"][1]) / 2,
+    )
+
+    try:
+        result = await asyncio.to_thread(generate_block, job, params.params, midpoint)
+    except ConversationalError as exc:
+        return DispatchResult(ack=build_error(command.commandId, exc.code, exc.message))
+
+    if result.get("error") or not params.save:
+        return DispatchResult(ack=build_ok(command.commandId, result))
+
+    saved = await _save_job(ctx, result["gcode"])
+    if isinstance(saved, dict):
+        return DispatchResult(
+            ack=build_error(command.commandId, saved["code"], saved["message"])
+        )
+    result["path"] = saved
     result["loaded"] = True
     return DispatchResult(ack=build_ok(command.commandId, result))

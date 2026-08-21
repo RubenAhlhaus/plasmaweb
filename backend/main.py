@@ -41,7 +41,9 @@ from backend.handlers.program import (
 )
 from backend.handlers.app import handle_app_exit
 from backend.handlers.plasma import (
+    handle_plasma_conversational_block,
     handle_plasma_conversational_generate,
+    handle_plasma_conversational_line,
     handle_plasma_conversational_shapes,
     handle_plasma_delete_material,
     handle_plasma_get_materials,
@@ -246,6 +248,8 @@ command_bus.register("plasma", "toolpath", handle_plasma_toolpath)
 command_bus.register("plasma", "run_from_line", handle_plasma_run_from_line)
 command_bus.register("plasma", "conversational_shapes", handle_plasma_conversational_shapes)
 command_bus.register("plasma", "conversational", handle_plasma_conversational_generate)
+command_bus.register("plasma", "conversational_line", handle_plasma_conversational_line)
+command_bus.register("plasma", "conversational_block", handle_plasma_conversational_block)
 
 
 @asynccontextmanager

@@ -29,7 +29,8 @@ import logging
 import os
 import sys
 import tempfile
-from typing import Any, Dict, Mapping, Optional, Tuple
+import threading
+from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -265,6 +266,220 @@ def generate(
                 os.unlink(os.path.join(directory, f"{name}.ngc"))
             except OSError:
                 pass
+        try:
+            os.rmdir(directory)
+        except OSError:
+            pass
+
+
+#: The line module's segment builders, keyed by the name a client uses. Each value is the
+#: upstream function and the parameters it takes beyond the running start point, which the
+#: builder threads through rather than making a client repeat.
+LINE_SEGMENTS: Dict[str, Tuple[str, Tuple[str, ...]]] = {
+    "point": ("do_line_point_to_point", ("xEnd", "yEnd")),
+    "angle": ("do_line_by_angle", ("length", "angle")),
+    "arc3": ("do_arc_3_points", ("xNext", "yNext", "xEnd", "yEnd")),
+    "arcRadius": ("do_arc_2_points_radius", ("xEnd", "yEnd", "radius", "arcType")),
+    "arcAngleRadius": ("do_arc_by_angle_radius", ("length", "angle", "radius", "arcType")),
+}
+
+
+def line_segment_kinds() -> Dict[str, Any]:
+    """The segment kinds this LinuxCNC's line module supports, and what each one needs."""
+    module = _shape_module_named("line")
+    kinds: Dict[str, Any] = {}
+    for kind, (function, parameters) in LINE_SEGMENTS.items():
+        if hasattr(module, function):
+            kinds[kind] = list(parameters)
+    return kinds
+
+
+def _shape_module_named(name: str) -> Any:
+    """``_shape_module`` for the modules that are not in :data:`SHAPES` (``line``, ``block``)."""
+    global SHAPES
+    original = SHAPES
+    SHAPES = SHAPES + (name,)
+    try:
+        return _shape_module(name)
+    finally:
+        SHAPES = original
+
+
+def generate_line(
+    segments: Any,
+    start: Tuple[float, float] = (0.0, 0.0),
+    job: Optional[str] = None,
+    material: Tuple[int, str] = (0, "Default"),
+    preamble: Optional[str] = None,
+    postamble: Optional[str] = None,
+    units: str = "mm",
+) -> Dict[str, Any]:
+    """Build one multi-segment cut — lines and arcs — from a list of segments.
+
+    Upstream's line tab is a state machine driven a button at a time: ``first_segment`` opens the
+    cut, each segment is computed from where the last one ended, and ``last_segment`` closes the
+    file so the job on disk is always runnable after every press. Here the whole list is known
+    up front, so the segments' G-code — upstream's own strings, computed by upstream's own
+    builders — is closed once. ``next_segment`` is deliberately not used: it reopens a file by
+    truncating it at the first ``M05 $0``, which on a job that already contains a shape would
+    throw that shape's cut away.
+
+    Returns the job plus the point the cut ended at, so a client can carry on from there.
+    """
+    module = _shape_module_named("line")
+    if not hasattr(module, "first_segment"):
+        raise ConversationalError(
+            "shape_unsupported", "this LinuxCNC's line module has no segment builder"
+        )
+    if not segments:
+        raise ConversationalError("no_segments", "a line needs at least one segment")
+
+    amble = default_ambles(units)
+    pre = preamble if preamble is not None else amble
+    post = postamble if postamble is not None else amble
+    shim = ConvShim()
+
+    directory = tempfile.mkdtemp(prefix="lcncgui-conv-")
+    paths = {name: os.path.join(directory, f"{name}.ngc") for name in ("tmp", "ngc", "bkp")}
+    try:
+        with open(paths["bkp"], "w", encoding="utf-8") as handle:
+            handle.write(job if job else NEW_JOB)
+        module.first_segment(
+            paths["tmp"],
+            paths["ngc"],
+            paths["bkp"],
+            pre,
+            float(start[0]),
+            float(start[1]),
+            material[0],
+            material[1],
+        )
+
+        x, y = float(start[0]), float(start[1])
+        codes: List[str] = []
+        for index, segment in enumerate(segments):
+            kind = segment.get("kind")
+            if kind not in LINE_SEGMENTS:
+                raise ConversationalError(
+                    "unknown_segment",
+                    f"segment {index + 1}: {kind!r} is not one of {', '.join(LINE_SEGMENTS)}",
+                )
+            function, names = LINE_SEGMENTS[kind]
+            builder = getattr(module, function, None)
+            if builder is None:
+                raise ConversationalError(
+                    "segment_unsupported", f"this LinuxCNC's line module cannot do a {kind}"
+                )
+            missing = [name for name in names if name not in segment]
+            if missing:
+                raise ConversationalError(
+                    "missing_parameters",
+                    f"segment {index + 1} ({kind}) needs {', '.join(missing)}",
+                )
+
+            result = builder(shim, x, y, *(segment[name] for name in names))
+            if result[0]:
+                # The builder's own complaint, with the segment it belongs to.
+                return {
+                    "gcode": None,
+                    "error": f"segment {index + 1}: {str(result[1]).strip()}",
+                }
+            _failed, x, y, code = result
+            codes.append(code)
+
+        module.last_segment(paths["tmp"], paths["ngc"], "".join(codes), post)
+
+        with open(paths["ngc"], "r", encoding="utf-8", errors="replace") as handle:
+            gcode = handle.read()
+        return {"gcode": gcode, "error": None, "end": [x, y]}
+    finally:
+        for path in paths.values():
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
+        try:
+            os.rmdir(directory)
+        except OSError:
+            pass
+
+
+#: ``block.get_midpoints`` is replaced for the duration of a call, so one lock guards it.
+_BLOCK_LOCK = threading.Lock()
+
+
+def block_parameters() -> Tuple[str, ...]:
+    """The array/rotate/scale parameters, read off ``block.preview``."""
+    module = _shape_module_named("block")
+    supplied = ("Conv", "fNgc", "isConvBlock", "window")
+    return tuple(
+        name
+        for name in inspect.signature(module.preview).parameters
+        if name not in supplied
+    )
+
+
+def generate_block(
+    job: str,
+    params: Mapping[str, Any],
+    midpoint: Tuple[float, float],
+) -> Dict[str, Any]:
+    """Array, rotate, scale, mirror or flip an existing job — upstream's ``block`` module.
+
+    One thing has to be supplied differently. ``block.preview`` finds the shape's centre with
+    ``get_midpoints(window)``, which measures a qtvcp preview *widget* through
+    ``GlCanonDraw.extents_info``; there is no widget here. The centre is a measurement, not a
+    decision, so it is measured from the toolpath preview instead and handed to upstream by
+    replacing that one function for the duration of the call — everything else, including the
+    validation and the whole block format, stays upstream's.
+
+    ``job`` is the program to operate on and comes back transformed.
+    """
+    module = _shape_module_named("block")
+    expected = set(block_parameters())
+    unknown = [name for name in params if name not in expected]
+    if unknown:
+        raise ConversationalError(
+            "unknown_parameters",
+            f"block does not take {', '.join(sorted(unknown))}; expected {', '.join(sorted(expected))}",
+        )
+    missing = [name for name in expected if name not in params]
+    if missing:
+        raise ConversationalError(
+            "missing_parameters", f"block needs {', '.join(sorted(missing))}"
+        )
+
+    directory = tempfile.mkdtemp(prefix="lcncgui-block-")
+    path = os.path.join(directory, "block.ngc")
+    try:
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(job)
+        # A job this layer has already blocked once carries upstream's own marker.
+        is_conv_block = job.lstrip().startswith(";conversational block V2")
+
+        with _BLOCK_LOCK:
+            original = module.get_midpoints
+            module.get_midpoints = lambda _window: (float(midpoint[0]), float(midpoint[1]))
+            try:
+                error = module.preview(
+                    ConvShim(),
+                    path,
+                    is_conv_block,
+                    None,
+                    **{name: params[name] for name in expected},
+                )
+            finally:
+                module.get_midpoints = original
+
+        if error:
+            return {"gcode": None, "error": str(error).strip()}
+        with open(path, "r", encoding="utf-8", errors="replace") as handle:
+            return {"gcode": handle.read(), "error": None}
+    finally:
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
         try:
             os.rmdir(directory)
         except OSError:

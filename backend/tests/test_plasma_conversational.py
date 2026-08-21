@@ -352,3 +352,166 @@ def test_what_the_form_sends_wins_over_the_machine_default() -> None:
     result = generate("circle", CIRCLE, defaults={"kerfWidth": 9.9})
 
     assert result["gcode"] == reference_gcode("circle", CIRCLE)
+
+
+# ---- lines and arcs -----------------------------------------------------------------
+
+
+from backend.plasma.conversational import (  # noqa: E402 — same reason as the import above
+    LINE_SEGMENTS,
+    generate_line,
+    line_segment_kinds,
+)
+
+#: The line module needs numpy for its three-point arc, as `ellipse` does for its own maths.
+numpy_required = pytest.mark.skipif(
+    __import__("importlib").util.find_spec("numpy") is None,
+    reason="the reference line module needs numpy",
+)
+
+SQUARE = [
+    {"kind": "point", "xEnd": 100.0, "yEnd": 0.0},
+    {"kind": "angle", "length": 50.0, "angle": 90.0},
+    {"kind": "arcRadius", "xEnd": 0.0, "yEnd": 50.0, "radius": 80.0, "arcType": "02"},
+    {"kind": "point", "xEnd": 0.0, "yEnd": 0.0},
+]
+
+
+def reference_line(segments, start=(0.0, 0.0), job: str = NEW_JOB) -> str:
+    """Upstream's own sequence: first_segment, then a last_segment/next_segment per press."""
+    from plasmac import line  # type: ignore
+
+    directory = tempfile.mkdtemp(prefix="reference-line-")
+    try:
+        tmp = os.path.join(directory, "tmp.ngc")
+        ngc = os.path.join(directory, "out.ngc")
+        bkp = os.path.join(directory, "bkp.ngc")
+        Path(bkp).write_text(job)
+        amble = default_ambles("mm")
+        line.first_segment(tmp, ngc, bkp, amble, start[0], start[1], 0, "Default")
+        x, y = start
+        for index, segment in enumerate(segments):
+            function, names = LINE_SEGMENTS[segment["kind"]]
+            result = getattr(line, function)(
+                ConvShim(), x, y, *(segment[name] for name in names)
+            )
+            assert not result[0], result[1]
+            _failed, x, y, code = result
+            line.last_segment(tmp, ngc, code, amble)
+            if index < len(segments) - 1:
+                line.next_segment(tmp, ngc)
+        return Path(ngc).read_text()
+    finally:
+        shutil.rmtree(directory, ignore_errors=True)
+
+
+@numpy_required
+def test_a_multi_segment_cut_matches_upstreams_own_sequence() -> None:
+    result = generate_line(SQUARE)
+
+    assert result["error"] is None, result["error"]
+    assert result["gcode"] == reference_line(SQUARE)
+
+
+@numpy_required
+def test_the_cut_is_one_pierce_with_the_segments_between() -> None:
+    gcode = generate_line(SQUARE)["gcode"]
+
+    assert gcode.count("M03 $0 S1") == 1
+    assert gcode.count("M05 $0") == 1
+    assert "(conversational line/arc)" in gcode
+    assert gcode.rstrip().endswith("M02")
+
+
+@numpy_required
+def test_each_segment_starts_where_the_last_one_ended() -> None:
+    result = generate_line(
+        [
+            {"kind": "point", "xEnd": 10.0, "yEnd": 0.0},
+            {"kind": "angle", "length": 10.0, "angle": 90.0},
+        ]
+    )
+
+    assert result["end"] == [10.0, 10.0]
+    assert "G01 X10.000000 Y0.000000" in result["gcode"]
+    assert "G01 X10.000000 Y10.000000" in result["gcode"]
+
+
+@numpy_required
+def test_an_arc_uses_the_direction_it_was_given() -> None:
+    clockwise = generate_line(
+        [{"kind": "arcRadius", "xEnd": 50.0, "yEnd": 0.0, "radius": 40.0, "arcType": "02"}]
+    )
+    anticlockwise = generate_line(
+        [{"kind": "arcRadius", "xEnd": 50.0, "yEnd": 0.0, "radius": 40.0, "arcType": "03"}]
+    )
+
+    assert "G02 X50.000000" in clockwise["gcode"]
+    assert "G03 X50.000000" in anticlockwise["gcode"]
+
+
+@numpy_required
+def test_a_segment_the_builder_rejects_says_which_segment(caplog) -> None:
+    result = generate_line(
+        [
+            {"kind": "point", "xEnd": 10.0, "yEnd": 0.0},
+            # A radius smaller than half the chord cannot be drawn.
+            {"kind": "arcRadius", "xEnd": 100.0, "yEnd": 0.0, "radius": 1.0, "arcType": "02"},
+        ]
+    )
+
+    assert result["gcode"] is None
+    assert result["error"].startswith("segment 2:")
+    assert "Radius" in result["error"]
+
+
+@numpy_required
+def test_a_zero_length_line_is_upstreams_complaint_not_ours() -> None:
+    result = generate_line([{"kind": "point", "xEnd": 0.0, "yEnd": 0.0}])
+
+    assert result["gcode"] is None
+    assert "zero" in result["error"].lower()
+
+
+@numpy_required
+def test_a_line_is_added_to_an_existing_job() -> None:
+    first = generate("circle", CIRCLE)
+
+    second = generate_line(SQUARE, job=first["gcode"])
+
+    assert "(conversational circle)" in second["gcode"]
+    assert "(conversational line/arc)" in second["gcode"]
+    assert second["gcode"].count("(preamble)") == 1
+
+
+@numpy_required
+def test_an_unknown_segment_kind_is_refused() -> None:
+    with pytest.raises(ConversationalError) as excinfo:
+        generate_line([{"kind": "spiral", "xEnd": 1.0}])
+
+    assert excinfo.value.code == "unknown_segment"
+
+
+@numpy_required
+def test_a_segment_missing_a_parameter_names_it() -> None:
+    with pytest.raises(ConversationalError) as excinfo:
+        generate_line([{"kind": "point", "xEnd": 10.0}])
+
+    assert excinfo.value.code == "missing_parameters"
+    assert "yEnd" in excinfo.value.message
+
+
+@numpy_required
+def test_no_segments_at_all_is_refused() -> None:
+    with pytest.raises(ConversationalError) as excinfo:
+        generate_line([])
+
+    assert excinfo.value.code == "no_segments"
+
+
+@numpy_required
+def test_the_segment_kinds_come_from_the_installed_module() -> None:
+    kinds = line_segment_kinds()
+
+    assert set(kinds) == set(LINE_SEGMENTS)
+    assert kinds["arcRadius"] == ["xEnd", "yEnd", "radius", "arcType"]

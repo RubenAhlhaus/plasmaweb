@@ -12,6 +12,7 @@ from backend.application.context import AppContext
 from backend.contracts.messages import CommandEnvelope
 from backend.handlers.plasma import (
     handle_plasma_conversational_generate,
+    handle_plasma_conversational_line,
     handle_plasma_conversational_shapes,
     handle_plasma_delete_material,
     handle_plasma_get_materials,
@@ -805,3 +806,60 @@ def test_toolpath_can_preview_unsaved_gcode(tmp_path, monkeypatch) -> None:
     # The scratch file is gone afterwards, so no stale path is handed back.
     assert result.ack.result["path"] == ""
     assert not os.path.exists(record["path"])
+
+
+def test_conversational_line_builds_a_multi_segment_cut(reference_shapes) -> None:
+    pytest.importorskip("numpy", reason="the reference line module needs numpy")
+    ctx = build_preview_ctx(None)
+
+    result = run(
+        handle_plasma_conversational_line,
+        command(
+            "conversational_line",
+            {
+                "segments": [
+                    {"kind": "point", "xEnd": 50.0, "yEnd": 0.0},
+                    {"kind": "angle", "length": 25.0, "angle": 90.0},
+                ],
+                "startX": 10.0,
+                "startY": 10.0,
+            },
+        ),
+        ctx,
+    )
+
+    assert result.ack.ok is True, result.ack.error
+    assert "(conversational line/arc)" in result.ack.result["gcode"]
+    assert result.ack.result["end"] == [50.0, 25.0]
+
+
+def test_conversational_line_passes_a_rejected_segment_through(reference_shapes) -> None:
+    pytest.importorskip("numpy", reason="the reference line module needs numpy")
+    ctx = build_preview_ctx(None)
+
+    result = run(
+        handle_plasma_conversational_line,
+        command(
+            "conversational_line",
+            {"segments": [{"kind": "point", "xEnd": 0.0, "yEnd": 0.0}]},
+        ),
+        ctx,
+    )
+
+    assert result.ack.ok is True
+    assert result.ack.result["gcode"] is None
+    assert "zero" in result.ack.result["error"].lower()
+
+
+def test_conversational_line_refuses_an_unknown_segment(reference_shapes) -> None:
+    pytest.importorskip("numpy", reason="the reference line module needs numpy")
+    ctx = build_preview_ctx(None)
+
+    result = run(
+        handle_plasma_conversational_line,
+        command("conversational_line", {"segments": [{"kind": "spiral"}]}),
+        ctx,
+    )
+
+    assert result.ack.ok is False
+    assert result.ack.error.code == "unknown_segment"
