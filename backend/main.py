@@ -41,16 +41,20 @@ from backend.handlers.program import (
 )
 from backend.handlers.app import handle_app_exit
 from backend.handlers.plasma import (
+    handle_plasma_consumable_change,
     handle_plasma_conversational_block,
     handle_plasma_conversational_generate,
     handle_plasma_conversational_line,
     handle_plasma_conversational_shapes,
     handle_plasma_delete_material,
+    handle_plasma_cut_recovery,
     handle_plasma_get_conversational_settings,
     handle_plasma_get_materials,
     handle_plasma_get_parameters,
     handle_plasma_get_snapshot,
     handle_plasma_height_override,
+    handle_plasma_ohmic_test,
+    handle_plasma_probe_test,
     handle_plasma_reload_config,
     handle_plasma_run_from_line,
     handle_plasma_save_conversational_settings,
@@ -247,6 +251,10 @@ command_bus.register("plasma", "get_parameters", handle_plasma_get_parameters)
 command_bus.register("plasma", "save_parameters", handle_plasma_save_parameters)
 command_bus.register("plasma", "reload_config", handle_plasma_reload_config)
 command_bus.register("plasma", "toolpath", handle_plasma_toolpath)
+command_bus.register("plasma", "probe_test", handle_plasma_probe_test)
+command_bus.register("plasma", "ohmic_test", handle_plasma_ohmic_test)
+command_bus.register("plasma", "consumable_change", handle_plasma_consumable_change)
+command_bus.register("plasma", "cut_recovery", handle_plasma_cut_recovery)
 command_bus.register("plasma", "run_from_line", handle_plasma_run_from_line)
 command_bus.register("plasma", "conversational_shapes", handle_plasma_conversational_shapes)
 command_bus.register("plasma", "conversational", handle_plasma_conversational_generate)

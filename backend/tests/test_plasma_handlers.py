@@ -14,11 +14,15 @@ from backend.handlers.plasma import (
     handle_plasma_conversational_generate,
     handle_plasma_conversational_line,
     handle_plasma_conversational_shapes,
+    handle_plasma_consumable_change,
+    handle_plasma_cut_recovery,
     handle_plasma_delete_material,
     handle_plasma_get_materials,
     handle_plasma_get_parameters,
     handle_plasma_get_snapshot,
     handle_plasma_height_override,
+    handle_plasma_ohmic_test,
+    handle_plasma_probe_test,
     handle_plasma_reload_config,
     handle_plasma_run_from_line,
     handle_plasma_save_material,
@@ -863,3 +867,121 @@ def test_conversational_line_refuses_an_unknown_segment(reference_shapes) -> Non
 
     assert result.ack.ok is False
     assert result.ack.error.code == "unknown_segment"
+
+
+# ---- probing, cut recovery and consumables ------------------------------------------
+
+
+def test_probe_test_runs_for_the_time_asked_for() -> None:
+    ctx, runtime, bridge = build_ctx()
+
+    result = run(handle_plasma_probe_test, command("probe_test", {"seconds": 0.05}), ctx)
+
+    assert result.ack.ok is True
+    assert result.ack.result == {"running": True, "seconds": 0.05}
+    assert ("plasmac.probe-test", "1") in applied(bridge, runtime)
+
+
+def test_probe_test_with_no_time_stops_a_running_one() -> None:
+    """Upstream's second press aborts; sending zero is the same gesture."""
+    ctx, runtime, bridge = build_ctx()
+
+    result = run(handle_plasma_probe_test, command("probe_test", {"seconds": 0}), ctx)
+
+    assert result.ack.result == {"running": False}
+    assert ("plasmac.probe-test", "0") in applied(bridge, runtime)
+
+
+def test_probe_test_is_refused_with_the_torch_on() -> None:
+    ctx, _runtime, bridge = build_ctx(plasmac_values={"torch-on": True})
+    bridge.poll_once()
+
+    result = run(handle_plasma_probe_test, command("probe_test", {"seconds": 5}), ctx)
+
+    assert result.ack.ok is False
+    assert result.ack.error.code == "torch_already_on"
+
+
+def test_the_probe_test_pin_is_lowered_when_the_time_is_up() -> None:
+    ctx, runtime, bridge = build_ctx()
+
+    async def scenario():
+        await handle_plasma_probe_test(command("probe_test", {"seconds": 0.01}), ctx)
+        await asyncio.sleep(0.05)
+
+    asyncio.run(scenario())
+
+    calls = applied(bridge, runtime)
+    assert ("plasmac.probe-test", "1") in calls
+    assert ("plasmac.probe-test", "0") in calls
+
+
+def test_ohmic_test_follows_the_button() -> None:
+    ctx, runtime, bridge = build_ctx()
+
+    result = run(handle_plasma_ohmic_test, command("ohmic_test", {"enabled": True}), ctx)
+
+    assert result.ack.ok is True
+    assert ("plasmac.ohmic-test", "1") in applied(bridge, runtime)
+
+
+def test_consumable_change_is_a_toggle() -> None:
+    ctx, runtime, bridge = build_ctx()
+
+    result = run(
+        handle_plasma_consumable_change, command("consumable_change", {"enabled": True}), ctx
+    )
+
+    assert result.ack.ok is True
+    assert ("plasmac.consumable-change", "1") in applied(bridge, runtime)
+
+
+def test_cut_recovery_moves_along_the_path() -> None:
+    ctx, runtime, bridge = build_ctx()
+
+    result = run(
+        handle_plasma_cut_recovery,
+        command("cut_recovery", {"action": "move", "direction": 1, "speedPercent": 40}),
+        ctx,
+    )
+
+    assert result.ack.ok is True
+    written = dict(applied(bridge, runtime))
+    assert float(written["plasmac.paused-motion-speed"]) == 0.4
+
+
+def test_cut_recovery_offsets_by_the_selected_materials_kerf(tmp_path) -> None:
+    """One press is one kerf width — the same number the cut was made with."""
+    ctx, runtime, bridge = build_config_ctx(tmp_path)
+    ctx.plasma_config.select_material(3)  # kerf 1.5 in the fixture
+    runtime.plasmac_values["offset-scale"] = 0.1
+    bridge.poll_once()
+
+    result = run(
+        handle_plasma_cut_recovery,
+        command("cut_recovery", {"action": "offset", "x": 1, "y": 0}),
+        ctx,
+    )
+
+    assert result.ack.ok is True
+    assert result.ack.result["kerfWidth"] == 1.5
+    assert result.ack.result["counts"] == [15, 0]
+
+
+def test_cut_recovery_cancel_puts_it_back() -> None:
+    ctx, runtime, bridge = build_ctx()
+
+    result = run(handle_plasma_cut_recovery, command("cut_recovery", {"action": "cancel"}), ctx)
+
+    assert result.ack.ok is True
+    written = dict(applied(bridge, runtime))
+    assert written["plasmac.cut-recovery"] == "0"
+
+
+def test_an_unknown_recovery_action_is_refused() -> None:
+    ctx, _runtime, _bridge = build_ctx()
+
+    result = run(handle_plasma_cut_recovery, command("cut_recovery", {"action": "wiggle"}), ctx)
+
+    assert result.ack.ok is False
+    assert result.ack.error.code == "invalid_params"

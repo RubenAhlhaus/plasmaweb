@@ -897,3 +897,135 @@ async def handle_plasma_save_conversational_settings(
     except OSError as exc:
         return DispatchResult(ack=build_error(command.commandId, "write_failed", str(exc)))
     return DispatchResult(ack=build_ok(command.commandId, {"settings": settings}))
+
+
+class PlasmaProbeTestParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    #: 0 stops a running test, which is also what a second press does upstream.
+    seconds: float = 0.0
+
+
+class PlasmaCutRecoveryParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    action: str
+    #: `move`: -1 back, 0 stop, +1 forward, at `speedPercent` of the cut feed rate.
+    direction: int = 0
+    speedPercent: float = 100.0
+    #: `offset`: whole kerf widths sideways.
+    x: int = 0
+    y: int = 0
+
+
+async def handle_plasma_probe_test(
+    command: CommandEnvelope, ctx: AppContext
+) -> DispatchResult:
+    """Timed probe test. The timer lives here, so a closed browser cannot leave it probing."""
+    if ctx.plasma is None:
+        return _unavailable(command)
+    try:
+        params = PlasmaProbeTestParams.model_validate(command.params or {})
+    except ValidationError:
+        return _invalid(command, 'plasma.probe_test params: {"seconds": number}')
+
+    service = ctx.plasma
+    if params.seconds <= 0:
+        service.probe_test_stop()
+        return DispatchResult(ack=build_ok(command.commandId, {"running": False}))
+
+    try:
+        seconds = service.probe_test(params.seconds)
+    except PinWriteRejected as exc:
+        return _rejected(command, exc)
+
+    asyncio.get_running_loop().create_task(_stop_probe_test_after(service, seconds))
+    return DispatchResult(
+        ack=build_ok(command.commandId, {"running": True, "seconds": seconds})
+    )
+
+
+async def _stop_probe_test_after(service: Any, seconds: float) -> None:
+    try:
+        await asyncio.sleep(seconds)
+        service.probe_test_stop()
+    except asyncio.CancelledError:
+        # A shutdown mid-test still has to lower the pin.
+        service.probe_test_stop()
+        raise
+    except Exception:
+        logger.exception("plasma: stopping the probe test failed")
+
+
+async def handle_plasma_ohmic_test(
+    command: CommandEnvelope, ctx: AppContext
+) -> DispatchResult:
+    if ctx.plasma is None:
+        return _unavailable(command)
+    try:
+        params = PlasmaEnabledParams.model_validate(command.params)
+    except ValidationError:
+        return _invalid(command, 'plasma.ohmic_test params: {"enabled": bool}')
+    try:
+        ctx.plasma.ohmic_test(params.enabled)
+    except PinWriteRejected as exc:
+        return _rejected(command, exc)
+    return DispatchResult(ack=build_ok(command.commandId, {"enabled": params.enabled}))
+
+
+async def handle_plasma_consumable_change(
+    command: CommandEnvelope, ctx: AppContext
+) -> DispatchResult:
+    if ctx.plasma is None:
+        return _unavailable(command)
+    try:
+        params = PlasmaEnabledParams.model_validate(command.params)
+    except ValidationError:
+        return _invalid(command, 'plasma.consumable_change params: {"enabled": bool}')
+    try:
+        ctx.plasma.consumable_change(params.enabled)
+    except PinWriteRejected as exc:
+        return _rejected(command, exc)
+    return DispatchResult(ack=build_ok(command.commandId, {"enabled": params.enabled}))
+
+
+async def handle_plasma_cut_recovery(
+    command: CommandEnvelope, ctx: AppContext
+) -> DispatchResult:
+    """Move the torch while paused — along the path, or sideways in kerf widths."""
+    if ctx.plasma is None:
+        return _unavailable(command)
+    try:
+        params = PlasmaCutRecoveryParams.model_validate(command.params)
+    except ValidationError:
+        return _invalid(
+            command,
+            'plasma.cut_recovery params: {"action": "move"|"offset"|"cancel", '
+            '"direction": -1|0|1, "speedPercent": number, "x": int, "y": int}',
+        )
+
+    service = ctx.plasma
+    try:
+        if params.action == "move":
+            service.cut_recovery_move(params.direction, params.speedPercent)
+            return DispatchResult(
+                ack=build_ok(command.commandId, {"action": "move", "direction": params.direction})
+            )
+        if params.action == "offset":
+            # One press is one kerf width, and the kerf comes from the selected material — the
+            # same number the cut itself was made with.
+            kerf = 1.0
+            if ctx.plasma_config is not None:
+                kerf = float(ctx.plasma_config.conversational_defaults().get("kerfWidth", 1.0))
+            counts = service.cut_recovery_offset(params.x, params.y, kerf)
+            return DispatchResult(
+                ack=build_ok(
+                    command.commandId,
+                    {"action": "offset", "kerfWidth": kerf, "counts": list(counts)},
+                )
+            )
+        if params.action == "cancel":
+            service.cut_recovery_cancel()
+            return DispatchResult(ack=build_ok(command.commandId, {"action": "cancel"}))
+    except PinWriteRejected as exc:
+        return _rejected(command, exc)
+
+    return _invalid(command, 'plasma.cut_recovery action: "move", "offset" or "cancel"')

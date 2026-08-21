@@ -32,6 +32,8 @@ STATE_CHANGED_EVENT = "plasma.state.changed"
 #: Changing either of these means the decoded state changed too.
 _STATE_PINS = ("state-out", "stop-type-out")
 
+PROBE_ERROR_EVENT = "plasma.probe.error"
+
 
 class PlasmaPublisher:
     def __init__(
@@ -107,6 +109,7 @@ class PlasmaPublisher:
         # The M190 handshake has to be answered whether or not a browser is listening.
         for event, payload in self._config_events(diff):
             await self._broadcast(event, payload)
+        await self._handle_probe_error(diff)
         if not self._manager.active_connections:
             return
         await self._manager.broadcast_json(
@@ -144,6 +147,24 @@ class PlasmaPublisher:
         await self._manager.send_json(websocket, self.snapshot_event())
 
     # ---- helpers -------------------------------------------------------------------
+
+    async def _handle_probe_error(self, diff: Snapshot) -> None:
+        """A failed probe stops the probe test here, not in the browser.
+
+        ``plasmac.probe-test-error`` means the probe did not find the material. Upstream's GUI
+        stops the test on that edge; doing it in the backend means it also stops when nobody is
+        watching, which is the case that matters — the torch is already on its way down.
+        """
+        if not diff.get(PLASMAC_COMPONENT, {}).get("probe-test-error"):
+            return
+        try:
+            self._service.probe_test_stop()
+        except Exception:
+            logger.exception("plasma: could not stop the probe test after a probe error")
+        await self._broadcast(
+            PROBE_ERROR_EVENT,
+            {"code": "probe_test_error", "message": "Probe test error: no material found."},
+        )
 
     def _config_events(self, diff: Snapshot) -> list:
         if self._config is None:

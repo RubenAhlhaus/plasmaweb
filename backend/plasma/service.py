@@ -163,3 +163,89 @@ class PlasmaService:
     def set_own_output(self, name: str, value: Any) -> None:
         """Write one of our own ``qtplasmac.*`` outputs (LEDs, laser-on, scale, …)."""
         self._bridge.request_write(QTPLASMAC_COMPONENT, name, value)
+
+    # ---- probing and cut recovery ---------------------------------------------------
+
+    def probe_test(self, seconds: float) -> float:
+        """Start a timed probe test: ``plasmac.probe-test`` for ``seconds``.
+
+        The *backend* owns the timeout, not the browser. A probe test lowers the torch until it
+        senses the material, and a page reload or a dropped WebSocket must not be able to leave
+        it doing that — so the pin is raised here and lowered by the caller's timer, and the
+        publisher drops it again the moment ``probe-test-error`` says the probe failed.
+        """
+        if seconds <= 0:
+            raise PinWriteRejected(
+                "invalid_params", "a probe test needs a time greater than zero"
+            )
+        if self._plasmac_value("torch-on"):
+            raise PinWriteRejected(
+                "torch_already_on", "the torch is on; probing now would fight the running cut"
+            )
+        self._bridge.request_write(PLASMAC_COMPONENT, "probe-test", True)
+        return float(seconds)
+
+    def probe_test_stop(self) -> None:
+        """Lower ``probe-test`` again — on the timer, on a second press, or on a probe error."""
+        self._bridge.request_write(PLASMAC_COMPONENT, "probe-test", False)
+
+    def ohmic_test(self, enabled: bool) -> None:
+        """``plasmac.ohmic-test`` while the operator holds the button, as QtPlasmaC does."""
+        self._bridge.request_write(PLASMAC_COMPONENT, "ohmic-test", bool(enabled))
+
+    def cut_recovery_move(self, direction: int, speed_percent: float) -> None:
+        """Move along the paused toolpath: ``paused-motion-speed`` plus ``cut-recovery``.
+
+        ``direction`` is +1 forwards, -1 back, 0 stop. Upstream leaves ``cut-recovery`` raised
+        when the button is released — the recovery stays armed until it is cancelled or the
+        offsets settle back to zero — so stopping means a speed of zero, not lowering the pin.
+        """
+        if direction not in (-1, 0, 1):
+            raise PinWriteRejected(
+                "invalid_params", "cut recovery direction must be -1, 0 or 1"
+            )
+        self._bridge.request_write(
+            PLASMAC_COMPONENT, "paused-motion-speed", direction * speed_percent * 0.01
+        )
+        self._bridge.request_write(PLASMAC_COMPONENT, "cut-recovery", True)
+
+    def cut_recovery_offset(self, x_steps: int, y_steps: int, kerf_width: float) -> Tuple[int, int]:
+        """Move the torch sideways off the path, in whole kerf widths.
+
+        QtPlasmaC's pad moves one kerf width per press and writes the result into
+        ``plasmac.x-offset``/``y-offset``, which are *counts* of ``plasmac.offset-scale``. The
+        realtime side owns the actual travel limit; what this refuses is a request it cannot
+        express — an offset scale of zero, which would divide by nothing.
+
+        Returns the counts written, for the caller to report.
+        """
+        scale = self._plasmac_value("offset-scale")
+        try:
+            scale = float(scale)
+        except (TypeError, ValueError):
+            scale = 0.0
+        if not scale:
+            raise PinWriteRejected(
+                "offset_scale_unavailable",
+                "plasmac.offset-scale reads zero; the machine cannot offset the torch",
+            )
+
+        x_counts = int(kerf_width * x_steps / scale)
+        y_counts = int(kerf_width * y_steps / scale)
+        current_x = int(self._plasmac_value("x-offset") or 0)
+        current_y = int(self._plasmac_value("y-offset") or 0)
+        self._bridge.request_write(PLASMAC_COMPONENT, "x-offset", current_x + x_counts)
+        self._bridge.request_write(PLASMAC_COMPONENT, "y-offset", current_y + y_counts)
+        self._bridge.request_write(PLASMAC_COMPONENT, "cut-recovery", True)
+        return x_counts, y_counts
+
+    def cut_recovery_cancel(self) -> None:
+        """Give up the recovery: the torch returns to the path and the offsets are dropped."""
+        self._bridge.request_write(PLASMAC_COMPONENT, "cut-recovery", False)
+        self._bridge.request_write(PLASMAC_COMPONENT, "x-offset", 0)
+        self._bridge.request_write(PLASMAC_COMPONENT, "y-offset", 0)
+        self._bridge.request_write(PLASMAC_COMPONENT, "paused-motion-speed", 0.0)
+
+    def consumable_change(self, enabled: bool) -> None:
+        """``plasmac.consumable-change``: park the torch so consumables can be swapped."""
+        self._bridge.request_write(PLASMAC_COMPONENT, "consumable-change", bool(enabled))

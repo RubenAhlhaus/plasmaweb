@@ -149,3 +149,134 @@ def test_own_outputs_are_written_on_our_component() -> None:
     service.set_own_output("laser_on", True)
     bridge._apply_pending_writes()
     assert runtime.components[QTPLASMAC_COMPONENT].values["laser_on"] is True
+
+
+# ---- probing, cut recovery and consumables ------------------------------------------
+
+
+def test_a_probe_test_raises_the_pin_and_reports_its_time() -> None:
+    service, runtime, bridge = build()
+
+    seconds = service.probe_test(5.0)
+    applied(bridge, runtime)
+
+    assert seconds == 5.0
+    assert ("plasmac.probe-test", "1") in runtime.set_p_calls
+
+
+def test_a_probe_test_is_refused_while_the_torch_is_on() -> None:
+    service, runtime, bridge = build(plasmac_values={"torch-on": True})
+    bridge.poll_once()
+
+    with pytest.raises(PinWriteRejected) as excinfo:
+        service.probe_test(5.0)
+
+    assert excinfo.value.code == "torch_already_on"
+
+
+def test_a_probe_test_needs_a_time() -> None:
+    service, _runtime, bridge = build()
+
+    with pytest.raises(PinWriteRejected) as excinfo:
+        service.probe_test(0)
+
+    assert excinfo.value.code == "invalid_params"
+
+
+def test_stopping_the_probe_test_lowers_the_pin() -> None:
+    service, runtime, bridge = build()
+
+    service.probe_test_stop()
+    applied(bridge, runtime)
+
+    assert ("plasmac.probe-test", "0") in runtime.set_p_calls
+
+
+def test_the_ohmic_test_follows_the_button() -> None:
+    service, runtime, bridge = build()
+
+    service.ohmic_test(True)
+    service.ohmic_test(False)
+    applied(bridge, runtime)
+
+    assert ("plasmac.ohmic-test", "1") in runtime.set_p_calls
+    assert ("plasmac.ohmic-test", "0") in runtime.set_p_calls
+
+
+def test_cut_recovery_moves_along_the_path_at_a_share_of_the_cut_feed() -> None:
+    service, runtime, bridge = build()
+
+    service.cut_recovery_move(-1, 50.0)
+    applied(bridge, runtime)
+
+    written = dict(runtime.set_p_calls)
+    assert float(written["plasmac.paused-motion-speed"]) == -0.5
+    # The recovery stays armed when motion stops, as it does upstream.
+    assert written["plasmac.cut-recovery"] == "1"
+
+
+def test_stopping_the_recovery_motion_keeps_it_armed() -> None:
+    service, runtime, bridge = build()
+
+    service.cut_recovery_move(0, 100.0)
+    applied(bridge, runtime)
+
+    written = dict(runtime.set_p_calls)
+    assert float(written["plasmac.paused-motion-speed"]) == 0.0
+    assert written["plasmac.cut-recovery"] == "1"
+
+
+def test_a_bad_recovery_direction_is_refused() -> None:
+    service, _runtime, bridge = build()
+
+    with pytest.raises(PinWriteRejected) as excinfo:
+        service.cut_recovery_move(2, 100.0)
+
+    assert excinfo.value.code == "invalid_params"
+
+
+def test_cut_recovery_offsets_the_torch_in_whole_kerf_widths() -> None:
+    """x-offset and y-offset are counts of plasmac.offset-scale, not millimetres."""
+    service, runtime, bridge = build(plasmac_values={"offset-scale": 0.1, "x-offset": 5, "y-offset": 0})
+    bridge.poll_once()
+
+    counts = service.cut_recovery_offset(1, -1, 1.5)
+    applied(bridge, runtime)
+
+    assert counts == (15, -15)
+    written = dict(runtime.set_p_calls)
+    assert written["plasmac.x-offset"] == "20"  # 5 already there, plus 15
+    assert written["plasmac.y-offset"] == "-15"
+    assert written["plasmac.cut-recovery"] == "1"
+
+
+def test_an_offset_is_refused_when_the_machine_reports_no_scale() -> None:
+    service, _runtime, bridge = build(plasmac_values={"offset-scale": 0.0})
+    bridge.poll_once()
+
+    with pytest.raises(PinWriteRejected) as excinfo:
+        service.cut_recovery_offset(1, 0, 1.5)
+
+    assert excinfo.value.code == "offset_scale_unavailable"
+
+
+def test_cancelling_the_recovery_puts_everything_back() -> None:
+    service, runtime, bridge = build()
+
+    service.cut_recovery_cancel()
+    applied(bridge, runtime)
+
+    written = dict(runtime.set_p_calls)
+    assert written["plasmac.cut-recovery"] == "0"
+    assert written["plasmac.x-offset"] == "0"
+    assert written["plasmac.y-offset"] == "0"
+    assert float(written["plasmac.paused-motion-speed"]) == 0.0
+
+
+def test_a_consumable_change_is_a_plain_toggle() -> None:
+    service, runtime, bridge = build()
+
+    service.consumable_change(True)
+    applied(bridge, runtime)
+
+    assert ("plasmac.consumable-change", "1") in runtime.set_p_calls

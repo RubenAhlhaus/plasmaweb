@@ -169,3 +169,26 @@ def test_snapshot_event_carries_the_full_state() -> None:
 
     # the module-level helper the WebSocket route uses must produce the same thing
     assert snapshot_event(PlasmaService(bridge)) == event
+
+
+def test_a_probe_error_stops_the_probe_test_even_with_nobody_watching() -> None:
+    """The torch is on its way down; the browser being closed must not matter."""
+    from backend.services.plasma_publisher import PROBE_ERROR_EVENT
+
+    publisher, manager, bridge, runtime = build()
+
+    asyncio.run(publisher.publish_diff({PLASMAC_COMPONENT: {"probe-test-error": True}}))
+    bridge._apply_pending_writes()
+
+    assert ("plasmac.probe-test", "0") in runtime.set_p_calls
+    # The error goes out first, then the diff that carried it.
+    assert [msg["event"] for msg in manager.broadcasts][0] == PROBE_ERROR_EVENT
+
+
+def test_no_probe_error_means_no_interference() -> None:
+    publisher, manager, bridge, runtime = build()
+
+    asyncio.run(publisher.publish_diff({PLASMAC_COMPONENT: {"torch-on": True}}))
+    bridge._apply_pending_writes()
+
+    assert not any(call[0] == "plasmac.probe-test" for call in runtime.set_p_calls)
