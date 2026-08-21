@@ -78,29 +78,33 @@ const SETTINGS_FIELDS: Array<{ key: string; integer?: boolean }> = [
   { key: 'Grid Size' },
 ];
 
-/** `block.preview`'s parameters, with the two that are toggles rather than numbers. */
-const BLOCK_FIELDS = [
-  'columns',
-  'rows',
-  'cSpacing',
-  'rSpacing',
-  'xOffset',
-  'yOffset',
-  'angle',
-  'scale',
-  'rotation',
-];
-const BLOCK_TOGGLES = ['doMirror', 'doFlip'];
+/**
+ * The array's parameters come from the backend, because the two LinuxCNC generations disagree
+ * about them (2.9.4 has `cOffset` and `convMirror`, 2.10 has `cSpacing` and `doMirror`). Only
+ * the *types* are known here, by name.
+ */
+const BLOCK_TOGGLE_NAMES = new Set([
+  'doMirror',
+  'doFlip',
+  'convMirrorToggle',
+  'convFlipToggle',
+]);
+const BLOCK_INTEGER_NAMES = new Set(['columns', 'rows', 'convMirror', 'convFlip']);
 const BLOCK_DEFAULTS: Record<string, string> = {
   columns: '2',
   rows: '2',
   cSpacing: '100',
   rSpacing: '100',
+  cOffset: '100',
+  rOffset: '100',
   xOffset: '0',
   yOffset: '0',
   angle: '0',
   scale: '1',
   rotation: '0',
+  // 1 means "not mirrored"; upstream flips the sign rather than using a boolean.
+  convMirror: '1',
+  convFlip: '1',
 };
 
 function initialValue(parameter: ShapeParameter): string | boolean {
@@ -144,11 +148,8 @@ export function PlasmaConversationalScreen() {
   const [segments, setSegments] = useState<LineSegment[]>([]);
   const [start, setStart] = useState({ x: '0', y: '0' });
   const [settings, setSettings] = useState<Record<string, string> | null>(null);
-  const [block, setBlock] = useState<Record<string, string | boolean>>({
-    ...BLOCK_DEFAULTS,
-    doMirror: false,
-    doFlip: false,
-  });
+  const [blockFields, setBlockFields] = useState<string[]>([]);
+  const [block, setBlock] = useState<Record<string, string | boolean>>({});
 
   const shapesRef = useRef<string | null>(null);
   const settingsRef = useRef<string | null>(null);
@@ -171,8 +172,22 @@ export function PlasmaConversationalScreen() {
         setMessage(result.error?.message ?? t('conversational.unavailable'));
         return;
       }
-      const payload = (result.result as { shapes?: ShapeSchemas }).shapes ?? {};
+      const answered = result.result as {
+        shapes?: ShapeSchemas;
+        block?: string[] | null;
+      };
+      const payload = answered.shapes ?? {};
       setSchemas(payload);
+      const fields = answered.block ?? [];
+      setBlockFields(fields);
+      setBlock(
+        Object.fromEntries(
+          fields.map((field) => [
+            field,
+            BLOCK_TOGGLE_NAMES.has(field) ? false : BLOCK_DEFAULTS[field] ?? '0',
+          ]),
+        ),
+      );
       const first = Object.keys(payload)[0];
       if (first) selectShape(first, payload);
     },
@@ -281,11 +296,10 @@ export function PlasmaConversationalScreen() {
 
     if (shape === BLOCK_MODE) {
       const blockParams: Record<string, unknown> = {};
-      for (const field of BLOCK_FIELDS) {
-        blockParams[field] = Number(block[field]);
-      }
-      for (const field of BLOCK_TOGGLES) {
-        blockParams[field] = block[field] === true;
+      for (const field of blockFields) {
+        blockParams[field] = BLOCK_TOGGLE_NAMES.has(field)
+          ? block[field] === true
+          : Number(block[field]);
       }
       const commandId = commands.conversationalBlock({
         params: blockParams,
@@ -406,30 +420,31 @@ export function PlasmaConversationalScreen() {
           <div className="flex flex-col gap-3" data-e2e="plasma-block-editor">
             <p className="text-xs text-muted-foreground">{t('conversational.blockHint')}</p>
             <div className="grid gap-3 sm:grid-cols-2">
-              {BLOCK_FIELDS.map((field) => (
-                <TouchNumericPickerField
-                  key={field}
-                  label={t(`conversational.field.${field}`, { defaultValue: field })}
-                  value={String(block[field] ?? '')}
-                  integerOnly={field === 'columns' || field === 'rows'}
-                  onChange={(value) => setBlock((prev) => ({ ...prev, [field]: value }))}
-                  data-e2e={`plasma-block-${field}`}
-                />
-              ))}
-              {BLOCK_TOGGLES.map((field) => (
-                <div key={field} className="flex items-center justify-between gap-2">
-                  <span className="text-sm text-muted-foreground">
-                    {t(`conversational.field.${field}`, { defaultValue: field })}
-                  </span>
-                  <ToggleSwitch
-                    checked={block[field] === true}
-                    onCheckedChange={() =>
-                      setBlock((prev) => ({ ...prev, [field]: prev[field] !== true }))
-                    }
+              {blockFields.map((field) =>
+                BLOCK_TOGGLE_NAMES.has(field) ? (
+                  <div key={field} className="flex items-center justify-between gap-2">
+                    <span className="text-sm text-muted-foreground">
+                      {t(`conversational.field.${field}`, { defaultValue: field })}
+                    </span>
+                    <ToggleSwitch
+                      checked={block[field] === true}
+                      onCheckedChange={() =>
+                        setBlock((prev) => ({ ...prev, [field]: prev[field] !== true }))
+                      }
+                      data-e2e={`plasma-block-${field}`}
+                    />
+                  </div>
+                ) : (
+                  <TouchNumericPickerField
+                    key={field}
+                    label={t(`conversational.field.${field}`, { defaultValue: field })}
+                    value={String(block[field] ?? '')}
+                    integerOnly={BLOCK_INTEGER_NAMES.has(field)}
+                    onChange={(value) => setBlock((prev) => ({ ...prev, [field]: value }))}
                     data-e2e={`plasma-block-${field}`}
                   />
-                </div>
-              ))}
+                ),
+              )}
             </div>
           </div>
         )}

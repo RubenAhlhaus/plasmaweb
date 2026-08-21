@@ -515,3 +515,25 @@ def test_the_segment_kinds_come_from_the_installed_module() -> None:
 
     assert set(kinds) == set(LINE_SEGMENTS)
     assert kinds["arcRadius"] == ["xEnd", "yEnd", "radius", "arcType"]
+
+
+@numpy_required
+def test_the_line_module_is_called_by_keyword_so_an_extra_argument_is_survivable(
+    monkeypatch,
+) -> None:
+    """2.9.4's first_segment takes a `lineType` its body ignores; 2.10's does not."""
+    from plasmac import line  # type: ignore
+
+    seen: Dict[str, Any] = {}
+    original = line.first_segment
+
+    def first_segment(fTmp, fNgc, fNgcBkp, preAmble, lineType, xStart, yStart, matNumber, matName):
+        seen["lineType"] = lineType
+        return original(fTmp, fNgc, fNgcBkp, preAmble, xStart, yStart, matNumber, matName)
+
+    monkeypatch.setattr(line, "first_segment", first_segment)
+
+    result = generate_line([{"kind": "arcRadius", "xEnd": 50.0, "yEnd": 0.0, "radius": 40.0, "arcType": "02"}])
+
+    assert result["error"] is None
+    assert seen["lineType"] == "arc"

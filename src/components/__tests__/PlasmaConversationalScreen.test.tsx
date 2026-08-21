@@ -71,10 +71,31 @@ const SHAPES = {
   ],
 };
 
+/** 2.9.4's array parameters, as the backend reports them off the installed module. */
+const BLOCK_FIELDS = [
+  'columns',
+  'rows',
+  'cOffset',
+  'rOffset',
+  'xOffset',
+  'yOffset',
+  'angle',
+  'scale',
+  'rotation',
+  'convMirror',
+  'convFlip',
+  'convMirrorToggle',
+  'convFlipToggle',
+];
+
 function deliverShapes(sent: SentCommand[]) {
   const request = sent.find((command) => command.action === 'conversational_shapes');
   expect(request).toBeDefined();
-  answer({ commandId: request!.commandId, ok: true, result: { shapes: SHAPES } });
+  answer({
+    commandId: request!.commandId,
+    ok: true,
+    result: { shapes: SHAPES, block: BLOCK_FIELDS },
+  });
 }
 
 describe('PlasmaConversationalScreen', () => {
@@ -256,17 +277,19 @@ describe('PlasmaConversationalScreen — lines and arrays', () => {
     deliverShapes(sent);
 
     await userEvent.click(e2e('plasma-conversational-shape-block'));
-    await userEvent.click(e2e('plasma-block-doMirror'));
+    await userEvent.click(e2e('plasma-block-convMirrorToggle'));
     await userEvent.click(e2e('plasma-conversational-preview'));
 
     const request = sent.find((command) => command.action === 'conversational_block');
     expect(request).toBeDefined();
     const params = request!.params.params as Record<string, unknown>;
+    // The panel is built from the parameter list the machine reported, so these are 2.9.4's
+    // names rather than a set compiled into the UI.
     expect(params.columns).toBe(2);
-    expect(params.rows).toBe(2);
+    expect(params.cOffset).toBe(100);
     expect(params.scale).toBe(1);
-    expect(params.doMirror).toBe(true);
-    expect(params.doFlip).toBe(false);
+    expect(params.convMirrorToggle).toBe(true);
+    expect(params.convFlipToggle).toBe(false);
   });
 });
 

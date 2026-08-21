@@ -466,11 +466,35 @@ none; and a shape whose own dependency is missing drops out of the list rather t
 others down with it. A shape rejecting its input ("DIAMETER cannot be zero") comes back as a
 message for the operator rather than a failed command.
 
-**Still to build for M4:** the `line` module's multi-segment builder (point-to-point, by angle,
-three-point and two-point-radius arcs — a different API from the `preview()` shapes, plus the
-segment state machine `first_segment`/`next_segment`/`last_segment`), the `block` module's
-array/rotate/scale operations on an existing job, and an editor for the `[CONVERSATIONAL]`
-settings themselves (they are read and honoured today, just not editable here).
+**Lines, arrays and the settings: done and verified on the sim VM.**
+
+The line builder replays upstream's own per-press sequence for a whole list of segments, each
+starting where the last ended, and its golden test compares byte for byte against that sequence.
+`next_segment` is deliberately unused: it reopens a file by truncating at the first `M05 $0`,
+which on a job that already contains a shape would throw that shape's cut away.
+
+The array is `block.preview`, and it is where the two LinuxCNC generations differ most. 2.9.4
+takes `cOffset`/`rOffset`, its own `convMirror`/`convFlip` bookkeeping, plus `fTmp`, `g5xIndex`
+and `convUnits`; 2.10 takes `cSpacing`/`rSpacing`, `doMirror`/`doFlip`, a `window` and
+`isConvBlock`. So the parameter list is reported to the UI and the panel is built from it —
+which is why the screenshot on the sim says "Column offset" and "Mirror state" rather than the
+2.10 names compiled into anything.
+
+| Checked on the VM | Result |
+|---|---|
+| Line: point + radius arc from (20, 20) | generated, drawn on the canvas, one pierce and one `M05 $0` for the whole cut |
+| ADD then ARRAY, 3 × 2 at 150 / 120 | six copies drawn, `;conversational block` written with upstream's own named parameters |
+| Array panel fields | `columns`, `rows`, `cOffset`, `rOffset`, `convMirror`, `convFlip`, `convMirrorToggle`, `convFlipToggle` — 2.9.4's list, read off the machine |
+| SETTINGS: `Leadin` 0 → 4.5 | written to `[CONVERSATIONAL]` in the prefs, and used by the next generated shape |
+
+Two more version skews found the same way as the earlier ones. 2.9.4's
+`line.first_segment` takes an extra `lineType` its body ignores (upstream passes the GUI's
+line-type combo text), so the call is made by keyword and the argument supplied only when the
+signature has it. And `block.get_midpoints` measures a qtvcp preview *widget* in 2.10; a centre
+is a measurement rather than a decision, so it is measured off the toolpath preview and handed
+to upstream by replacing that one function for the duration of the call, under a lock.
+
+M4 is complete.
 
 ### M5 — Advanced feature parity
 

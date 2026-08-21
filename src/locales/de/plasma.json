@@ -211,7 +211,13 @@
       "scale": "Skalierung",
       "rotation": "Formdrehung",
       "doMirror": "Spiegeln",
-      "doFlip": "Umklappen"
+      "doFlip": "Umklappen",
+      "cOffset": "Spaltenversatz",
+      "rOffset": "Reihenversatz",
+      "convMirror": "Spiegelstatus",
+      "convFlip": "Klappstatus",
+      "convMirrorToggle": "Spiegeln",
+      "convFlipToggle": "Umklappen"
     },
     "addSegment": "Segment hinzufügen",
     "removeSegment": "Letztes entfernen",

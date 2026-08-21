@@ -344,16 +344,23 @@ def generate_line(
     try:
         with open(paths["bkp"], "w", encoding="utf-8") as handle:
             handle.write(job if job else NEW_JOB)
-        module.first_segment(
-            paths["tmp"],
-            paths["ngc"],
-            paths["bkp"],
-            pre,
-            float(start[0]),
-            float(start[1]),
-            material[0],
-            material[1],
-        )
+        # 2.9.4's first_segment takes an extra `lineType` that its body ignores (upstream
+        # passes the GUI's line-type combo text); 2.10's does not. Called by keyword so the
+        # difference is a missing key rather than a shifted argument list.
+        opening = {
+            "fTmp": paths["tmp"],
+            "fNgc": paths["ngc"],
+            "fNgcBkp": paths["bkp"],
+            "preAmble": pre,
+            "xStart": float(start[0]),
+            "yStart": float(start[1]),
+            "matNumber": material[0],
+            "matName": material[1],
+        }
+        if "lineType" in inspect.signature(module.first_segment).parameters:
+            first_kind = str(segments[0].get("kind", "point"))
+            opening["lineType"] = "arc" if first_kind.startswith("arc") else "line"
+        module.first_segment(**opening)
 
         x, y = float(start[0]), float(start[1])
         codes: List[str] = []
@@ -408,14 +415,44 @@ def generate_line(
 _BLOCK_LOCK = threading.Lock()
 
 
+def _g5x_index() -> int:
+    """Which coordinate system is active (1–9); 1 (G54) when there is no machine to ask."""
+    try:
+        import linuxcnc  # noqa: PLC0415
+
+        stat = linuxcnc.stat()
+        stat.poll()
+        return int(getattr(stat, "g5x_index", 1) or 1)
+    except Exception:
+        return 1
+
+
+#: Arguments to ``block.preview`` that this layer supplies rather than a client.
+#:
+#: The two LinuxCNC generations differ here more than anywhere else: 2.9.4 takes ``fTmp``,
+#: ``convBlock``, ``g5xIndex`` and ``convUnits`` and does its own mirror/flip bookkeeping with
+#: ``convMirror``/``convFlip``; 2.10 takes ``window`` and ``isConvBlock`` and a plain
+#: ``doMirror``/``doFlip``. Reading the signature rather than assuming one of them is what keeps
+#: both working.
+_BLOCK_SUPPLIED = (
+    "Conv",
+    "fNgc",
+    "fTmp",
+    "window",
+    "isConvBlock",
+    "convBlock",
+    "g5xIndex",
+    "convUnits",
+)
+
+
 def block_parameters() -> Tuple[str, ...]:
-    """The array/rotate/scale parameters, read off ``block.preview``."""
+    """The array/rotate/scale parameters this LinuxCNC's block module takes."""
     module = _shape_module_named("block")
-    supplied = ("Conv", "fNgc", "isConvBlock", "window")
     return tuple(
         name
         for name in inspect.signature(module.preview).parameters
-        if name not in supplied
+        if name not in _BLOCK_SUPPLIED
     )
 
 
@@ -451,35 +488,59 @@ def generate_block(
 
     directory = tempfile.mkdtemp(prefix="lcncgui-block-")
     path = os.path.join(directory, "block.ngc")
+    scratch = os.path.join(directory, "block-tmp.ngc")
     try:
         with open(path, "w", encoding="utf-8") as handle:
             handle.write(job)
-        # A job this layer has already blocked once carries upstream's own marker.
-        is_conv_block = job.lstrip().startswith(";conversational block V2")
+        open(scratch, "w", encoding="utf-8").close()
+        # A job this layer has already arrayed carries upstream's own marker.
+        is_conv_block = job.lstrip().startswith(";conversational block V2") or job.lstrip().startswith(
+            ";CONV_BLOCK"
+        )
+
+        signature = inspect.signature(module.preview).parameters
+        call: Dict[str, Any] = {name: params[name] for name in expected}
+        call["Conv"] = ConvShim()
+        call["fNgc"] = path
+        if "fTmp" in signature:
+            call["fTmp"] = scratch
+        if "window" in signature:
+            call["window"] = None
+        if "isConvBlock" in signature:
+            call["isConvBlock"] = is_conv_block
+        if "convBlock" in signature:
+            # 2.9.4 passes a two-element list; [0] is "this file is already a block".
+            call["convBlock"] = [is_conv_block, False]
+        if "g5xIndex" in signature:
+            call["g5xIndex"] = _g5x_index()
+        if "convUnits" in signature:
+            # [factor, unit code] — no conversion, because the job we hand over is already in
+            # the machine's units.
+            call["convUnits"] = [1, None]
 
         with _BLOCK_LOCK:
-            original = module.get_midpoints
-            module.get_midpoints = lambda _window: (float(midpoint[0]), float(midpoint[1]))
-            try:
-                error = module.preview(
-                    ConvShim(),
-                    path,
-                    is_conv_block,
-                    None,
-                    **{name: params[name] for name in expected},
+            original = getattr(module, "get_midpoints", None)
+            if original is not None:
+                module.get_midpoints = lambda _window: (
+                    float(midpoint[0]),
+                    float(midpoint[1]),
                 )
+            try:
+                error = module.preview(**call)
             finally:
-                module.get_midpoints = original
+                if original is not None:
+                    module.get_midpoints = original
 
         if error:
             return {"gcode": None, "error": str(error).strip()}
         with open(path, "r", encoding="utf-8", errors="replace") as handle:
             return {"gcode": handle.read(), "error": None}
     finally:
-        try:
-            os.unlink(path)
-        except OSError:
-            pass
+        for temporary in (path, scratch):
+            try:
+                os.unlink(temporary)
+            except OSError:
+                pass
         try:
             os.rmdir(directory)
         except OSError:

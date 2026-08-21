@@ -211,7 +211,13 @@
       "scale": "Scale",
       "rotation": "Shape rotation",
       "doMirror": "Mirror",
-      "doFlip": "Flip"
+      "doFlip": "Flip",
+      "cOffset": "Column offset",
+      "rOffset": "Row offset",
+      "convMirror": "Mirror state",
+      "convFlip": "Flip state",
+      "convMirrorToggle": "Mirror",
+      "convFlipToggle": "Flip"
     },
     "addSegment": "Add segment",
     "removeSegment": "Remove last",

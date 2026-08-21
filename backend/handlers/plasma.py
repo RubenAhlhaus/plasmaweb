@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
@@ -593,10 +593,27 @@ class PlasmaConversationalParams(BaseModel):
 async def handle_plasma_conversational_shapes(
     command: CommandEnvelope, ctx: AppContext
 ) -> DispatchResult:
-    """Which shapes this LinuxCNC can generate, and the parameters each one takes."""
-    from backend.plasma.conversational import shapes
+    """What this LinuxCNC can generate: the shapes, the line segments and the array.
 
-    return DispatchResult(ack=build_ok(command.commandId, {"shapes": shapes()}))
+    All three lists come from the installed modules' own signatures, because the two LinuxCNC
+    generations differ — 2.9.4's array takes ``cOffset``/``convMirror``, 2.10's takes
+    ``cSpacing``/``doMirror`` — and a UI built from the list works against both.
+    """
+    from backend.plasma.conversational import (
+        ConversationalError,
+        block_parameters,
+        line_segment_kinds,
+        shapes,
+    )
+
+    payload: Dict[str, Any] = {"shapes": shapes()}
+    for key, reader in (("line", line_segment_kinds), ("block", block_parameters)):
+        try:
+            payload[key] = list(reader()) if key == "block" else reader()
+        except ConversationalError as exc:
+            logger.info("plasma: conversational %s unavailable: %s", key, exc.message)
+            payload[key] = None
+    return DispatchResult(ack=build_ok(command.commandId, payload))
 
 
 async def handle_plasma_conversational_generate(
