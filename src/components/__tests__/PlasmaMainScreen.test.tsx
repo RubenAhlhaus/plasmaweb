@@ -156,3 +156,75 @@ describe('PlasmaMainScreen', () => {
     spy.mockRestore();
   });
 });
+
+describe('PlasmaMainScreen — probing and cut recovery', () => {
+  beforeEach(() => {
+    useAppStore.getState().resetPlasma();
+    useAppStore.setState({ backendWebSocket: null });
+  });
+
+  it('a probe test asks for a timed test rather than a bare pin write', async () => {
+    const sent = installFakeSocket();
+    snapshot();
+    render(<PlasmaMainScreen />);
+
+    await userEvent.click(document.querySelector('[data-e2e="plasma-probe-test"]') as HTMLElement);
+
+    expect(sent.map((command) => [command.action, command.params])).toEqual([
+      ['probe_test', { seconds: 5 }],
+    ]);
+  });
+
+  it('the ohmic test follows press and release', async () => {
+    const sent = installFakeSocket();
+    snapshot();
+    render(<PlasmaMainScreen />);
+
+    const button = document.querySelector('[data-e2e="plasma-ohmic-test"]') as HTMLElement;
+    await userEvent.pointer([{ keys: '[MouseLeft>]', target: button }, { keys: '[/MouseLeft]', target: button }]);
+
+    expect(sent.map((command) => command.params.enabled)).toEqual([true, false]);
+  });
+
+  it('the recovery pad is dead unless the program is paused', () => {
+    snapshot();
+    render(<PlasmaMainScreen />);
+
+    const north = document.querySelector('[data-e2e="plasma-cut-recovery-n"]') as HTMLButtonElement;
+    expect(north.disabled).toBe(true);
+  });
+
+  it('a pad press offsets by one kerf width in that direction', async () => {
+    const sent = installFakeSocket();
+    snapshot({ 'program-is-paused': true });
+    render(<PlasmaMainScreen />);
+
+    await userEvent.click(document.querySelector('[data-e2e="plasma-cut-recovery-ne"]') as HTMLElement);
+
+    expect(sent[0].action).toBe('cut_recovery');
+    expect(sent[0].params).toEqual({ action: 'offset', x: 1, y: 1 });
+  });
+
+  it('forward and reverse move along the path and stop on release', async () => {
+    const sent = installFakeSocket();
+    snapshot({ 'program-is-paused': true });
+    render(<PlasmaMainScreen />);
+
+    const fwd = document.querySelector('[data-e2e="plasma-cut-recovery-fwd"]') as HTMLElement;
+    await userEvent.pointer([{ keys: '[MouseLeft>]', target: fwd }, { keys: '[/MouseLeft]', target: fwd }]);
+
+    expect(sent.map((command) => command.params.direction)).toEqual([1, 0]);
+  });
+
+  it('cancel gives up the recovery', async () => {
+    const sent = installFakeSocket();
+    snapshot({ 'program-is-paused': true });
+    render(<PlasmaMainScreen />);
+
+    await userEvent.click(
+      document.querySelector('[data-e2e="plasma-cut-recovery-cancel"]') as HTMLElement,
+    );
+
+    expect(sent[0].params).toEqual({ action: 'cancel' });
+  });
+});

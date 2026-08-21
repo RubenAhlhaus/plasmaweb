@@ -245,5 +245,17 @@
       "Origin": "Ursprung (0 Ecke, 1 Mitte)",
       "Grid Size": "Rastergröße"
     }
+  },
+  "test": {
+    "probe": "Antasttest",
+    "ohmic": "Ohmic-Test"
+  },
+  "cutRecovery": {
+    "title": "Schnittwiederaufnahme",
+    "active": "Aktiv",
+    "forward": "Vor",
+    "reverse": "Zurück",
+    "cancel": "Abbrechen",
+    "offset": "Versatz X {{x}} Y {{y}}"
   }
 }

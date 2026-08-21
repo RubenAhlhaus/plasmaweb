@@ -67,6 +67,16 @@ export function usePlasmaCommands() {
       heightOverride: (volts: number) => send('height_override', { volts }),
       torchPulse: (action: TorchPulseAction, seconds?: number) =>
         send('torch_pulse', seconds === undefined ? { action } : { action, seconds }),
+      probeTest: (seconds: number) => send('probe_test', { seconds }),
+      ohmicTest: (enabled: boolean) => send('ohmic_test', { enabled }),
+      consumableChange: (enabled: boolean) => send('consumable_change', { enabled }),
+      cutRecovery: (params: {
+        action: 'move' | 'offset' | 'cancel';
+        direction?: number;
+        speedPercent?: number;
+        x?: number;
+        y?: number;
+      }) => send('cut_recovery', { ...params }),
       getMaterials: () => send('get_materials'),
       selectMaterial: (number: number) => send('select_material', { number }),
       saveMaterial: (number: number, name: string, values: Record<string, number>) =>

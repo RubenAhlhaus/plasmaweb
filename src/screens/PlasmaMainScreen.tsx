@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { CoordinatesDisplay } from '@/components/CoordinatesDisplay';
 import { DirectionalControl } from '@/components/DirectionalControl';
 import { IncrementSelector } from '@/components/IncrementSelector';
+import { CutRecoveryPad } from '@/components/plasma/CutRecoveryPad';
 import { HeightOverrideControl } from '@/components/plasma/HeightOverrideControl';
 import { PlasmaLed } from '@/components/plasma/PlasmaLed';
 import { PlasmaReadout } from '@/components/plasma/PlasmaReadout';
@@ -57,6 +58,10 @@ export function PlasmaMainScreen() {
   const voidlockEnable = usePlasmacFlag('voidlock-enable');
   const autoVolts = usePlasmacFlag('use-auto-volts');
   const meshEnable = usePlasmacFlag('mesh-enable');
+  // Probing and recovery only make sense while the program is paused or idle, and plasmac
+  // itself is the authority on that — hence `paused-motion`, not a flag of our own.
+  const pausedMotion = usePlasmacFlag('paused-motion');
+  const programPaused = usePlasmacFlag('program-is-paused');
 
   if (!available) {
     return (
@@ -220,6 +225,26 @@ export function PlasmaMainScreen() {
           <button
             type="button"
             className={cycleButtonClass}
+            data-e2e="plasma-probe-test"
+            // A fixed five seconds, the way QtPlasmaC's default PROBE TEST button is
+            // configured; pressing again while it runs aborts it.
+            onClick={() => commands.probeTest(5)}
+          >
+            {t('test.probe')}
+          </button>
+          <button
+            type="button"
+            className={cycleButtonClass}
+            data-e2e="plasma-ohmic-test"
+            onPointerDown={() => commands.ohmicTest(true)}
+            onPointerUp={() => commands.ohmicTest(false)}
+            onPointerLeave={() => commands.ohmicTest(false)}
+          >
+            {t('test.ohmic')}
+          </button>
+          <button
+            type="button"
+            className={cycleButtonClass}
             data-e2e="plasma-torch-pulse"
             // Momentary, exactly like QtPlasmaC's button: press raises the pulse pins,
             // release drops them again.
@@ -233,6 +258,7 @@ export function PlasmaMainScreen() {
       </div>
 
       <div ref={jogPanelRef} className="flex min-h-0 flex-col gap-4 overflow-y-auto">
+        <CutRecoveryPad paused={programPaused || pausedMotion} />
         <div className="flex items-start gap-3">
           {/* The selector is a fixed-width column of increments; letting it shrink clips
               the labels, so the jog pad takes the remaining space instead. */}

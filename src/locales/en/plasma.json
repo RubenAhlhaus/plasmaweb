@@ -245,5 +245,17 @@
       "Origin": "Origin (0 corner, 1 centre)",
       "Grid Size": "Grid size"
     }
+  },
+  "test": {
+    "probe": "Probe test",
+    "ohmic": "Ohmic test"
+  },
+  "cutRecovery": {
+    "title": "Cut recovery",
+    "active": "Recovering",
+    "forward": "Fwd",
+    "reverse": "Rev",
+    "cancel": "Cancel recovery",
+    "offset": "Offset X {{x}} Y {{y}}"
   }
 }
