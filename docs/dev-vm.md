@@ -111,6 +111,34 @@ EOS
 "$UTM" file pull LinuxCNC /tmp/screen.png > screen.png
 ```
 
+## Stale shared memory after a hard restart
+
+Killing LinuxCNC while it is busy can leave its SysV IPC behind, and the next start fails with:
+
+```
+<commandline>:0: waitpid failed io iocontrol
+<commandline>:0: io exited without becoming ready
+libnml/os_intf/_shm.c 413: rcs_shm_nattch: shmctl failed: Invalid argument
+```
+
+`halrun -U` and removing `/tmp/linuxcnc.lock` are not enough — the segments have to go too:
+
+```bash
+pkill -9 -x linuxcncsvr; pkill -9 -x milltask; pkill -9 -x io
+halrun -U; rm -f /tmp/linuxcnc.lock
+for id in $(ipcs -m | awk '/^0x/ {print $2}'); do ipcrm -m $id; done
+for id in $(ipcs -q | awk '/^0x/ {print $2}'); do ipcrm -q $id; done
+for id in $(ipcs -s | awk '/^0x/ {print $2}'); do ipcrm -s $id; done
+```
+
+A second failure mode looks different and is easier to miss: **the backend survives the kill**
+and holds port 8765, so LinuxCNC starts, `bin/lcncgui` finds the port busy, and the whole
+session exits with `lcncgui: port 8765 is already in use`. `pkill -f uvicorn` does not always
+land it (a wedged process ignores the default signal) — use `fuser -k -9 8765/tcp`.
+
+When waiting for the backend after a restart, **bound the wait**: an unbounded
+`until curl …; do sleep 3; done` against a session that failed to start never returns.
+
 ## Sim estop
 
 The sim's estop chain is `estop_or.out → estop_not → iocontrol.0.emc-enable-in`, and
