@@ -110,7 +110,8 @@
       "scribe": "Ritzen, Spotting und Offsets",
       "offsetProbing": "Versetztes Antasten",
       "peripherals": "Laser- und Kamera-Offsets",
-      "gui": "Tastatur"
+      "gui": "Tastatur",
+      "capabilities": "LinuxCNC dieser Maschine"
     },
     "offsetProbing": {
       "X axis": "Taster X-Versatz",
@@ -125,7 +126,12 @@
     "gui": {
       "keyboardShortcuts": "Tastenkürzel",
       "keyboardShortcutsHint": "Standardmäßig aus: sie verfahren den Brenner und brechen Programme ab."
-    }
+    },
+    "capabilities": {
+      "all": "Dieses LinuxCNC unterstützt alle Funktionen dieses Bildschirms.",
+      "needs": "benötigt Pins, die dieses LinuxCNC nicht hat ({{pins}})."
+    },
+    "noPin": "Dieses LinuxCNC hat keinen Pin für diese Einstellung — sie wird gespeichert, wirkt aber nicht."
   },
   "preview": {
     "refresh": "Neu laden",

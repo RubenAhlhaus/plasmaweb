@@ -110,7 +110,8 @@
       "scribe": "Scribe, spotting and offsets",
       "offsetProbing": "Offset probing",
       "peripherals": "Laser and camera offsets",
-      "gui": "Keyboard"
+      "gui": "Keyboard",
+      "capabilities": "This machine's LinuxCNC"
     },
     "offsetProbing": {
       "X axis": "Probe X offset",
@@ -125,7 +126,12 @@
     "gui": {
       "keyboardShortcuts": "Keyboard shortcuts",
       "keyboardShortcutsHint": "Off by default: these jog the torch and abort programs."
-    }
+    },
+    "capabilities": {
+      "all": "This LinuxCNC supports every feature this screen offers.",
+      "needs": "needs pins this LinuxCNC does not have ({{pins}})."
+    },
+    "noPin": "This LinuxCNC has no pin for this setting, so it is stored but has no effect."
   },
   "preview": {
     "refresh": "Refresh",

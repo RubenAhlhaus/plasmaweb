@@ -621,6 +621,18 @@ export interface PlasmaParameters {
  * `state` walks `idle` → `markedge` → `setorigin` and back on each press, and it is machine
  * state rather than one client's: the panel and a laptop both show the same step.
  */
+/**
+ * What this machine's LinuxCNC can actually do. The pin table is generated from a newer
+ * `plasmac.comp` than most shops run, and a write to a pin that does not exist is dropped —
+ * silently, unless the UI says so.
+ */
+export interface PlasmaCapabilities {
+  features: Record<string, { available: boolean; missing: string[]; description: string }>;
+  /** Settings that save and read back correctly but reach no pin on this machine. */
+  ineffectiveParameters: Array<{ key: string; pin: string }>;
+  missingPins: string[];
+}
+
 export interface PlasmaAlignment {
   state: 'idle' | 'markedge' | 'setorigin';
   kind: 'laser' | 'camera';
@@ -661,6 +673,7 @@ export interface PlasmaSnapshot {
   state?: PlasmaState;
   /** `plasmac.*` pins this LinuxCNC build does not have (2.9.4 lacks 18 of them). */
   missingPins?: string[];
+  capabilities?: PlasmaCapabilities;
   /** Present when the backend found the machine's config files. */
   materials?: PlasmaMaterials;
   parameters?: PlasmaParameters;
@@ -676,6 +689,7 @@ export interface PlasmaSlice {
   plasmaMaterials: PlasmaMaterials | null;
   plasmaParameters: PlasmaParameters | null;
   plasmaAlignment: PlasmaAlignment | null;
+  plasmaCapabilities: PlasmaCapabilities | null;
   /** Preview of the loaded program; null while none has been parsed. */
   plasmaToolpath: PlasmaToolpath | null;
   /** Why the last preview failed (a G-code error, usually), for the screen to show. */

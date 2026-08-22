@@ -116,6 +116,16 @@ export function PlasmaParametersScreen() {
   const [probeDraft, setProbeDraft] = useState<Record<string, string>>({});
   const [peripheralDraft, setPeripheralDraft] = useState<Record<string, string>>({});
   const alignment = useAppStore((s) => s.plasmaAlignment);
+  const capabilities = useAppStore((s) => s.plasmaCapabilities);
+
+  /**
+   * Parameters that save, read back, and reach no pin on this LinuxCNC. Marked rather than
+   * hidden: the value is real in the prefs file and QtPlasmaC on a newer build would use it.
+   */
+  const ineffective = useMemo(
+    () => new Set((capabilities?.ineffectiveParameters ?? []).map((entry) => entry.key)),
+    [capabilities],
+  );
 
   // Whatever the backend reports wins: a save, a reload or another client's edit all arrive
   // as a parameters event, and keeping a stale draft on top of that would be a lie.
@@ -257,6 +267,37 @@ export function PlasmaParametersScreen() {
           </div>
         </section>
 
+        {capabilities && (
+          <section data-e2e="plasma-parameters-group-capabilities">
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {t('parameters.group.capabilities')}
+            </h2>
+            {Object.entries(capabilities.features).filter(([, f]) => !f.available).length ===
+            0 ? (
+              <p className="text-sm text-muted-foreground" data-e2e="plasma-capabilities-all">
+                {t('parameters.capabilities.all')}
+              </p>
+            ) : (
+              <ul className="space-y-1 text-sm">
+                {Object.entries(capabilities.features)
+                  .filter(([, feature]) => !feature.available)
+                  .map(([name, feature]) => (
+                    <li
+                      key={name}
+                      className="text-muted-foreground"
+                      data-e2e={`plasma-capability-${name}`}
+                    >
+                      <span className="text-amber-300">{feature.description}</span>{' '}
+                      {t('parameters.capabilities.needs', {
+                        pins: feature.missing.join(', '),
+                      })}
+                    </li>
+                  ))}
+              </ul>
+            )}
+          </section>
+        )}
+
         <section data-e2e="plasma-parameters-group-gui">
           <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {t('parameters.group.gui')}
@@ -317,10 +358,25 @@ export function PlasmaParametersScreen() {
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {group.keys.map((key) => {
                 const limit = parameters.limits?.[key];
+                const noPin = ineffective.has(key);
                 return (
                   <TouchNumericPickerField
                     key={key}
                     label={t(`parameters.key.${key}`, { defaultValue: key })}
+                    labelTooltip={noPin ? t('parameters.noPin') : undefined}
+                    labelAccessory={
+                      noPin ? (
+                        <span
+                          className="text-xs text-amber-300"
+                          title={t('parameters.noPin')}
+                          data-e2e={`plasma-parameter-ineffective-${key
+                            .replace(/\s+/g, '-')
+                            .toLowerCase()}`}
+                        >
+                          !
+                        </span>
+                      ) : undefined
+                    }
                     unit={limit?.unit || undefined}
                     integerOnly={limit?.decimals === 0}
                     value={valueOf(key)}

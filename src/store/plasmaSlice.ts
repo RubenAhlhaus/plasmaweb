@@ -27,6 +27,7 @@ export const createPlasmaSlice: StateCreator<BoundStore, [], [], PlasmaSlice> = 
   plasmaMaterials: null,
   plasmaParameters: null,
   plasmaAlignment: null,
+  plasmaCapabilities: null,
   plasmaToolpath: null,
   plasmaToolpathError: null,
   plasmaToolpathLoading: false,
@@ -40,6 +41,7 @@ export const createPlasmaSlice: StateCreator<BoundStore, [], [], PlasmaSlice> = 
       },
       plasmaState: snapshot.state ?? initialPlasmaState,
       plasmaMissingPins: snapshot.missingPins ?? [],
+      plasmaCapabilities: snapshot.capabilities ?? prev.plasmaCapabilities,
       // A snapshot without them means no INI, not "forget what we know".
       plasmaMaterials: snapshot.materials ?? prev.plasmaMaterials,
       plasmaParameters: snapshot.parameters ?? prev.plasmaParameters,
@@ -78,6 +80,7 @@ export const createPlasmaSlice: StateCreator<BoundStore, [], [], PlasmaSlice> = 
       plasmaMaterials: null,
       plasmaParameters: null,
       plasmaAlignment: null,
+      plasmaCapabilities: null,
       plasmaToolpath: null,
       plasmaToolpathError: null,
       plasmaToolpathLoading: false,

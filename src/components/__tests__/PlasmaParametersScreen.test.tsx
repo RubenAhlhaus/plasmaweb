@@ -183,3 +183,67 @@ describe('PlasmaParametersScreen — offset probing', () => {
     expect(save!.params.values).toEqual({ 'X axis': 25 });
   });
 });
+
+
+describe('PlasmaParametersScreen — what this LinuxCNC can do', () => {
+  beforeEach(() => {
+    useAppStore.getState().resetPlasma();
+    useAppStore.setState({ backendWebSocket: null });
+  });
+
+  function setCapabilities() {
+    useAppStore.setState({
+      plasmaCapabilities: {
+        features: {
+          movingPierce: {
+            available: false,
+            missing: ['pierce-type'],
+            description: 'moving pierce — wiggle and ramp piercing',
+          },
+          tubeCutting: { available: true, missing: [], description: 'tube cutting' },
+        },
+        ineffectiveParameters: [{ key: 'Slat Height', pin: 'plasmac.slat-height' }],
+        missingPins: ['plasmac.pierce-type', 'plasmac.slat-height'],
+      },
+    });
+  }
+
+  it('names the features this LinuxCNC cannot do, rather than offering them', () => {
+    setParameters();
+    setCapabilities();
+
+    render(<PlasmaParametersScreen />);
+
+    expect(e2e('plasma-capability-movingPierce').textContent).toContain('moving pierce');
+    expect(e2e('plasma-capability-movingPierce').textContent).toContain('pierce-type');
+    // A feature that works is not listed as a problem.
+    expect(findE2e('plasma-capability-tubeCutting')).toBeNull();
+  });
+
+  it('marks a setting that saves but reaches no pin here', () => {
+    setParameters({ 'Slat Height': 5 });
+    setCapabilities();
+
+    render(<PlasmaParametersScreen />);
+
+    // Marked, not hidden: the value is real in the file and a newer build would use it.
+    expect(findE2e('plasma-parameter-ineffective-slat-height')).not.toBeNull();
+    expect(findE2e('plasma-parameter-slat-height')).not.toBeNull();
+    expect(findE2e('plasma-parameter-ineffective-pid-p-gain')).toBeNull();
+  });
+
+  it('says so plainly when the machine supports everything', () => {
+    setParameters();
+    useAppStore.setState({
+      plasmaCapabilities: {
+        features: { tubeCutting: { available: true, missing: [], description: 'tube cutting' } },
+        ineffectiveParameters: [],
+        missingPins: [],
+      },
+    });
+
+    render(<PlasmaParametersScreen />);
+
+    expect(findE2e('plasma-capabilities-all')).not.toBeNull();
+  });
+});

@@ -13,6 +13,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 
+from backend.plasma.capabilities import capabilities
 from backend.plasma.hal_bridge import HalBridge, PinWriteRejected
 from backend.plasma.pins import (
     PLASMAC_COMPONENT,
@@ -80,6 +81,8 @@ class PlasmaService:
             "pins": snapshot,
             "state": state_payload(plasmac.get("state-out"), plasmac.get("stop-type-out")),
             "missingPins": list(self._bridge.missing_pins),
+            # What this LinuxCNC can actually do, and which parameters reach no pin on it.
+            "capabilities": capabilities(self._bridge.missing_pins),
         }
 
     # ---- writes --------------------------------------------------------------------
