@@ -38,7 +38,7 @@ from backend.handlers.plasma import (
     handle_plasma_torch_enable,
     handle_plasma_torch_pulse,
 )
-from backend.plasma.pins import PLASMAC_COMPONENT
+from backend.plasma.pins import PLASMAC_COMPONENT, QTPLASMAC_COMPONENT
 from backend.plasma.service import PlasmaService
 from backend.tests.test_plasma_hal_bridge import FakeHalRuntime, make_bridge
 from backend.tests.test_plasma_publisher import FakeManager
@@ -175,7 +175,8 @@ def test_torch_and_thc_enable_and_height_override_write_their_pins() -> None:
     calls = applied(bridge, runtime)
     assert ("plasmac.torch-enable", "1") in calls
     assert ("plasmac.thc-enable", "0") in calls
-    assert ("plasmac.height-override", "1.5") in calls
+    # The override goes to our own netted pin, not to plasmac's end of the net.
+    assert runtime.components[QTPLASMAC_COMPONENT].values["height_override"] == 1.5
 
 
 def test_torch_pulse_press_and_release() -> None:

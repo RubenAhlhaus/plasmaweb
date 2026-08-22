@@ -115,11 +115,17 @@ class PlasmaService:
     def height_override(self, volts: float) -> None:
         """Absolute THC height override in volts.
 
-        The UI owns the increment (QtPlasmaC's ±1 V buttons and reset) and sends the
-        resulting value; keeping the arithmetic in one place avoids two sources of truth
-        for what the current override is.
+        Written to **our own** ``qtplasmac.height_override`` output rather than to
+        ``plasmac.height-override``. The two are netted together — that is one of the links
+        QtPlasmaC makes and we recreate — which means the plasmac pin already has a writer and
+        HAL refuses a second one. Writing our end is what actually moves the torch, and it is
+        what upstream does (``heightOverridePin.set``).
+
+        The UI owns the increment (QtPlasmaC's ±1 V buttons and reset) and sends the resulting
+        value; keeping the arithmetic in one place avoids two sources of truth for what the
+        current override is.
         """
-        self._bridge.request_write(PLASMAC_COMPONENT, "height-override", float(volts))
+        self._bridge.request_write(QTPLASMAC_COMPONENT, "height_override", float(volts))
 
     def torch_pulse(
         self, action: str, seconds: Optional[float] = None

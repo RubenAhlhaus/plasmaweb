@@ -154,15 +154,19 @@ def test_the_recovery_cancel_button_gives_up() -> None:
 def test_the_height_override_buttons_step_and_reset() -> None:
     panel, bridge, runtime, _gateway = build()
 
+    def override() -> float:
+        bridge._apply_pending_writes()
+        return runtime.components[QTPLASMAC_COMPONENT].values["height_override"]
+
     press(panel, "ext_height_ovr_plus")
     press(panel, "ext_height_ovr_plus")
-    assert float(written(bridge, runtime)["plasmac.height-override"]) == 2.0
+    assert override() == 2.0
 
     press(panel, "ext_height_ovr_minus")
-    assert float(written(bridge, runtime)["plasmac.height-override"]) == 1.0
+    assert override() == 1.0
 
     press(panel, "ext_height_ovr_reset")
-    assert float(written(bridge, runtime)["plasmac.height-override"]) == 0.0
+    assert override() == 0.0
 
 
 def test_run_pause_abort_reach_the_gateway() -> None:

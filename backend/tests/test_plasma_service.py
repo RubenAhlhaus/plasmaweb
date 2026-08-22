@@ -79,7 +79,9 @@ def test_torch_and_thc_enable_and_height_override() -> None:
     calls = applied(bridge, runtime)
     assert ("plasmac.torch-enable", "1") in calls
     assert ("plasmac.thc-enable", "0") in calls
-    assert ("plasmac.height-override", "-2.5") in calls
+    # Our own pin, not plasmac's: the two are netted, so plasmac's already has a writer.
+    assert runtime.components[QTPLASMAC_COMPONENT].values["height_override"] == -2.5
+    assert not any(call[0] == "plasmac.height-override" for call in calls)
 
 
 def test_torch_pulse_press_follows_the_qtplasmac_protocol() -> None:
