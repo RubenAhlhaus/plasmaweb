@@ -594,6 +594,37 @@ enough — the publisher only hears from the bridge when a pin changed, and an i
 produces no diff, which is exactly when a write is most likely to be refused — so a pending
 error now counts as a change in its own right.
 
+**Fifth cluster done and verified on the sim VM: scribe, spotting, and the bounds every
+parameter should have had.** Scribe and spotting need no port on the GUI side — they are
+realtime, selected by `M3 $1` and `M3 $2` through `spindle.1.on`/`spindle.2.on`, and their four
+settings already travel from `[PLASMA_PARAMETERS]` to their pins. What was missing was proof
+they work through this UI, and the bounds QtPlasmaC's spinboxes carry.
+
+| Checked on the VM | Result |
+|---|---|
+| `M3 $1` with a 3 s arming and 2 s on delay | plasmac to `SCRIBING`, `scribe-arm` at once, `scribe-on` 3.0 s later, motion held until both delays had run |
+| `M3 $2` with `Spotting Time` 250 | torch on for 250, 252, 251 ms |
+| the same at 800 | 802, 851, 801 ms — milliseconds, as the component reads it |
+| `Height Per Volt` 10, `Offset Feed Rate` 5000, `Spotting Time` 20000 | each refused with its own bound: `out_of_range`, naming the key |
+| the bounds this machine reports | `Setup Feed Rate` ≤ 3600, `Offset Feed Rate` 100–350, `Safe Height` ≤ 100.002 — all three read off its INI |
+
+Bounding them is not tidiness. The values land on live `plasmac.*` setpoints, and a
+`Height Per Volt` of 10 instead of 0.1 makes every volt of arc error command 100 mm of Z. The
+static bounds come from `qtplasmac.ui`, the machine-dependent three from the INI the way
+`qtplasmac_handler.py:276` derives them, and `Probe Feed Rate` is capped at `Setup Feed Rate`
+because a probe that descends faster than the setup rate is a torch into the slats. An
+out-of-range save is refused, not clamped: a clamped value looks accepted, and the operator
+goes on believing the machine has it.
+
+Two units on our PARAMETERS tab were wrong, and the sim settled both. **`Spotting Time` is
+milliseconds** — upstream's spinbox says `mS`, the component divides by 1000, and the measured
+torch-on window follows the number exactly; labelling it seconds would have made every spot
+1000× too short. **`Void Sense Slope` is V/sec** and had carried no unit at all.
+
+One thing worth knowing for any later torch test: with `plasmac.torch-enable` false the machine
+walks the whole cut sequence without ever firing, skipping `TORCH_ON` and `ARC_OK`. A spot that
+appears to do nothing is usually that, not a broken spot.
+
 Hole cutting, both manual (`M67 E3 Q`) and automatic (`#<holes>`, `#<h_diameter>`,
 `#<h_velocity>`), needs no port: it is handled by the `qtplasmac_gcode` filter LinuxCNC runs on
 load, the same filter M3 verified is still applied. THC tuning, auto-volts, velocity and void
