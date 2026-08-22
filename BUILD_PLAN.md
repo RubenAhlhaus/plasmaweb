@@ -735,6 +735,25 @@ That also settles **moving pierce** and **tube cutting** for this milestone: bot
 2.9.4 does not export, so there is nothing to implement against here beyond refusing to pretend
 otherwise. A machine on 2.10 gets the features; this one gets told why it does not.
 
+**Tenth cluster done and verified on the sim VM: laser cut recovery.** Restarting a cut that
+lost its arc means finding exactly where it stopped, and the torch is in the way of looking at
+it. QtPlasmaC's answer (`laser_pressed`, `qtplasmac_handler.py:5392`) is to offset the axes by
+the laser offset while paused, so the *laser* lands on the spot; the recovery pad nudges from
+there and plasmac reverses the offset on resume (`plasmac.comp:1122`).
+
+| Checked on the VM, mid-cut | Result |
+|---|---|
+| pause at `CUT_MODE_01`, press LASER | counts −2 500 000 written for a −25 mm laser offset at a 1e−5 offset scale |
+| what the machine did with them | `x-offset-current` settled at exactly −25 mm, `laser-recovery-state` reached ON |
+| `laser-recovery-start` afterwards | already back to 0 — cleared the moment plasmac acted |
+| `qtplasmac.laser_on` | on while offset, off after CANCEL, with the recovery dropped |
+
+The start pin is a *request*, not a state, and that distinction is load-bearing: left raised it
+would re-arm the laser offset the next time the machine paused, with the operator nowhere near
+the button. Upstream clears it whenever `laser-recovery-state` changes, so the publisher does
+the same from the pin diff it already receives — which also means it clears with no browser
+connected.
+
 Hole cutting, both manual (`M67 E3 Q`) and automatic (`#<holes>`, `#<h_diameter>`,
 `#<h_velocity>`), needs no port: it is handled by the `qtplasmac_gcode` filter LinuxCNC runs on
 load, the same filter M3 verified is still applied. THC tuning, auto-volts, velocity and void
