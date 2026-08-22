@@ -656,6 +656,30 @@ table can ask the machine for a position it does not have.
 The camera's live view is the one part not ported: it needs a video feed this UI has no way to
 show yet. The alignment itself works from the camera offset exactly as from the laser's.
 
+**Seventh cluster done and verified on the sim VM: the machine log, and severity.** The
+realtime component reports its faults through `rtapi_print_msg`, LinuxCNC carries them out on
+the error channel, and until now they were toasted and lost. Whoever walks up to a paused
+machine needs to know *why* it paused, which is what QtPlasmaC's machine log is for
+(`qtplasmac.adoc` "Error Messages"). `plasma/machine_log.py` keeps them, classifies them, and
+saves them beside the machine's config under upstream's own naming.
+
+| Checked on the VM | Result |
+|---|---|
+| a real fault provoked with `Arc Voltage Scale` 0 and `Arc Maximum Starts` 1 | `no arc detected after 1 start attempts / program is paused.` recorded and classified `critical` |
+| the same log asked for `severity: critical` | one entry, the arc failure, not the unrelated limit warning |
+| SAVE | `machine_log_26-08-22_22-59-59.txt` in the config directory, beside the one QtPlasmaC itself left |
+| the LOG tab in the browser | history newest first, the critical message pinned above it |
+
+Severity is upstream's own split, matched against the wording its documentation lists: critical
+means the program paused and the cause has to be cleared, warning is informational, and
+anything unrecognised stays `info` rather than being guessed at. The ambiguous ones are settled
+by the probe-test wording — the same bottom limit is a warning during a probe test and critical
+while cutting — so the warning list is checked first.
+
+That cluster fixed a real hole of our own: **the error channel was only drained when a browser
+was connected.** With no clients the publisher skipped the poll entirely, throwing away exactly
+the faults somebody would come looking for later. It now records first and broadcasts second.
+
 Hole cutting, both manual (`M67 E3 Q`) and automatic (`#<holes>`, `#<h_diameter>`,
 `#<h_velocity>`), needs no port: it is handled by the `qtplasmac_gcode` filter LinuxCNC runs on
 load, the same filter M3 verified is still applied. THC tuning, auto-volts, velocity and void
