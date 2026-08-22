@@ -799,6 +799,29 @@ the remembered toggles, and now the external buttons.
 - Port `qtplasmac.style` (21 KB Qt stylesheet) semantics to CSS custom properties so the
   existing colour options in `.prefs` `COLOR_OPTIONS` drive the web theme — same knobs,
   same names (`:3017`–`:3128`).
+**Colours done and verified on the sim VM.** QtPlasmaC themes itself by string-replacing nine
+placeholders in a 21 KB Qt stylesheet with the colours from `[COLOR_OPTIONS]`. Porting the
+stylesheet would mean porting Qt widget selectors, which say nothing about a web UI; porting the
+nine colours is the part that matters, because a shop that themed its table yellow-on-black
+should not find this screen blue. `plasma/colors.py` owns them, `lib/plasmaTheme.ts` decides
+which role each one plays here.
+
+| Checked on the VM | Result |
+|---|---|
+| the UI on load | `#16160e` background, `#ffee06` text — the machine's own colours, from its prefs |
+| changing the foreground on the PARAMETERS tab | `Foreground = #00ff88` written to `[COLOR_OPTIONS]`, the page retinted live |
+| changing it back | `#ffee06` restored in both the file and the page |
+
+Two decisions worth stating. The colours are applied at the *document root*, so every screen
+follows and not only the plasma ones — a shop runs one machine with one look, and half a themed
+UI is worse than none. And the text on a highlight is chosen by **luminance**: a stylesheet can
+hand-pair its colours, but nothing can hand-pair a whole web UI against nine arbitrary ones, so
+the single contrast decision that matters is computed rather than hoped for.
+
+A colour that is not a colour is refused, and one bad colour refuses the whole write: the file
+is read by both GUIs, and eight good colours with one broken one is harder to recover from than
+a rejected change.
+
 - Layout variants matching the three shipped screens: 16×9, 4×3, 9×16
   (`share/qtvcp/screens/qtplasmac{,_4x3,_9x16}`), as responsive breakpoints.
 - Virtual keyboard custom layouts (`:2525`), tooltips (port `tooltips.py`, 548 lines),
