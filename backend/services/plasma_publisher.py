@@ -110,6 +110,8 @@ class PlasmaPublisher:
                 merged.setdefault(component, {}).update(values)
 
     async def publish_diff(self, diff: Snapshot) -> None:
+        # Before the empty-diff exit: a write HAL refused arrives with no pin change behind it.
+        await self._report_write_errors()
         if not diff:
             return
         # The M190 handshake has to be answered whether or not a browser is listening.
@@ -118,7 +120,6 @@ class PlasmaPublisher:
         for event, payload in self._panel_events(diff):
             await self._broadcast(event, payload)
         await self._handle_probe_error(diff)
-        await self._report_write_errors()
         if not self._manager.active_connections:
             return
         await self._manager.broadcast_json(

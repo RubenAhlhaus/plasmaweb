@@ -233,3 +233,16 @@ def test_a_write_hal_refused_is_reported_rather_than_only_logged() -> None:
     assert events and "pin has a writer" in events[0]["payload"]["message"]
     # Reported once, then forgotten.
     assert bridge.take_write_errors() == ()
+
+
+def test_a_refused_write_is_reported_even_when_no_pin_moved() -> None:
+    """An idle machine produces no diff, and that is when a write is most likely refused."""
+    from backend.services.plasma_publisher import WRITE_ERROR_EVENT
+
+    publisher, manager, bridge, _runtime = build()
+    bridge._write_errors.append("motion.digital-out-00: pin is not writable")
+
+    asyncio.run(publisher.publish_diff({}))
+
+    events = [msg for msg in manager.broadcasts if msg["event"] == WRITE_ERROR_EVENT]
+    assert events and "not writable" in events[0]["payload"]["message"]

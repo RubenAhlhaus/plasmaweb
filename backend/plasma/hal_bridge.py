@@ -369,7 +369,11 @@ class HalBridge:
         with self._lock:
             diff = _diff_snapshots(self._snapshot, current)
             self._snapshot = current
-        if diff and self._on_change is not None:
+        # A refused write has to be reported even when nothing moved: an idle machine
+        # produces no diff, and that is exactly when a write is most likely to be refused.
+        with self._lock:
+            pending_errors = bool(self._write_errors)
+        if (diff or pending_errors) and self._on_change is not None:
             self._on_change(
                 {component: dict(values) for component, values in current.items()}, diff
             )

@@ -453,3 +453,19 @@ def test_apply_startup_values_requires_ready() -> None:
     bridge.create_component()
     with pytest.raises(RuntimeError):
         bridge.apply_startup_values({"gcode_scale": 1.0})
+
+
+def test_a_pending_write_error_wakes_the_publisher_without_a_diff() -> None:
+    """The publisher only ever hears from the bridge on change, so errors must count as one."""
+    runtime = FakeHalRuntime()
+    bridge = make_bridge(runtime)
+    bridge.poll_once()  # settle, so a second poll produces no diff
+    seen = []
+    bridge._on_change = lambda snapshot, diff: seen.append(diff)
+
+    bridge.poll_once()
+    assert seen == []
+
+    bridge._write_errors.append("motion.digital-out-00: pin is not writable")
+    bridge.poll_once()
+    assert seen == [{}]
