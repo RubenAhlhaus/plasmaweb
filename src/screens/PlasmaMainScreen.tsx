@@ -5,6 +5,8 @@ import { CoordinatesDisplay } from '@/components/CoordinatesDisplay';
 import { DirectionalControl } from '@/components/DirectionalControl';
 import { IncrementSelector } from '@/components/IncrementSelector';
 import { CutRecoveryPad } from '@/components/plasma/CutRecoveryPad';
+import { usePlasmaScreenFormat } from '@/hooks/usePlasmaScreenFormat';
+import type { PlasmaScreenFormat } from '@/lib/plasmaScreenFormat';
 import { PowerMaxPanel } from '@/components/plasma/PowerMaxPanel';
 import { SheetAlignControl } from '@/components/plasma/SheetAlignControl';
 import { SingleCutControl } from '@/components/plasma/SingleCutControl';
@@ -28,6 +30,25 @@ import { useAppStore } from '@/store';
  * therefore blanks the display but cannot change machine state — torch enable, THC enable
  * and friends are latched in HAL, not here.
  */
+/**
+ * How the screen divides itself, per format. Upstream ships three whole screens for this; the
+ * arrangement is the only thing that differs between them, so it is the only thing here that
+ * does. On a tall panel the tools stack under the readouts rather than beside them, because a
+ * 25 rem column beside a 750 px screen leaves nothing for the readouts.
+ */
+const MAIN_GRID: Record<PlasmaScreenFormat, string> = {
+  wide: 'grid-cols-[minmax(0,1fr)_25rem]',
+  standard: 'grid-cols-[minmax(0,1fr)_20rem]',
+  tall: 'grid-rows-[minmax(0,1fr)_auto]',
+};
+
+/** The readouts are the first thing to lose columns when the screen narrows. */
+const READOUT_GRID: Record<PlasmaScreenFormat, string> = {
+  wide: 'grid-cols-4',
+  standard: 'grid-cols-2 xl:grid-cols-4',
+  tall: 'grid-cols-2',
+};
+
 export function PlasmaMainScreen() {
   const { t } = useTranslation('plasma');
   const jogPanelRef = useRef<HTMLDivElement>(null);
@@ -78,17 +99,23 @@ export function PlasmaMainScreen() {
     );
   }
 
+  const format = usePlasmaScreenFormat();
+
   // min-h + leading-tight rather than a fixed height: "Cycle start" and "Torch pulse" wrap
   // to two lines in German and in narrow kiosk widths.
   const cycleButtonClass =
     'flex min-h-[3.25rem] flex-1 items-center justify-center rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-center text-sm font-semibold uppercase leading-tight tracking-wide text-foreground transition-colors hover:border-white/25';
 
   return (
-    <div className="grid h-full min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_25rem]" data-e2e="plasma-main">
+    <div
+      className={`grid h-full min-h-0 gap-4 ${MAIN_GRID[format]}`}
+      data-e2e="plasma-main"
+      data-format={format}
+    >
       <div className="flex min-h-0 flex-col gap-4 overflow-y-auto">
         <CoordinatesDisplay />
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className={`grid gap-3 ${READOUT_GRID[format]}`}>
           <PlasmaReadout
             label={t('readout.arcVoltage')}
             value={arcVoltage}

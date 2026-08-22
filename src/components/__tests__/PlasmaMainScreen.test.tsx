@@ -306,3 +306,47 @@ describe('PlasmaMainScreen — single cut', () => {
     ).toContain('cycle start');
   });
 });
+
+
+describe('PlasmaMainScreen — screen format', () => {
+  beforeEach(() => {
+    useAppStore.getState().resetPlasma();
+    useAppStore.setState({ backendWebSocket: null });
+  });
+
+  function atSize(width: number, height: number) {
+    window.innerWidth = width;
+    window.innerHeight = height;
+    window.dispatchEvent(new Event('resize'));
+  }
+
+  it('arranges itself the way QtPlasmaC arranges its three screens', () => {
+    snapshot();
+    atSize(1348, 866);
+    render(<PlasmaMainScreen />);
+
+    // 16:9: the tools sit in a column beside the readouts.
+    const main = document.querySelector('[data-e2e="plasma-main"]') as HTMLElement;
+    expect(main.getAttribute('data-format')).toBe('wide');
+    expect(main.className).toContain('grid-cols-');
+  });
+
+  it('stacks on a tall panel, where a 25rem column would leave nothing beside it', () => {
+    snapshot();
+    atSize(750, 1302);
+    render(<PlasmaMainScreen />);
+
+    const main = document.querySelector('[data-e2e="plasma-main"]') as HTMLElement;
+    expect(main.getAttribute('data-format')).toBe('tall');
+    expect(main.className).toContain('grid-rows-');
+  });
+
+  it('a 4:3 panel is its own arrangement, not the wide one squeezed', () => {
+    snapshot();
+    atSize(1002, 816);
+    render(<PlasmaMainScreen />);
+
+    const main = document.querySelector('[data-e2e="plasma-main"]') as HTMLElement;
+    expect(main.getAttribute('data-format')).toBe('standard');
+  });
+});
