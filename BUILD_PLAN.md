@@ -508,6 +508,25 @@ scribe (`:2408`), spotting (`:2467`), tube cutting (`:2513`), laser and camera o
 PowerMax RS485 comms (`:4020`, port `pmx485-test.py`), external HAL pins (`:3753`),
 keyboard shortcuts (`:2542`), error logging and critical/warning messages (`:2834`).
 
+**First cluster done and verified on the sim VM:** probe test, ohmic test, cut recovery and
+consumable change — `PlasmaService` methods, four commands, and a recovery pad on the MAIN tab.
+
+| Checked on the VM | Result |
+|---|---|
+| OHMIC TEST | `plasmac.ohmic-test` true while held, false on release |
+| PROBE TEST | `probe-test` raised, plasmac walked PROBE_HEIGHT → PROBE_DOWN; a second press aborted it and the machine went PROBE_TEST → END_JOB → IDLE |
+| Recovery pad, paused mid-cut | NE then N moved the torch one and two kerf widths — `x-offset` 99999 and `y-offset` 199998 counts of a 1e-5 `offset-scale` — with plasmac in CUT_RECOVERY_ON |
+| FWD | `paused-motion-speed` 1.0 and PAUSED_MOTION while held, 0.0 on release with the recovery still armed |
+| CANCEL | offsets back to zero and the recovery dropped |
+| Pad while running | disabled: plasmac only accepts recovery while paused, and it is the authority on that |
+
+Two decisions worth keeping. **The probe-test timer lives in the backend**, because a probe
+test lowers the torch until it senses material and a closed browser must not be able to leave
+it doing that; the publisher drops the pin on `probe-test-error` for the same reason. And the
+values that reach these pins are bounded here — 30 s of probing, 100% of the cut feed rate, ten
+kerf widths per press — not because plasmac needs the help, but because they arrive over a
+WebSocket and "probe for an hour" should not be expressible.
+
 ### M6 — Look, feel, customisability
 
 - Port `qtplasmac.style` (21 KB Qt stylesheet) semantics to CSS custom properties so the
