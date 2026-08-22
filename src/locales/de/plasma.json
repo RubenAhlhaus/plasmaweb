@@ -257,5 +257,13 @@
     "reverse": "Zurück",
     "cancel": "Abbrechen",
     "offset": "Versatz X {{x}} Y {{y}}"
+  },
+  "singleCut": {
+    "title": "Einzelschnitt",
+    "x": "X-Länge",
+    "y": "Y-Länge",
+    "cut": "Schnitt laden",
+    "hint": "Schneidet ab der aktuellen Brennerposition.",
+    "loaded": "Geladen — Cycle Start zum Schneiden."
   }
 }

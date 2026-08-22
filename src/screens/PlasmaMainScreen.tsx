@@ -5,6 +5,7 @@ import { CoordinatesDisplay } from '@/components/CoordinatesDisplay';
 import { DirectionalControl } from '@/components/DirectionalControl';
 import { IncrementSelector } from '@/components/IncrementSelector';
 import { CutRecoveryPad } from '@/components/plasma/CutRecoveryPad';
+import { SingleCutControl } from '@/components/plasma/SingleCutControl';
 import { HeightOverrideControl } from '@/components/plasma/HeightOverrideControl';
 import { PlasmaLed } from '@/components/plasma/PlasmaLed';
 import { PlasmaReadout } from '@/components/plasma/PlasmaReadout';
@@ -259,6 +260,7 @@ export function PlasmaMainScreen() {
 
       <div ref={jogPanelRef} className="flex min-h-0 flex-col gap-4 overflow-y-auto">
         <CutRecoveryPad paused={programPaused || pausedMotion} />
+        <SingleCutControl />
         <div className="flex items-start gap-3">
           {/* The selector is a fixed-width column of increments; letting it shrink clips
               the labels, so the jog pad takes the remaining space instead. */}

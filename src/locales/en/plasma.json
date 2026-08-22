@@ -257,5 +257,13 @@
     "reverse": "Rev",
     "cancel": "Cancel recovery",
     "offset": "Offset X {{x}} Y {{y}}"
+  },
+  "singleCut": {
+    "title": "Single cut",
+    "x": "X length",
+    "y": "Y length",
+    "cut": "Load cut",
+    "hint": "Cuts from where the torch is now.",
+    "loaded": "Loaded — press cycle start to cut."
   }
 }

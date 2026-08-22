@@ -228,3 +228,44 @@ describe('PlasmaMainScreen — probing and cut recovery', () => {
     expect(sent[0].params).toEqual({ action: 'cancel' });
   });
 });
+
+describe('PlasmaMainScreen — single cut', () => {
+  beforeEach(() => {
+    useAppStore.getState().resetPlasma();
+    useAppStore.setState({ backendWebSocket: null });
+  });
+
+  it('needs a length before it will load anything', () => {
+    snapshot();
+    render(<PlasmaMainScreen />);
+
+    expect(
+      (document.querySelector('[data-e2e="plasma-single-cut-load"]') as HTMLButtonElement).disabled,
+    ).toBe(true);
+  });
+
+  it('loads the cut rather than starting it', async () => {
+    const sent = installFakeSocket();
+    snapshot();
+    render(<PlasmaMainScreen />);
+
+    // Set a length through the keypad the way an operator would.
+    await userEvent.click(document.querySelector('[data-e2e="plasma-single-cut-x"]') as HTMLElement);
+    const entry = document.querySelector('[role=dialog] input') as HTMLInputElement;
+    await userEvent.clear(entry);
+    await userEvent.type(entry, '150');
+    await userEvent.keyboard('{Enter}');
+    await userEvent.click(
+      document.querySelector('[data-e2e="plasma-single-cut-load"]') as HTMLElement,
+    );
+
+    expect(sent.map((command) => [command.action, command.params])).toEqual([
+      ['single_cut', { xLength: 150, yLength: 0 }],
+    ]);
+    // Nothing was started: cycle start stays a separate, deliberate act.
+    expect(sent.some((command) => command.action.includes('auto'))).toBe(false);
+    expect(
+      document.querySelector('[data-e2e="plasma-single-cut-hint"]')?.textContent,
+    ).toContain('cycle start');
+  });
+});

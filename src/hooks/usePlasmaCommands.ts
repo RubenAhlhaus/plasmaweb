@@ -68,6 +68,10 @@ export function usePlasmaCommands() {
       torchPulse: (action: TorchPulseAction, seconds?: number) =>
         send('torch_pulse', seconds === undefined ? { action } : { action, seconds }),
       probeTest: (seconds: number) => send('probe_test', { seconds }),
+      singleCut: (xLength: number, yLength: number) =>
+        send('single_cut', { xLength, yLength }),
+      saveOffsetProbing: (values: Record<string, number>) =>
+        send('save_offset_probing', { values }),
       ohmicTest: (enabled: boolean) => send('ohmic_test', { enabled }),
       consumableChange: (enabled: boolean) => send('consumable_change', { enabled }),
       cutRecovery: (params: {
