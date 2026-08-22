@@ -540,6 +540,37 @@ so pressing cycle start stays a separate deliberate act — which is what upstre
 too. `G53` on both moves is the load-bearing detail; the cut belongs where the torch is standing
 rather than where a work offset says the origin is.
 
+**Third cluster done and verified on the sim VM: the machine's own buttons.** A plasma table has
+physical controls wired into HAL against the `qtplasmac.ext_*` pins this component exports, and
+QtPlasmaC treats each edge as if the matching on-screen control had been used. `plasma/
+external_panel.py` does the same, driven from the pin diffs the publisher already receives.
+
+| Checked on the VM (driven with `halcmd setp`) | Result |
+|---|---|
+| `ext_torch_enable` pressed twice | `plasmac.torch-enable` TRUE then FALSE — a toggle per press, not a level follower |
+| `ext_ohmic` held | `plasmac.ohmic-test` TRUE while held, FALSE on release |
+| `ext_height_ovr_plus` ×2, then reset | height override 2 V, then 0 |
+| `ext_run_pause` ×3 | started the program (CUT_HEIGHT), paused it, resumed it — one physical button, reading the machine to decide which |
+| `ext_abort` | program stopped, plasmac back to IDLE |
+
+Three kinds of pin, and the difference is the whole design: **toggles** act on the press only,
+because a latching switch following its own level would fight the on-screen control;
+**momentary** buttons follow the pin while held, so release matters as much as press; **program
+control** acts on the rising edge. A pin not handled yet reports itself once — a wired button
+that silently does nothing is worse than one that says so.
+
+That test found a real bug of its own: **every height override had been silently refused since
+`apply_nets` landed.** `plasmac.height-override` is netted from `qtplasmac.height_override`, so
+the plasmac end already has a writer and HAL refuses a second — the write has to go to our own
+pin, which is what upstream does. The M1 verification predates the nets, which is exactly why it
+did not catch it.
+
+Hole cutting, both manual (`M67 E3 Q`) and automatic (`#<holes>`, `#<h_diameter>`,
+`#<h_velocity>`), needs no port: it is handled by the `qtplasmac_gcode` filter LinuxCNC runs on
+load, the same filter M3 verified is still applied. THC tuning, auto-volts, velocity and void
+anti-dive, mesh mode and ignore-arc-OK are all reachable already through the PARAMETERS tab,
+the remembered toggles, and now the external buttons.
+
 ### M6 — Look, feel, customisability
 
 - Port `qtplasmac.style` (21 KB Qt stylesheet) semantics to CSS custom properties so the
