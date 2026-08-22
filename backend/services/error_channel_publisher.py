@@ -4,6 +4,7 @@ from contextlib import suppress
 from typing import Optional
 
 from backend.adapters.linuxcnc_gateway import LinuxCncGateway
+from backend.plasma.machine_log import MachineLog
 from backend.contracts.messages import LinuxCncErrorMessage
 from backend.ws.connection_manager import ConnectionManager
 
@@ -24,10 +25,12 @@ class ErrorChannelPublisher:
         manager: ConnectionManager,
         gateway: LinuxCncGateway,
         poll_interval_s: float,
+        machine_log: Optional["MachineLog"] = None,
     ) -> None:
         self._manager = manager
         self._gateway = gateway
         self._poll_interval_s = poll_interval_s
+        self._machine_log = machine_log
         self._task: Optional[asyncio.Task[None]] = None
 
     def start(self) -> None:
@@ -46,12 +49,17 @@ class ErrorChannelPublisher:
         while True:
             try:
                 await asyncio.sleep(self._poll_interval_s)
-                if not self._manager.active_connections:
-                    continue
+                # Drained whether or not anyone is connected: a fault that happened while
+                # nobody had the page open is exactly the one somebody needs to read later,
+                # and the machine log is where they will go looking for it.
                 one = self._gateway.poll_error_channel_once()
                 if one is None:
                     continue
                 kind, message = one
+                if self._machine_log is not None:
+                    self._machine_log.record(kind, message)
+                if not self._manager.active_connections:
+                    continue
                 msg = LinuxCncErrorMessage(kind=kind, message=message)
                 await self._manager.broadcast_json(msg.model_dump(exclude_none=True))
             except asyncio.CancelledError:

@@ -105,6 +105,11 @@ class PlasmaConfigService:
         self._default: Optional[int] = None
 
     @property
+    def prefs_path(self) -> str:
+        """The machine's prefs file; also where its logs and material file live."""
+        return self._files.prefs_path
+
+    @property
     def selected_material(self) -> Tuple[int, str]:
         """``(number, name)`` of the material on the setpoints, for anything generating G-code."""
         material = self._materials.get(self._selected) if self._selected is not None else None

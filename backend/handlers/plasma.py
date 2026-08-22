@@ -1275,6 +1275,61 @@ async def _broadcast_alignment(ctx: AppContext, status: Dict[str, Any]) -> None:
     )
 
 
+class PlasmaMachineLogParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    #: Newest entries only, when a client does not want the whole history.
+    limit: Optional[int] = None
+    #: ``critical``, ``warning`` or ``info``.
+    severity: Optional[str] = None
+
+
+async def handle_plasma_get_machine_log(
+    command: CommandEnvelope, ctx: AppContext
+) -> DispatchResult:
+    """What the machine said, and the last critical message it said.
+
+    A toast that has already faded is no use to whoever comes back to a paused machine and has
+    to work out why it stopped.
+    """
+    if ctx.machine_log is None:
+        return DispatchResult(
+            ack=build_error(command.commandId, "log_unavailable", "There is no machine log.")
+        )
+    try:
+        params = PlasmaMachineLogParams.model_validate(command.params or {})
+    except ValidationError:
+        return _invalid(
+            command, 'plasma.get_machine_log params: {"limit"?: int, "severity"?: string}'
+        )
+    return DispatchResult(
+        ack=build_ok(
+            command.commandId,
+            {
+                "entries": ctx.machine_log.entries(params.limit, params.severity),
+                "lastCritical": ctx.machine_log.last_critical(),
+                "count": len(ctx.machine_log),
+            },
+        )
+    )
+
+
+async def handle_plasma_save_machine_log(
+    command: CommandEnvelope, ctx: AppContext
+) -> DispatchResult:
+    """Write the log beside the machine's config, as QtPlasmaC does on shutdown."""
+    if ctx.machine_log is None or ctx.plasma_config is None:
+        return DispatchResult(
+            ack=build_error(command.commandId, "log_unavailable", "There is no machine log.")
+        )
+    directory = os.path.dirname(os.path.abspath(ctx.plasma_config.prefs_path))
+    path = await asyncio.to_thread(ctx.machine_log.save, directory)
+    if path is None:
+        return DispatchResult(
+            ack=build_error(command.commandId, "nothing_to_save", "The machine log is empty.")
+        )
+    return DispatchResult(ack=build_ok(command.commandId, {"path": path}))
+
+
 class PlasmaUserButtonParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
     number: int

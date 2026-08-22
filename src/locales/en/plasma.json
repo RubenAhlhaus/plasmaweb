@@ -62,7 +62,8 @@
     "material": "Material",
     "parameters": "Parameters",
     "preview": "Preview",
-    "conversational": "Conversational"
+    "conversational": "Conversational",
+    "log": "Log"
   },
   "material": {
     "unavailable": "No material file for this machine.",
@@ -301,5 +302,13 @@
     "cancel": "Cancel",
     "angle": "Plate angle {{angle}}°",
     "failed": "The machine refused the alignment step."
+  },
+  "log": {
+    "title": "Machine log",
+    "refresh": "Refresh",
+    "criticalOnly": "Critical only",
+    "save": "Save to file",
+    "lastCritical": "Last critical:",
+    "empty": "The machine has not said anything yet."
   }
 }

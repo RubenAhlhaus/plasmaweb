@@ -62,7 +62,8 @@
     "material": "Material",
     "parameters": "Parameter",
     "preview": "Vorschau",
-    "conversational": "Conversational"
+    "conversational": "Conversational",
+    "log": "Protokoll"
   },
   "material": {
     "unavailable": "Keine Materialdatei für diese Maschine.",
@@ -301,5 +302,13 @@
     "cancel": "Abbrechen",
     "angle": "Blechwinkel {{angle}}°",
     "failed": "Die Maschine hat den Ausrichtungsschritt abgelehnt."
+  },
+  "log": {
+    "title": "Maschinenprotokoll",
+    "refresh": "Aktualisieren",
+    "criticalOnly": "Nur kritisch",
+    "save": "In Datei speichern",
+    "lastCritical": "Letzter kritischer Fehler:",
+    "empty": "Die Maschine hat noch nichts gemeldet."
   }
 }

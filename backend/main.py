@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 
@@ -63,7 +64,9 @@ from backend.handlers.plasma import (
     handle_plasma_alignment_cancel,
     handle_plasma_alignment_press,
     handle_plasma_get_alignment,
+    handle_plasma_get_machine_log,
     handle_plasma_save_offset_probing,
+    handle_plasma_save_machine_log,
     handle_plasma_save_peripheral_offset,
     handle_plasma_save_parameters,
     handle_plasma_select_material,
@@ -107,6 +110,7 @@ from backend.config import (
 )
 from backend.application.context import AppContext
 from backend.plasma.alignment import SheetAlignment
+from backend.plasma.machine_log import MachineLog
 from backend.plasma.machine_files import ini_path as plasma_ini_path
 from backend.plasma.startup import create_plasma_stack
 from backend.services.plasma_publisher import PlasmaPublisher
@@ -151,12 +155,17 @@ plasma_alignment = (
     else None
 )
 
+# The machine log outlives any browser session, so it is created unconditionally — even a
+# machine with no plasma config still says things worth keeping.
+machine_log = MachineLog()
+
 app_context = AppContext(
     manager=manager,
     gateway=gateway,
     plasma=plasma_service,
     plasma_config=plasma_config,
     plasma_alignment=plasma_alignment,
+    machine_log=machine_log,
 )
 plasma_publisher = (
     PlasmaPublisher(
@@ -184,6 +193,7 @@ error_channel_publisher = ErrorChannelPublisher(
     manager=manager,
     gateway=gateway,
     poll_interval_s=ERROR_CHANNEL_POLL_INTERVAL_S,
+    machine_log=machine_log,
 )
 
 mdi_manual_revert_poller = MdiManualRevertPoller(
@@ -283,6 +293,8 @@ command_bus.register("plasma", "single_cut", handle_plasma_single_cut)
 command_bus.register("plasma", "get_user_buttons", handle_plasma_get_user_buttons)
 command_bus.register("plasma", "user_button", handle_plasma_user_button)
 command_bus.register("plasma", "save_offset_probing", handle_plasma_save_offset_probing)
+command_bus.register("plasma", "get_machine_log", handle_plasma_get_machine_log)
+command_bus.register("plasma", "save_machine_log", handle_plasma_save_machine_log)
 command_bus.register("plasma", "get_alignment", handle_plasma_get_alignment)
 command_bus.register("plasma", "alignment_press", handle_plasma_alignment_press)
 command_bus.register("plasma", "alignment_cancel", handle_plasma_alignment_cancel)
@@ -324,6 +336,10 @@ async def lifespan(app: FastAPI):
         plasma_bridge.stop()
     if plasma_publisher is not None:
         await plasma_publisher.stop()
+    # QtPlasmaC saves its log on shutdown, and the next shift reads it to find out what the
+    # machine did overnight. Same convention, same directory, so there is one history.
+    if plasma_config is not None:
+        machine_log.save(os.path.dirname(os.path.abspath(plasma_config.prefs_path)))
     gateway.shutdown_blocking_executor()
 
 

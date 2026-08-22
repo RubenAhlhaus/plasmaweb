@@ -1385,3 +1385,90 @@ def test_an_unknown_peripheral_is_refused_by_the_handler(tmp_path) -> None:
     result = run(handle_plasma_save_peripheral_offset, command("save_peripheral_offset", {"kind": "torch", "values": {}}), ctx)
 
     assert result.ack.error.code == "unknown_peripheral"
+
+
+# ---- the machine log -------------------------------------------------------------------
+
+
+def build_log_ctx(tmp_path, messages=(("operator_error", "float switch activated"),)):
+    from backend.plasma.machine_log import MachineLog
+
+    class FakeConfigService:
+        prefs_path = str(tmp_path / "metric.prefs")
+
+    log = MachineLog()
+    for kind, message in messages:
+        log.record(kind, message)
+    return AppContext(
+        manager=FakeManager(),
+        gateway=object(),
+        plasma_config=FakeConfigService(),
+        machine_log=log,
+    )
+
+
+def test_the_machine_log_comes_back_with_the_last_critical_message(tmp_path) -> None:
+    from backend.handlers.plasma import handle_plasma_get_machine_log
+
+    ctx = build_log_ctx(
+        tmp_path,
+        (
+            ("operator_error", "float switch activated"),
+            ("operator_text", "Tool 0: No Tool"),
+        ),
+    )
+
+    result = run(handle_plasma_get_machine_log, command("get_machine_log"), ctx)
+
+    assert result.ack.ok
+    assert result.ack.result["count"] == 2
+    assert result.ack.result["lastCritical"]["message"] == "float switch activated"
+    assert result.ack.result["entries"][0]["severity"] == "critical"
+
+
+def test_the_log_can_be_asked_for_criticals_only(tmp_path) -> None:
+    from backend.handlers.plasma import handle_plasma_get_machine_log
+
+    ctx = build_log_ctx(
+        tmp_path,
+        (("operator_error", "valid arc lost"), ("operator_text", "Tool 0: No Tool")),
+    )
+
+    result = run(
+        handle_plasma_get_machine_log,
+        command("get_machine_log", {"severity": "critical"}),
+        ctx,
+    )
+
+    assert [e["message"] for e in result.ack.result["entries"]] == ["valid arc lost"]
+
+
+def test_saving_the_log_writes_beside_the_machine_config(tmp_path) -> None:
+    from backend.handlers.plasma import handle_plasma_save_machine_log
+
+    ctx = build_log_ctx(tmp_path)
+
+    result = run(handle_plasma_save_machine_log, command("save_machine_log"), ctx)
+
+    assert result.ack.ok
+    assert result.ack.result["path"].startswith(str(tmp_path))
+
+
+def test_saving_an_empty_log_says_so_rather_than_writing_nothing_silently(tmp_path) -> None:
+    from backend.handlers.plasma import handle_plasma_save_machine_log
+
+    ctx = build_log_ctx(tmp_path, ())
+
+    result = run(handle_plasma_save_machine_log, command("save_machine_log"), ctx)
+
+    assert result.ack.error.code == "nothing_to_save"
+
+
+def test_a_machine_without_a_log_says_so(tmp_path) -> None:
+    from backend.handlers.plasma import handle_plasma_get_machine_log
+
+    ctx = AppContext(manager=FakeManager(), gateway=object())
+
+    result = run(handle_plasma_get_machine_log, command("get_machine_log"), ctx)
+
+    assert result.ack.error.code == "log_unavailable"

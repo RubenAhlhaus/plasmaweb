@@ -79,6 +79,9 @@ export function usePlasmaCommands() {
       saveOffsetProbing: (values: Record<string, number>) =>
         send('save_offset_probing', { values }),
       getAlignment: () => sendForResult('get_alignment'),
+      machineLog: (params?: { limit?: number; severity?: 'critical' | 'warning' | 'info' }) =>
+        sendForResult('get_machine_log', params ?? {}),
+      saveMachineLog: () => sendForResult('save_machine_log'),
       /** One press of the LASER → MARK EDGE → SET ORIGIN routine. */
       alignmentPress: (kind: PlasmaPeripheral = 'laser') =>
         sendForResult('alignment_press', { kind }),
