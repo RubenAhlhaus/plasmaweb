@@ -215,3 +215,21 @@ def test_a_probe_error_also_cancels_the_countdown() -> None:
 
     assert timer.cancelled is True
     assert publisher._service.probe_test_running() is False
+
+
+def test_a_write_hal_refused_is_reported_rather_than_only_logged() -> None:
+    """The ack went out when the write was accepted; the refusal happens later, in the thread."""
+    from backend.services.plasma_publisher import WRITE_ERROR_EVENT
+
+    publisher, manager, bridge, _runtime = build()
+    bridge.allow_external_pin("motion.digital-out-00")
+    bridge.request_external_write("motion.digital-out-00", True)
+    bridge._apply_pending_writes()  # the fake runtime accepts it, so fake a refusal instead
+    bridge._write_errors.append("motion.digital-out-00: pin has a writer")
+
+    asyncio.run(publisher.publish_diff({PLASMAC_COMPONENT: {"torch-on": False}}))
+
+    events = [msg for msg in manager.broadcasts if msg["event"] == WRITE_ERROR_EVENT]
+    assert events and "pin has a writer" in events[0]["payload"]["message"]
+    # Reported once, then forgotten.
+    assert bridge.take_write_errors() == ()

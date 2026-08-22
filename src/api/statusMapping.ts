@@ -301,6 +301,28 @@ export function isPlasmaParametersChangedEventMessage(
   );
 }
 
+/** A write HAL refused, or a machine button that could not do what it says. */
+export interface PlasmaWriteErrorEventMessage {
+  type: 'machine_event';
+  protocolVersion?: 1;
+  event: 'plasma.write.error' | 'plasma.probe.error' | 'plasma.external.error';
+  payload: { code: string; message: string; pin?: string };
+}
+
+export function isPlasmaWriteErrorEventMessage(
+  msg: BackendMessage,
+): msg is PlasmaWriteErrorEventMessage {
+  return (
+    msg.type === 'machine_event' &&
+    (msg.event === 'plasma.write.error' ||
+      msg.event === 'plasma.probe.error' ||
+      msg.event === 'plasma.external.error') &&
+    typeof msg.payload === 'object' &&
+    !!msg.payload &&
+    typeof (msg.payload as { message?: unknown }).message === 'string'
+  );
+}
+
 export function isPlasmaConfigErrorEventMessage(
   msg: BackendMessage,
 ): msg is PlasmaConfigErrorEventMessage {

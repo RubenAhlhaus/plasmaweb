@@ -34,6 +34,7 @@ STATE_CHANGED_EVENT = "plasma.state.changed"
 _STATE_PINS = ("state-out", "stop-type-out")
 
 PROBE_ERROR_EVENT = "plasma.probe.error"
+WRITE_ERROR_EVENT = "plasma.write.error"
 
 
 class PlasmaPublisher:
@@ -117,6 +118,7 @@ class PlasmaPublisher:
         for event, payload in self._panel_events(diff):
             await self._broadcast(event, payload)
         await self._handle_probe_error(diff)
+        await self._report_write_errors()
         if not self._manager.active_connections:
             return
         await self._manager.broadcast_json(
@@ -154,6 +156,13 @@ class PlasmaPublisher:
         await self._manager.send_json(websocket, self.snapshot_event())
 
     # ---- helpers -------------------------------------------------------------------
+
+    async def _report_write_errors(self) -> None:
+        """Tell the client about writes HAL refused, which the ack could not have known about."""
+        for error in self._service.bridge.take_write_errors():
+            await self._broadcast(
+                WRITE_ERROR_EVENT, {"code": "write_refused", "message": error}
+            )
 
     async def _handle_probe_error(self, diff: Snapshot) -> None:
         """A failed probe stops the probe test here, not in the browser.

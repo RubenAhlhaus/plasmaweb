@@ -339,6 +339,18 @@ class HalBridge:
         """``plasmac.*`` pins the pin table knows but this LinuxCNC build does not export."""
         return self._missing
 
+    def take_write_errors(self) -> Tuple[str, ...]:
+        """Writes HAL refused since this was last called, and forget them.
+
+        A queued write that fails is invisible to whoever asked for it — the ack went out when
+        the write was *accepted*. For a user button wired to a solenoid, "nothing happened and
+        nobody said so" is the worst outcome, so the publisher drains this and tells the client.
+        """
+        with self._lock:
+            errors = tuple(self._write_errors)
+            self._write_errors.clear()
+        return errors
+
     def external_pin_value(self, name: str) -> Any:
         """Read any HAL pin by full name — for a user button that toggles one."""
         return self._runtime.get_value(name)
@@ -474,7 +486,9 @@ class HalBridge:
                     self._runtime.set_p(f"{component}.{name}", value)
             except Exception as exc:
                 logger.warning("plasma: write %s.%s = %s failed: %s", component, name, value, exc)
-                self._write_errors.append(f"{component}.{name}")
+                target = name if component == _EXTERNAL else f"{component}.{name}"
+                with self._lock:
+                    self._write_errors.append(f"{target}: {exc}")
 
     # ---- thread body ---------------------------------------------------------------
 

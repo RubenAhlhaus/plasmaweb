@@ -9,6 +9,7 @@ import {
   isPlasmaMaterialsChangedEventMessage,
   isPlasmaParametersChangedEventMessage,
   isPlasmaPinsSnapshotEventMessage,
+  isPlasmaWriteErrorEventMessage,
   isPlasmaStateChangedEventMessage,
   mapPlasmaPinsDiff,
   isPanelSidebarTriggerEventMessage,
@@ -232,6 +233,11 @@ export function useBackendWebSocket() {
           }
           if (isPlasmaParametersChangedEventMessage(msg)) {
             setPlasmaParameters(msg.payload);
+          }
+          if (isPlasmaWriteErrorEventMessage(msg)) {
+            // A refused pin write, a failed probe, a machine button that could not act: all
+            // came from the machine rather than from a click, so they need the toast stack.
+            showErrorToast({ message: msg.payload.message, kind: msg.payload.code });
           }
           if (isPlasmaConfigErrorEventMessage(msg)) {
             // A material change the machine asked for and could not have. It comes from the
