@@ -20,6 +20,8 @@ import { useReloadToolOnStartup } from './hooks/useReloadToolOnStartup';
 import { useGlobalHotkeyListener } from './hooks/useGlobalHotkeyListener';
 import { usePlasmaKeyboardShortcuts } from './hooks/usePlasmaKeyboardShortcuts';
 import { usePlasmaTheme } from './hooks/usePlasmaTheme';
+import { usePlasmaScreenFormat } from './hooks/usePlasmaScreenFormat';
+import type { PlasmaScreenFormat } from './lib/plasmaScreenFormat';
 import { useLiveProgramLineHighlight } from './hooks/useLiveProgramLineHighlight';
 import { HomingDialog } from './components/HomingDialog';
 import { UnhomedAxisJogDialog } from './components/UnhomedAxisJogDialog';
@@ -47,6 +49,22 @@ const SettingsScreen = lazy(() =>
   import('./screens/SettingsScreen').then((m) => ({ default: m.SettingsScreen })),
 );
 
+/**
+ * How much of the screen the app's own chrome takes, per format.
+ *
+ * The measurement that prompted this: on a 4:3 panel the two sidebars and their gutter were
+ * taking 292 px of 1002, leaving the plasma screen 662 — and the navigation icons are legible
+ * at well under half that width.
+ */
+const SHELL: Record<
+  PlasmaScreenFormat,
+  { virtualSidebar: string; navSidebar: string; gutter: string }
+> = {
+  wide: { virtualSidebar: '100px', navSidebar: '10rem', gutter: '2rem' },
+  standard: { virtualSidebar: '72px', navSidebar: '6rem', gutter: '0.75rem' },
+  tall: { virtualSidebar: '64px', navSidebar: '5rem', gutter: '0.5rem' },
+};
+
 function AppContent() {
   const activeMenuIndex = useAppStore((s) => s.activeMenuIndex);
   const setActiveMenuIndex = useAppStore((s) => s.setActiveMenuIndex);
@@ -68,6 +86,7 @@ function AppContent() {
   usePlasmaKeyboardShortcuts();
   // The machine's own colours, from the same prefs file QtPlasmaC themes itself from.
   usePlasmaTheme();
+  const format = usePlasmaScreenFormat();
   useLiveProgramLineHighlight();
 
   useEffect(() => {
@@ -85,17 +104,22 @@ function AppContent() {
   }, [plasmaAvailable, setActiveMenuIndex]);
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-gradient-to-br from-background via-slate-900/95 to-background">
+    <div className="h-screen w-screen overflow-hidden bg-background">
       <div className="flex h-full min-h-0 w-full">
         {showVirtualSidebar && (
-          <div className="relative z-10 flex h-full w-[100px] flex-shrink-0 items-stretch">
+          <div
+            className="relative z-10 flex h-full flex-shrink-0 items-stretch"
+            style={{ width: SHELL[format].virtualSidebar }}
+          >
             <VirtualButtonSidebar />
           </div>
         )}
         <div
           className="grid h-full min-h-0 min-w-0 flex-1"
           style={{
-            gridTemplateColumns: '1fr 2rem 10rem',
+            // The chrome gives width back on the narrower formats: 4:3 is 1002 px wide, and
+            // 260 px of navigation out of it leaves the screen itself fighting for room.
+            gridTemplateColumns: `1fr ${SHELL[format].gutter} ${SHELL[format].navSidebar}`,
             gridTemplateRows: 'auto 1fr',
           }}
         >

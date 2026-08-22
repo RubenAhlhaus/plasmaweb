@@ -61,7 +61,7 @@ const TEXT_PARAMETERS = new Set([
 ]);
 
 const buttonClass =
-  'rounded-md border border-white/10 bg-slate-900/60 px-4 py-2 text-sm font-semibold uppercase tracking-wide hover:border-white/25 disabled:opacity-40';
+  'rounded-md border border-border/40 bg-card px-4 py-2 text-sm font-semibold uppercase tracking-wide hover:border-border/70 disabled:opacity-40';
 
 /** Two modes that are not `preview()` shapes: the line builder and the block operations. */
 const LINE_MODE = 'line';
@@ -354,8 +354,8 @@ export function PlasmaConversationalScreen() {
               data-e2e={`plasma-conversational-shape-${name}`}
               className={`rounded-md px-3 py-2 text-xs font-semibold uppercase tracking-wide ${
                 shape === name
-                  ? 'bg-slate-800/90 text-foreground'
-                  : 'text-muted-foreground hover:bg-slate-900/60'
+                  ? 'bg-card text-foreground'
+                  : 'text-muted-foreground hover:bg-card'
               }`}
               onClick={() => selectShape(name)}
             >
@@ -527,7 +527,7 @@ export function PlasmaConversationalScreen() {
         </div>
 
         {message && (
-          <div className="text-sm text-amber-300" data-e2e="plasma-conversational-message">
+          <div className="text-sm text-[color:var(--plasma-led)]" data-e2e="plasma-conversational-message">
             {message}
           </div>
         )}
@@ -538,7 +538,7 @@ export function PlasmaConversationalScreen() {
         )}
       </div>
 
-      <div className="min-h-0 rounded-md border border-white/10 bg-slate-950/40">
+      <div className="min-h-0 rounded-md border border-border/40 bg-background">
         {preview ? (
           <ToolpathCanvas toolpath={preview} />
         ) : (

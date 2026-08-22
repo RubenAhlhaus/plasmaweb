@@ -35,8 +35,8 @@ export function PlasmaScreen() {
             data-e2e={`plasma-tab-${name}`}
             className={`rounded-md px-4 py-2 text-sm font-semibold uppercase tracking-wide transition-colors ${
               tab === name
-                ? 'bg-slate-800/90 text-foreground'
-                : 'text-muted-foreground hover:bg-slate-900/60'
+                ? 'bg-card text-foreground'
+                : 'text-muted-foreground hover:bg-card'
             }`}
             onClick={() => setTab(name)}
           >

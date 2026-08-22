@@ -6,7 +6,7 @@ import { usePlasmacFlag, usePlasmacNumber } from '@/hooks/usePlasmaPins';
 import { useAppStore } from '@/store';
 
 const padButtonClass =
-  'flex h-11 items-center justify-center rounded-md border border-white/10 bg-slate-900/60 text-sm font-semibold text-foreground hover:border-white/25 disabled:opacity-30';
+  'flex h-11 items-center justify-center rounded-md border border-border/40 bg-card text-sm font-semibold text-foreground hover:border-border/70 disabled:opacity-30';
 
 /** The eight directions, as (x, y) steps of one kerf width — QtPlasmaC's recovery pad. */
 const DIRECTIONS: Array<{ key: string; x: number; y: number; label: string }> = [
@@ -57,7 +57,7 @@ export function CutRecoveryPad({ paused }: { paused: boolean }) {
           {t('cutRecovery.title')}
         </span>
         {recovering && (
-          <span className="text-xs uppercase text-amber-300" data-e2e="plasma-cut-recovery-active">
+          <span className="text-xs uppercase text-[color:var(--plasma-led)]" data-e2e="plasma-cut-recovery-active">
             {t('cutRecovery.active')}
           </span>
         )}

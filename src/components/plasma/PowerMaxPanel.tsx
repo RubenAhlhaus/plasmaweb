@@ -22,7 +22,7 @@ interface PowerMaxStatus {
 }
 
 const buttonClass =
-  'rounded-md border border-white/10 bg-slate-900/60 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide hover:border-white/25 disabled:opacity-40';
+  'rounded-md border border-border/40 bg-card px-3 py-1.5 text-xs font-semibold uppercase tracking-wide hover:border-border/70 disabled:opacity-40';
 
 /** Arc-on time comes from the supply in seconds; an operator reads it as hours. */
 function hms(seconds: number): string {
@@ -98,7 +98,7 @@ export function PowerMaxPanel() {
           {t('powermax.title')}
         </span>
         <span
-          className={status.connected ? 'text-xs text-emerald-300' : 'text-xs text-muted-foreground'}
+          className={status.connected ? 'text-xs text-primary' : 'text-xs text-muted-foreground'}
           data-e2e="plasma-powermax-state"
         >
           {status.connected
@@ -120,7 +120,7 @@ export function PowerMaxPanel() {
 
       {status.fault && (
         <div
-          className="rounded-md border border-rose-400/40 bg-rose-950/30 px-3 py-2 text-sm text-rose-200"
+          className="rounded-md border border-destructive/50 bg-destructive/15 px-3 py-2 text-sm text-destructive"
           data-e2e="plasma-powermax-fault"
         >
           <span className="font-semibold">{t('powermax.fault', { code: status.fault.code })}</span>{' '}
@@ -154,7 +154,7 @@ export function PowerMaxPanel() {
       </span>
 
       {message && (
-        <span className="text-xs text-amber-300" data-e2e="plasma-powermax-error">
+        <span className="text-xs text-[color:var(--plasma-led)]" data-e2e="plasma-powermax-error">
           {message}
         </span>
       )}

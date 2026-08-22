@@ -81,7 +81,7 @@ export function UserButtonPanel() {
             key={button.number}
             type="button"
             data-e2e={`plasma-user-button-${button.number}`}
-            className="min-h-[3rem] whitespace-pre-line rounded-md border border-white/10 bg-slate-900/60 px-2 py-2 text-xs font-semibold uppercase leading-tight tracking-wide hover:border-white/25 disabled:opacity-30"
+            className="min-h-[3rem] whitespace-pre-line rounded-md border border-border/40 bg-card px-2 py-2 text-xs font-semibold uppercase leading-tight tracking-wide hover:border-border/70 disabled:opacity-30"
             disabled={!button.supported}
             title={button.supported ? button.code : button.reason ?? undefined}
             onPointerDown={() => (MOMENTARY.has(button.kind) ? press(button, true) : undefined)}
@@ -94,7 +94,7 @@ export function UserButtonPanel() {
         ))}
       </div>
       {message && (
-        <span className="text-xs text-amber-300" data-e2e="plasma-user-buttons-message">
+        <span className="text-xs text-[color:var(--plasma-led)]" data-e2e="plasma-user-buttons-message">
           {message}
         </span>
       )}

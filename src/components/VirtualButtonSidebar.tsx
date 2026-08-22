@@ -11,6 +11,7 @@ import {
   VIRTUAL_SIDEBAR_BUTTON_ORDER,
 } from '@/lib/virtualSidebarButtons';
 import type { VirtualSidebarButtonId } from '@/lib/virtualSidebarHotkeys';
+import { usePlasmaScreenFormat } from '@/hooks/usePlasmaScreenFormat';
 import { useAppStore } from '@/store';
 import type { LinuxCncStatusRoot } from '@/store/types';
 import { TaskState } from '@/store/types';
@@ -76,20 +77,26 @@ export function VirtualButtonSidebar() {
 
   const activeClassForButton = (num: number) => {
     if (!activeStateByButton[num]) return '';
-    if (num === 4) return '!bg-red-600/80 !text-white !border-red-300/90';
-    return '!bg-emerald-600/75 !text-white !border-emerald-300/90';
+    // Estop keeps the machine's estop colour; everything else takes its highlight, so the
+    // sidebar follows the same theme as the rest of the screen.
+    if (num === 4) return '!bg-destructive !text-destructive-foreground !border-destructive';
+    return '!bg-primary !text-primary-foreground !border-primary';
   };
+
+  const format = usePlasmaScreenFormat();
 
   const buttonLabel = (num: VirtualSidebarButtonId) =>
     getVirtualSidebarButtonLabel(num, t, 'virtualSidebar.');
 
   return (
-    <div className="h-full w-[100px] flex flex-col items-stretch justify-start py-1 px-0 gap-0 surface-subtle border-r border-border/60 bg-background/40">
+    <div className="h-full w-full flex flex-col items-stretch justify-start py-1 px-0 gap-0 surface-subtle border-r border-border/60 bg-background/40">
       {VIRTUAL_SIDEBAR_BUTTON_ORDER.map((num) => (
         <Button
           key={num}
           variant="surface"
-          className={`w-full h-[110px] text-xs font-semibold leading-tight px-1 ${activeClassForButton(num)}`}
+          // The labels are words, not icons, so a narrower sidebar needs smaller type rather
+          // than a smaller button: "Flood coolant" clipped to "ood coolant" helps nobody.
+          className={`w-full ${format === 'wide' ? 'h-[110px] text-xs' : 'h-[86px] text-[0.6rem]'} whitespace-normal break-words font-semibold leading-tight px-1 ${activeClassForButton(num)}`}
           data-e2e={dataE2eForVirtualSidebarButton(num)}
           data-active={activeStateByButton[num] ? 'true' : 'false'}
           disabled={num === 9 && !machineOn}

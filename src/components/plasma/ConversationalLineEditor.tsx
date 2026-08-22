@@ -23,7 +23,7 @@ export type ConversationalLineEditorProps = {
 };
 
 const buttonClass =
-  'rounded-md border border-white/10 bg-slate-900/60 px-3 py-2 text-xs font-semibold uppercase tracking-wide hover:border-white/25 disabled:opacity-40';
+  'rounded-md border border-border/40 bg-card px-3 py-2 text-xs font-semibold uppercase tracking-wide hover:border-border/70 disabled:opacity-40';
 
 /**
  * A cut made of lines and arcs, built one segment at a time.
@@ -83,7 +83,7 @@ export function ConversationalLineEditor({
             type="button"
             data-e2e={`plasma-line-kind-${name}`}
             className={`rounded px-2 py-1 text-xs uppercase tracking-wide ${
-              kind === name ? 'bg-slate-800/90 text-foreground' : 'text-muted-foreground'
+              kind === name ? 'bg-card text-foreground' : 'text-muted-foreground'
             }`}
             onClick={() => setKind(name)}
           >
@@ -108,7 +108,7 @@ export function ConversationalLineEditor({
         {segments.map((segment, index) => (
           <div
             key={index}
-            className="rounded-md border border-white/10 p-2"
+            className="rounded-md border border-border/40 p-2"
             data-e2e={`plasma-line-segment-${index}`}
           >
             <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
@@ -125,7 +125,7 @@ export function ConversationalLineEditor({
                         data-e2e={`plasma-line-segment-${index}-arcType-${value}`}
                         className={`flex-1 rounded px-2 py-2 text-xs uppercase ${
                           String(segment[field]) === value
-                            ? 'bg-slate-800/90 text-foreground'
+                            ? 'bg-card text-foreground'
                             : 'text-muted-foreground'
                         }`}
                         onClick={() => setField(index, field, value)}

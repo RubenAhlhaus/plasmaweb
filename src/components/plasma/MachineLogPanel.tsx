@@ -18,13 +18,13 @@ interface LogResult {
 }
 
 const SEVERITY_CLASS: Record<LogEntry['severity'], string> = {
-  critical: 'text-rose-300',
-  warning: 'text-amber-300',
+  critical: 'text-destructive',
+  warning: 'text-[color:var(--plasma-led)]',
   info: 'text-muted-foreground',
 };
 
 const buttonClass =
-  'rounded-md border border-white/10 bg-slate-900/60 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide hover:border-white/25 disabled:opacity-40';
+  'rounded-md border border-border/40 bg-card px-3 py-1.5 text-xs font-semibold uppercase tracking-wide hover:border-border/70 disabled:opacity-40';
 
 function stamp(at: number): string {
   return new Date(at * 1000).toLocaleTimeString();
@@ -126,7 +126,7 @@ export function MachineLogPanel() {
 
       {log?.lastCritical && (
         <div
-          className="rounded-md border border-rose-400/40 bg-rose-950/30 px-3 py-2 text-sm text-rose-200"
+          className="rounded-md border border-destructive/50 bg-destructive/15 px-3 py-2 text-sm text-destructive"
           data-e2e="plasma-machine-log-last-critical"
         >
           <span className="font-semibold">{t('log.lastCritical')}</span>{' '}
@@ -134,13 +134,13 @@ export function MachineLogPanel() {
         </div>
       )}
 
-      <div className="min-h-0 flex-1 overflow-y-auto rounded-md border border-white/10 bg-slate-950/40">
+      <div className="min-h-0 flex-1 overflow-y-auto rounded-md border border-border/40 bg-background">
         {entries.length === 0 ? (
           <p className="p-3 text-sm text-muted-foreground" data-e2e="plasma-machine-log-empty">
             {t('log.empty')}
           </p>
         ) : (
-          <ul className="divide-y divide-white/5">
+          <ul className="divide-y divide-border/25">
             {entries
               .slice()
               .reverse()

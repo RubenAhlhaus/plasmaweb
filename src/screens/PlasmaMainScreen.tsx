@@ -107,7 +107,7 @@ export function PlasmaMainScreen() {
   // min-h + leading-tight rather than a fixed height: "Cycle start" and "Torch pulse" wrap
   // to two lines in German and in narrow kiosk widths.
   const cycleButtonClass =
-    'flex min-h-[3.25rem] flex-1 items-center justify-center rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-center text-sm font-semibold uppercase leading-tight tracking-wide text-foreground transition-colors hover:border-white/25';
+    'flex min-h-[3.25rem] flex-1 items-center justify-center rounded-lg border border-border/40 bg-card px-3 py-2 text-center text-sm font-semibold uppercase leading-tight tracking-wide text-foreground transition-colors hover:border-border/70';
 
   return (
     <div
@@ -146,7 +146,7 @@ export function PlasmaMainScreen() {
           />
         </div>
 
-        <section className="rounded-lg border border-white/5 bg-slate-900/50 px-3 py-3">
+        <section className="rounded-lg border border-border/25 bg-card px-3 py-3">
           <div className="mb-2 flex items-baseline gap-2">
             <span className="text-[0.65rem] font-semibold uppercase tracking-wider text-muted-foreground">
               {t('state.title')}
@@ -155,7 +155,7 @@ export function PlasmaMainScreen() {
               {plasmaState.stateName ?? '—'}
             </span>
             {plasmaState.stopTypeName && plasmaState.stopTypeName !== 'NONE' && (
-              <span className="text-xs uppercase text-amber-300" data-e2e="plasma-stop-type">
+              <span className="text-xs uppercase text-[color:var(--plasma-led)]" data-e2e="plasma-stop-type">
                 {plasmaState.stopTypeName}
               </span>
             )}

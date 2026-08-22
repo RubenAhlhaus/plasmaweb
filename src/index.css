@@ -3,31 +3,39 @@
 @tailwind utilities;
 
 @layer base {
+  /*
+   * QtPlasmaC's own default colours, so a shop moving from the Qt screen to this one sees the
+   * same machine. Every value here is overwritten at runtime by the machine's [COLOR_OPTIONS]
+   * (see hooks/usePlasmaTheme.ts); these are what it looks like before a machine says otherwise.
+   */
   :root {
-    --background: 220 20% 8%;
-    --foreground: 0 0% 98%;
-    --card: 220 20% 10%;
-    --card-foreground: 0 0% 98%;
-    --primary: 210 100% 50%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 220 15% 20%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 220 15% 15%;
-    --muted-foreground: 220 10% 65%;
-    --accent: 220 15% 20%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 220 15% 25%;
-    --input: 220 15% 25%;
-    --ring: 210 100% 50%;
+    --background: 60 22% 7%;          /* Background   #16160e */
+    --foreground: 56 100% 51%;        /* Foreground   #ffee06 */
+    --card: 60 8% 20%;                /* Background alt #36362e */
+    --card-foreground: 56 100% 51%;
+    --primary: 56 100% 51%;           /* Highlight    #ffee06 */
+    --primary-foreground: 60 22% 7%;
+    --secondary: 60 8% 20%;
+    --secondary-foreground: 56 100% 51%;
+    --muted: 60 8% 20%;
+    --muted-foreground: 0 0% 69%;      /* Disabled  #b0b0b0 */
+    --accent: 60 8% 20%;
+    --accent-foreground: 56 100% 51%;
+    --destructive: 0 100% 50%;          /* Estop     #ff0000 */
+    --destructive-foreground: 56 100% 51%;
+    --border: 56 100% 51%;            /* Frames    #ffee06 */
+    --input: 56 100% 51%;
+    --ring: 56 100% 51%;
     --radius: 0.5rem;
-    /* Akzentfarben für moderneres UI */
+    /* The three with no shadcn role of their own. */
+    --plasma-led: #ffee06;
+    --plasma-estop: #ff0000;
+    --plasma-preview: #000000;
+    /* Kept for the non-plasma screens that already use them. */
     --accent-green: 142 76% 36%;
     --accent-orange: 25 95% 53%;
     --accent-cyan: 187 85% 43%;
-  }
-}
+  }}
 
 @layer base {
   * {

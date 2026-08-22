@@ -50,7 +50,7 @@ export function SingleCutControl() {
       </div>
       <button
         type="button"
-        className="rounded-md border border-white/10 bg-slate-900/60 px-3 py-2 text-sm font-semibold uppercase tracking-wide hover:border-white/25 disabled:opacity-40"
+        className="rounded-md border border-border/40 bg-card px-3 py-2 text-sm font-semibold uppercase tracking-wide hover:border-border/70 disabled:opacity-40"
         data-e2e="plasma-single-cut-load"
         disabled={!valid}
         onClick={() => {

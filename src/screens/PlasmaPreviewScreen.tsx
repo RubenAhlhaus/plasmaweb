@@ -9,7 +9,7 @@ import { usePlasmaToolpath } from '@/hooks/usePlasmaToolpath';
 import { useAppStore } from '@/store';
 
 const buttonClass =
-  'rounded-md border border-white/10 bg-slate-900/60 px-4 py-2 text-sm font-semibold uppercase tracking-wide hover:border-white/25 disabled:opacity-40';
+  'rounded-md border border-border/40 bg-card px-4 py-2 text-sm font-semibold uppercase tracking-wide hover:border-border/70 disabled:opacity-40';
 
 /**
  * The program preview, and run-from-line on top of it.
@@ -117,7 +117,7 @@ export function PlasmaPreviewScreen() {
       </div>
 
       {status && (
-        <div className="text-sm text-amber-300" data-e2e="plasma-preview-status">
+        <div className="text-sm text-[color:var(--plasma-led)]" data-e2e="plasma-preview-status">
           {status}
         </div>
       )}
@@ -127,7 +127,7 @@ export function PlasmaPreviewScreen() {
           {toolpath.notes.warnings.map((warning) => (
             <li
               key={`${warning.code}-${warning.directive}`}
-              className="rounded-md border border-amber-400/40 bg-amber-950/20 px-3 py-1.5 text-sm text-amber-200"
+              className="rounded-md border border-[color:var(--plasma-led)]/50 bg-[color:var(--plasma-led)]/10 px-3 py-1.5 text-sm text-[color:var(--plasma-led)]"
               data-e2e={`plasma-preview-note-${warning.directive}`}
             >
               {warning.message}
@@ -136,7 +136,7 @@ export function PlasmaPreviewScreen() {
         </ul>
       ) : null}
 
-      <div className="min-h-0 flex-1 rounded-md border border-white/10 bg-slate-950/40">
+      <div className="min-h-0 flex-1 rounded-md border border-border/40 bg-background">
         {toolpath ? (
           <ToolpathCanvas
             toolpath={toolpath}
@@ -162,7 +162,7 @@ export function PlasmaPreviewScreen() {
             {t('preview.points', { count: toolpath.points })}
           </span>
           {toolpath.truncated && (
-            <span className="text-amber-300" data-e2e="plasma-preview-truncated">
+            <span className="text-[color:var(--plasma-led)]" data-e2e="plasma-preview-truncated">
               {t('preview.truncated')}
             </span>
           )}

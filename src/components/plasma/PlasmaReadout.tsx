@@ -26,7 +26,7 @@ export function PlasmaReadout({
   return (
     <div
       className={cn(
-        'flex flex-col gap-1 rounded-lg border border-white/5 bg-slate-900/50 px-3 py-2',
+        'flex flex-col gap-1 rounded-lg border border-border/25 bg-card px-3 py-2',
         className,
       )}
       data-e2e={rest['data-e2e']}

@@ -54,7 +54,7 @@ export function PlasmaStatisticsPanel({ className }: PlasmaStatisticsPanelProps)
 
   return (
     <section
-      className={cn('rounded-lg border border-white/5 bg-slate-900/50 px-3 py-2', className)}
+      className={cn('rounded-lg border border-border/25 bg-card px-3 py-2', className)}
       data-e2e="plasma-statistics"
     >
       <h2 className="mb-1 text-[0.65rem] font-semibold uppercase tracking-wider text-muted-foreground">

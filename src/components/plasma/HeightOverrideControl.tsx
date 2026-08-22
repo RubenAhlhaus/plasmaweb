@@ -23,12 +23,12 @@ export function HeightOverrideControl({ className }: HeightOverrideControlProps)
   const current = usePlasmacNumber('height-override') ?? 0;
 
   const buttonClass =
-    'flex h-11 w-11 items-center justify-center rounded-lg border border-white/10 bg-slate-900/60 text-lg font-semibold text-foreground transition-colors hover:border-white/25';
+    'flex h-11 w-11 items-center justify-center rounded-lg border border-border/40 bg-card text-lg font-semibold text-foreground transition-colors hover:border-border/70';
 
   return (
     <div
       className={cn(
-        'flex items-center gap-3 rounded-lg border border-white/5 bg-slate-900/50 px-3 py-2',
+        'flex items-center gap-3 rounded-lg border border-border/25 bg-card px-3 py-2',
         className,
       )}
       data-e2e="plasma-height-override"

@@ -272,7 +272,7 @@ export function ToolpathCanvas({
       />
       <button
         type="button"
-        className="absolute right-2 top-2 rounded border border-white/10 bg-slate-900/80 px-2 py-1 text-xs uppercase tracking-wide text-muted-foreground hover:text-foreground"
+        className="absolute right-2 top-2 rounded border border-border/40 bg-card/80 px-2 py-1 text-xs uppercase tracking-wide text-muted-foreground hover:text-foreground"
         data-e2e="toolpath-fit"
         onClick={reset}
       >

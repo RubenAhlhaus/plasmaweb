@@ -113,7 +113,7 @@ const OFFSET_PROBING_FIELDS: Array<{ key: string; unit: string }> = [
 ];
 
 const buttonClass =
-  'rounded-md border border-white/10 bg-slate-900/60 px-4 py-2 text-sm font-semibold uppercase tracking-wide hover:border-white/25 disabled:opacity-40';
+  'rounded-md border border-border/40 bg-card px-4 py-2 text-sm font-semibold uppercase tracking-wide hover:border-border/70 disabled:opacity-40';
 
 /**
  * QtPlasmaC's PARAMETERS tab: `[PLASMA_PARAMETERS]` in `<machine>.prefs`.
@@ -254,7 +254,7 @@ export function PlasmaParametersScreen() {
           {t('parameters.reload')}
         </button>
         {dirtyKeys.length > 0 && (
-          <span className="text-sm text-amber-300" data-e2e="plasma-parameters-dirty">
+          <span className="text-sm text-[color:var(--plasma-led)]" data-e2e="plasma-parameters-dirty">
             {t('parameters.unsaved', { count: dirtyKeys.length })}
           </span>
         )}
@@ -303,7 +303,7 @@ export function PlasmaParametersScreen() {
                       className="text-muted-foreground"
                       data-e2e={`plasma-capability-${name}`}
                     >
-                      <span className="text-amber-300">{feature.description}</span>{' '}
+                      <span className="text-[color:var(--plasma-led)]">{feature.description}</span>{' '}
                       {t('parameters.capabilities.needs', {
                         pins: feature.missing.join(', '),
                       })}
@@ -324,7 +324,7 @@ export function PlasmaParametersScreen() {
                 <label key={name} className="flex items-center gap-2 text-sm">
                   <input
                     type="color"
-                    className="h-9 w-12 shrink-0 rounded border border-white/10 bg-transparent"
+                    className="h-9 w-12 shrink-0 rounded border border-border/40 bg-transparent"
                     data-e2e={`plasma-color-${name}`}
                     value={parameters.colors?.[name] ?? '#000000'}
                     onChange={(event) =>
@@ -347,7 +347,7 @@ export function PlasmaParametersScreen() {
           <label className="mb-2 flex items-center gap-3 text-sm">
             <input
               type="checkbox"
-              className="h-5 w-5 accent-emerald-400"
+              className="h-5 w-5 accent-[color:hsl(var(--primary))]"
               data-e2e="plasma-gui-tool-tips"
               checked={parameters.guiOptions?.toolTips !== false}
               onChange={(event) => commands.saveGuiOption('toolTips', event.target.checked)}
@@ -357,7 +357,7 @@ export function PlasmaParametersScreen() {
           <label className="flex items-center gap-3 text-sm">
             <input
               type="checkbox"
-              className="h-5 w-5 accent-emerald-400"
+              className="h-5 w-5 accent-[color:hsl(var(--primary))]"
               data-e2e="plasma-gui-keyboard-shortcuts"
               checked={parameters.guiOptions?.keyboardShortcuts === true}
               onChange={(event) =>
@@ -419,7 +419,7 @@ export function PlasmaParametersScreen() {
                     labelAccessory={
                       noPin ? (
                         <span
-                          className="text-xs text-amber-300"
+                          className="text-xs text-[color:var(--plasma-led)]"
                           title={t('parameters.noPin')}
                           data-e2e={`plasma-parameter-ineffective-${key
                             .replace(/\s+/g, '-')

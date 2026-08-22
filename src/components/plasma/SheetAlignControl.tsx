@@ -7,7 +7,7 @@ import { useAppStore } from '@/store';
 import type { PlasmaAlignment } from '@/store/types';
 
 const buttonClass =
-  'rounded-md border border-white/10 bg-slate-900/60 px-3 py-2 text-sm font-semibold uppercase tracking-wide hover:border-white/25 disabled:opacity-40';
+  'rounded-md border border-border/40 bg-card px-3 py-2 text-sm font-semibold uppercase tracking-wide hover:border-border/70 disabled:opacity-40';
 
 /**
  * QtPlasmaC's LASER / MARK EDGE / SET ORIGIN button: squaring the job to a crooked plate.
@@ -92,12 +92,12 @@ export function SheetAlignControl({ kind = 'laser' }: { kind?: PlasmaPeripheral 
         {t(`align.hint.${step}`)}
       </span>
       {alignment.angle !== undefined && !active && (
-        <span className="text-xs text-emerald-300" data-e2e={`plasma-align-${kind}-angle`}>
+        <span className="text-xs text-primary" data-e2e={`plasma-align-${kind}-angle`}>
           {t('align.angle', { angle: alignment.angle.toFixed(2) })}
         </span>
       )}
       {message && (
-        <span className="text-xs text-amber-300" data-e2e={`plasma-align-${kind}-error`}>
+        <span className="text-xs text-[color:var(--plasma-led)]" data-e2e={`plasma-align-${kind}-error`}>
           {message}
         </span>
       )}

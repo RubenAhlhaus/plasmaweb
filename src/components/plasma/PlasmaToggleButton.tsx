@@ -41,10 +41,12 @@ export function PlasmaToggleButton({
       data-active={active ? 'true' : 'false'}
       className={cn(
         'flex min-h-[3rem] items-center justify-center rounded-lg border px-3 py-2 text-sm font-semibold uppercase tracking-wide transition-colors',
+        // QtPlasmaC's own scheme: an active button is background-on-highlight and an idle one
+        // is foreground-on-background, so the machine's colours decide, not a palette here.
         active
-          ? 'border-emerald-400/60 bg-emerald-500/20 text-emerald-200'
-          : 'border-white/10 bg-slate-900/60 text-muted-foreground hover:border-white/20 hover:text-foreground',
-        disabled && 'cursor-not-allowed opacity-40 hover:border-white/10 hover:text-muted-foreground',
+          ? 'border-primary bg-primary text-primary-foreground'
+          : 'border-border bg-background text-foreground hover:bg-card',
+        disabled && 'cursor-not-allowed text-muted-foreground opacity-60 hover:bg-background',
         className,
       )}
     >

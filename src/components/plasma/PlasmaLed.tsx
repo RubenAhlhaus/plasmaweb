@@ -11,12 +11,30 @@ export interface PlasmaLedProps {
   'data-e2e'?: string;
 }
 
-const toneClasses: Record<PlasmaLedTone, string> = {
-  green: 'bg-emerald-400 shadow-[0_0_12px_2px_rgba(52,211,153,0.65)]',
-  amber: 'bg-amber-400 shadow-[0_0_12px_2px_rgba(251,191,36,0.65)]',
-  red: 'bg-red-500 shadow-[0_0_12px_2px_rgba(239,68,68,0.65)]',
-  blue: 'bg-sky-400 shadow-[0_0_12px_2px_rgba(56,189,248,0.65)]',
+/**
+ * QtPlasmaC lights every indicator in one colour — the machine's `LED` — and keeps red for the
+ * conditions that stop a cut. The tones stay as a distinction the code already makes; what
+ * changed is where the colour comes from.
+ */
+const toneStyles: Record<PlasmaLedTone, { background: string; boxShadow: string }> = {
+  green: {
+    background: 'var(--plasma-led)',
+    boxShadow: '0 0 12px 2px color-mix(in srgb, var(--plasma-led) 65%, transparent)',
+  },
+  blue: {
+    background: 'var(--plasma-led)',
+    boxShadow: '0 0 12px 2px color-mix(in srgb, var(--plasma-led) 65%, transparent)',
+  },
+  amber: {
+    background: 'var(--plasma-led)',
+    boxShadow: '0 0 12px 2px color-mix(in srgb, var(--plasma-led) 65%, transparent)',
+  },
+  red: {
+    background: 'var(--plasma-estop)',
+    boxShadow: '0 0 12px 2px color-mix(in srgb, var(--plasma-estop) 65%, transparent)',
+  },
 };
+
 
 /**
  * One indicator for a `plasmac.*` bit output.
@@ -36,11 +54,11 @@ export function PlasmaLed({ label, on, tone = 'green', className, ...rest }: Pla
       <span
         aria-hidden
         className={cn(
-          'h-3 w-3 flex-shrink-0 rounded-full border border-white/10 transition-colors',
-          unavailable && 'bg-slate-700/60',
-          !unavailable && !on && 'bg-slate-600',
-          !unavailable && on && toneClasses[tone],
+          'h-3 w-3 flex-shrink-0 rounded-full border border-border/40 transition-colors',
+          unavailable && 'bg-muted/60',
+          !unavailable && !on && 'bg-muted',
         )}
+        style={!unavailable && on ? toneStyles[tone] : undefined}
       />
       <span
         className={cn(

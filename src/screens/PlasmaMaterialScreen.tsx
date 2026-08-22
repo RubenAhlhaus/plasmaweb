@@ -30,7 +30,7 @@ const MATERIAL_FIELDS: readonly MaterialField[] = [
 type Draft = { name: string; values: Record<string, string> };
 
 const inputClass =
-  'w-full rounded-md border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-foreground outline-none focus:border-white/30';
+  'w-full rounded-md border border-border/40 bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary';
 
 function toDraft(material: PlasmaMaterial): Draft {
   const values: Record<string, string> = {};
@@ -139,7 +139,7 @@ export function PlasmaMaterialScreen() {
         <div className="flex gap-2">
           <button
             type="button"
-            className="flex-1 rounded-md border border-white/10 bg-slate-900/60 px-3 py-2 text-sm font-semibold uppercase tracking-wide hover:border-white/25"
+            className="flex-1 rounded-md border border-border/40 bg-card px-3 py-2 text-sm font-semibold uppercase tracking-wide hover:border-border/70"
             data-e2e="plasma-material-new"
             onClick={startNew}
           >
@@ -147,7 +147,7 @@ export function PlasmaMaterialScreen() {
           </button>
           <button
             type="button"
-            className="flex-1 rounded-md border border-white/10 bg-slate-900/60 px-3 py-2 text-sm font-semibold uppercase tracking-wide hover:border-white/25"
+            className="flex-1 rounded-md border border-border/40 bg-card px-3 py-2 text-sm font-semibold uppercase tracking-wide hover:border-border/70"
             data-e2e="plasma-material-reload"
             onClick={() => commands.reloadConfig()}
           >
@@ -155,7 +155,7 @@ export function PlasmaMaterialScreen() {
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto rounded-md border border-white/10">
+        <div className="min-h-0 flex-1 overflow-y-auto rounded-md border border-border/40">
           {list.map((entry) => {
             const isSelected = entry.number === selected;
             const isShown = entry.number === shown;
@@ -164,8 +164,8 @@ export function PlasmaMaterialScreen() {
                 key={entry.number}
                 type="button"
                 data-e2e={`plasma-material-row-${entry.number}`}
-                className={`flex w-full items-center justify-between gap-2 border-b border-white/5 px-3 py-2 text-left text-sm ${
-                  isShown ? 'bg-slate-800/80 text-foreground' : 'text-muted-foreground hover:bg-slate-900/60'
+                className={`flex w-full items-center justify-between gap-2 border-b border-border/25 px-3 py-2 text-left text-sm ${
+                  isShown ? 'bg-card/80 text-foreground' : 'text-muted-foreground hover:bg-card'
                 }`}
                 onClick={() => {
                   setEditing(entry.number);
@@ -179,17 +179,17 @@ export function PlasmaMaterialScreen() {
                 </span>
                 <span className="flex shrink-0 gap-1 text-[0.65rem] uppercase">
                   {entry.temporary && (
-                    <span className="rounded bg-amber-500/20 px-1 text-amber-300">
+                    <span className="rounded bg-[color:var(--plasma-led)]/15 px-1 text-[color:var(--plasma-led)]">
                       {t('material.temporary')}
                     </span>
                   )}
                   {entry.number === materials.default && (
-                    <span className="rounded bg-sky-500/20 px-1 text-sky-300">
+                    <span className="rounded bg-primary/15 px-1 text-primary">
                       {t('material.default')}
                     </span>
                   )}
                   {isSelected && (
-                    <span className="rounded bg-emerald-500/20 px-1 text-emerald-300">
+                    <span className="rounded bg-primary/15 px-1 text-primary">
                       {t('material.inUse')}
                     </span>
                   )}
@@ -244,7 +244,7 @@ export function PlasmaMaterialScreen() {
           <div className="flex flex-wrap gap-2 pb-2">
             <button
               type="button"
-              className="rounded-md border border-white/10 bg-slate-900/60 px-4 py-2 text-sm font-semibold uppercase tracking-wide hover:border-white/25 disabled:opacity-40"
+              className="rounded-md border border-border/40 bg-card px-4 py-2 text-sm font-semibold uppercase tracking-wide hover:border-border/70 disabled:opacity-40"
               data-e2e="plasma-material-save"
               disabled={readOnly || (!dirty && !creating)}
               onClick={save}
@@ -253,7 +253,7 @@ export function PlasmaMaterialScreen() {
             </button>
             <button
               type="button"
-              className="rounded-md border border-white/10 bg-slate-900/60 px-4 py-2 text-sm font-semibold uppercase tracking-wide hover:border-white/25 disabled:opacity-40"
+              className="rounded-md border border-border/40 bg-card px-4 py-2 text-sm font-semibold uppercase tracking-wide hover:border-border/70 disabled:opacity-40"
               data-e2e="plasma-material-revert"
               disabled={!dirty && !creating}
               onClick={() => {
@@ -266,7 +266,7 @@ export function PlasmaMaterialScreen() {
             </button>
             <button
               type="button"
-              className="rounded-md border border-white/10 bg-slate-900/60 px-4 py-2 text-sm font-semibold uppercase tracking-wide hover:border-white/25 disabled:opacity-40"
+              className="rounded-md border border-border/40 bg-card px-4 py-2 text-sm font-semibold uppercase tracking-wide hover:border-border/70 disabled:opacity-40"
               data-e2e="plasma-material-set-default"
               disabled={readOnly || creating || shown === materials.default}
               onClick={() => commands.setDefaultMaterial(shown)}
@@ -275,7 +275,7 @@ export function PlasmaMaterialScreen() {
             </button>
             <button
               type="button"
-              className="rounded-md border border-rose-500/40 bg-rose-950/40 px-4 py-2 text-sm font-semibold uppercase tracking-wide text-rose-200 hover:border-rose-400/60 disabled:opacity-40"
+              className="rounded-md border border-destructive/50 bg-destructive/15 px-4 py-2 text-sm font-semibold uppercase tracking-wide text-destructive hover:border-destructive disabled:opacity-40"
               data-e2e="plasma-material-delete"
               disabled={readOnly || creating || list.length <= 1}
               onClick={() => {

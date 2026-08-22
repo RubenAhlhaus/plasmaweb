@@ -350,3 +350,26 @@ describe('PlasmaMainScreen — screen format', () => {
     expect(main.getAttribute('data-format')).toBe('standard');
   });
 });
+
+
+describe('PlasmaMainScreen — colours', () => {
+  beforeEach(() => {
+    useAppStore.getState().resetPlasma();
+    useAppStore.setState({ backendWebSocket: null });
+  });
+
+  it('a toggle takes the machine theme, not a palette of its own', () => {
+    // `thc-enabled` is the readback pin; `thc-enable` is the setpoint that drives it.
+    snapshot({ 'thc-enabled': true });
+    render(<PlasmaMainScreen />);
+
+    const active = document.querySelector('[data-e2e="plasma-toggle-thc"]') as HTMLElement;
+    const idle = document.querySelector('[data-e2e="plasma-toggle-torch"]') as HTMLElement;
+
+    // QtPlasmaC's scheme: active is background-on-highlight, idle is foreground-on-background.
+    expect(active.className).toContain('bg-primary');
+    expect(active.className).not.toContain('emerald');
+    expect(idle.className).toContain('bg-background');
+    expect(idle.className).not.toContain('emerald');
+  });
+});
