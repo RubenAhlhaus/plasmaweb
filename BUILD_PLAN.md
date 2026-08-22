@@ -822,8 +822,30 @@ A colour that is not a colour is refused, and one bad colour refuses the whole w
 is read by both GUIs, and eight good colours with one broken one is harder to recover from than
 a rejected change.
 
-- Layout variants matching the three shipped screens: 16×9, 4×3, 9×16
-  (`share/qtvcp/screens/qtplasmac{,_4x3,_9x16}`), as responsive breakpoints.
+**Layout done and verified with Playwright at upstream's own three sizes.** QtPlasmaC ships
+three whole screens — `qtplasmac` (1348×866), `qtplasmac_4x3` (1002×816) and `qtplasmac_9x16`
+(750×1302) — and diffing their `.ui` files shows the *same widgets rearranged*: three main
+columns wide, a middle-plus-right frame at 4:3, a stacked arrangement with its own file-button
+grid on the tall one. A web UI has no reason to ship three copies of a screen; it has one screen
+that arranges itself.
+
+| Checked at | Result |
+|---|---|
+| 1348×866 (16:9) | `wide` — a 400 px tools column beside the readouts, readouts in 4 columns |
+| 1002×816 (4:3) | `standard` — a 320 px tools column, readouts in 2 |
+| 750×1302 (9:16) | `tall` — tools stacked *under* the readouts, two grid rows, readouts in 2 |
+| all three | no horizontal overflow, nothing clipped |
+
+The format is chosen on **aspect ratio**, not width, because that is what those formats are: a
+4:3 panel at 1600×1200 is wide by pixel count and 4:3 by shape, and it is the shape that decides
+whether a tools column fits beside the readouts. It is also stamped on the document root as
+`data-screen-format`, so styling can key off it without every panel being handed it.
+
+One thing the measurements surfaced and this change deliberately did **not** touch: at 4:3 the
+app's own chrome takes 340 px of the 1002, leaving 662 for the screen. That is the shell's
+sidebars, shared with every other screen, so narrowing them is a whole-app decision rather than
+a plasma one.
+
 - Virtual keyboard custom layouts (`:2525`), tooltips (port `tooltips.py`, 548 lines),
   i18n (`:4213`) through the existing `react-i18next` setup.
 
