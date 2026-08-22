@@ -706,6 +706,35 @@ rather than of `[DISPLAY] DEFAULT_LINEAR_VELOCITY`, because the jog speed here i
 control. Codes needing features we lack — F9 manual cut, F12's stylesheet editor, the A/B axis
 jogs — are listed with their reason rather than quietly missing.
 
+**Ninth cluster done and verified on the sim VM: what this LinuxCNC can do, and what a
+program is asking it for.** The pin table is generated from a 2.10 `plasmac.comp`, but a shop
+runs whatever its distribution ships — the sim's 2.9.4 is missing eighteen of those pins, and a
+write to a pin that does not exist is dropped by the bridge without a word. That is how a
+`Slat Height` typed into the PARAMETERS tab can save, read back, and do nothing.
+
+| Checked on the VM | Result |
+|---|---|
+| the capability report on 2.9.4 | all ten features correctly unavailable, each naming the pins it lacks |
+| the PARAMETERS tab | `Offset Feed Rate` and `Slat Height` marked as reaching no pin on this machine |
+| a program with `#<tube-cut>=1` | previewed, and reported as asking for tube cutting this LinuxCNC cannot do |
+| the same with `#<tube_cut>=1` | reported as ignored — see below |
+| `#<holes>=2` `#<h_velocity>=60` | recorded, no warning: this build supports it |
+| a plain program | nothing said |
+
+Ineffective parameters are *marked, not hidden*: the value is real in the prefs file and
+QtPlasmaC on a newer build would use it. Nothing is guessed either — a feature is unavailable
+only because a pin it names is absent, from the same generated table the bridge reads.
+
+Reading the programs turned up an upstream trap worth knowing about. **The manual's spelling of
+two magic comments is not the one the filter matches**: `qtplasmac.adoc` documents
+`#<tube_cut>=1` while `qtplasmac_gcode.py` matches `#<tube-cut>=1`, and the same for
+`keep-z-motion`. A program written from the documentation is ignored end to end, with nothing
+to see from the outside — so the preview says which spelling the filter wants.
+
+That also settles **moving pierce** and **tube cutting** for this milestone: both need pins
+2.9.4 does not export, so there is nothing to implement against here beyond refusing to pretend
+otherwise. A machine on 2.10 gets the features; this one gets told why it does not.
+
 Hole cutting, both manual (`M67 E3 Q`) and automatic (`#<holes>`, `#<h_diameter>`,
 `#<h_velocity>`), needs no port: it is handled by the `qtplasmac_gcode` filter LinuxCNC runs on
 load, the same filter M3 verified is still applied. THC tuning, auto-volts, velocity and void
