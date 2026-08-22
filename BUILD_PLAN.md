@@ -846,8 +846,25 @@ app's own chrome takes 340 px of the 1002, leaving 662 for the screen. That is t
 sidebars, shared with every other screen, so narrowing them is a whole-app decision rather than
 a plasma one.
 
-- Virtual keyboard custom layouts (`:2525`), tooltips (port `tooltips.py`, 548 lines),
-  i18n (`:4213`) through the existing `react-i18next` setup.
+**Tooltips done and verified on the sim VM.** A plasma screen is full of three-letter buttons,
+and "velocity anti-dive" is what makes one of them mean something. Upstream keeps ~280 tooltips
+in `tooltips.py`, keyed by Qt widget name and switched by `[GUI_OPTIONS] Tool tips`.
+
+| Checked on the VM | Result |
+|---|---|
+| the toggles | upstream's own wording — "Toggles the use of velocity anti-dive" on VAD |
+| a recovery pad arrow | "Moves the torch in the X+ Y+ direction", named by axes as upstream names them, not by a compass point |
+| the switch turned off | every `title` gone, and `Tool tips = False` in the machine's prefs |
+| turned back on | all of them back |
+
+Most of those 280 describe widgets with no counterpart here — view buttons, camera pans — so
+what is ported is the wording for controls that exist, into the i18n files where the rest of
+this UI's text lives rather than into a table of its own. The switch is honoured rather than
+reimplemented: with tips off no `title` is rendered at all, which is what upstream's
+`clear_tool_tips` does, and it defaults **on** as upstream has it.
+
+Still open in M6: the virtual keyboard's custom layouts (`:2525`), which need a soft-keyboard
+this UI does not have — its numeric keypad is a dialog rather than an on-screen keyboard.
 
 ## Files to create / modify
 
