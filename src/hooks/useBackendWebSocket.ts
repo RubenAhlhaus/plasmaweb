@@ -9,6 +9,7 @@ import {
   isPlasmaMaterialsChangedEventMessage,
   isPlasmaParametersChangedEventMessage,
   isPlasmaPinsSnapshotEventMessage,
+  isPlasmaAlignmentEventMessage,
   isPlasmaWriteErrorEventMessage,
   isPlasmaStateChangedEventMessage,
   mapPlasmaPinsDiff,
@@ -233,6 +234,9 @@ export function useBackendWebSocket() {
           }
           if (isPlasmaParametersChangedEventMessage(msg)) {
             setPlasmaParameters(msg.payload);
+          }
+          if (isPlasmaAlignmentEventMessage(msg)) {
+            useAppStore.getState().setPlasmaAlignment(msg.payload);
           }
           if (isPlasmaWriteErrorEventMessage(msg)) {
             // A refused pin write, a failed probe, a machine button that could not act: all

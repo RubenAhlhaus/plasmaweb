@@ -48,6 +48,8 @@ from backend.plasma.parameters import (
     default_parameters,
     offset_probing_pin_values,
     read_offset_probing,
+    read_peripheral_offset,
+    write_peripheral_offset,
     write_offset_probing,
     read_conversational_settings,
     write_conversational_settings,
@@ -266,6 +268,18 @@ class PlasmaConfigService:
     def apply_offset_probing(self) -> Tuple[str, ...]:
         """Push ``[OFFSET_PROBING]`` onto its pins: where the probe is, and how long it takes."""
         return self._write_plasmac(offset_probing_pin_values(self._offset_probing))
+
+    def peripheral_offset(self, section: str) -> Dict[str, float]:
+        """``[LASER_OFFSET]`` / ``[CAMERA_OFFSET]``: where the peripheral sits vs the torch."""
+        return read_peripheral_offset(self._files.prefs_path, section)
+
+    def save_peripheral_offset(self, section: str, values: Mapping[str, Any]) -> Dict[str, float]:
+        write_peripheral_offset(self._files.prefs_path, section, values)
+        return self.peripheral_offset(section)
+
+    def set_laser(self, on: bool) -> None:
+        """Our own ``qtplasmac.laser_on``, which a machine wires to the alignment laser."""
+        self._bridge.request_write(QTPLASMAC_COMPONENT, "laser_on", bool(on))
 
     def save_offset_probing(self, values: Mapping[str, Any]) -> Dict[str, float]:
         """Store the offset probe settings and put them on the pins straight away."""

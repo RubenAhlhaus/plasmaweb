@@ -5,6 +5,7 @@ import { CoordinatesDisplay } from '@/components/CoordinatesDisplay';
 import { DirectionalControl } from '@/components/DirectionalControl';
 import { IncrementSelector } from '@/components/IncrementSelector';
 import { CutRecoveryPad } from '@/components/plasma/CutRecoveryPad';
+import { SheetAlignControl } from '@/components/plasma/SheetAlignControl';
 import { SingleCutControl } from '@/components/plasma/SingleCutControl';
 import { UserButtonPanel } from '@/components/plasma/UserButtonPanel';
 import { HeightOverrideControl } from '@/components/plasma/HeightOverrideControl';
@@ -262,6 +263,7 @@ export function PlasmaMainScreen() {
       <div ref={jogPanelRef} className="flex min-h-0 flex-col gap-4 overflow-y-auto">
         <CutRecoveryPad paused={programPaused || pausedMotion} />
         <SingleCutControl />
+        <SheetAlignControl />
         <UserButtonPanel />
         <div className="flex items-start gap-3">
           {/* The selector is a fixed-width column of increments; letting it shrink clips

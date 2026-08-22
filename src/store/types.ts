@@ -611,6 +611,23 @@ export interface PlasmaParameters {
 }
 
 /**
+ * Sheet alignment: QtPlasmaC's two-point routine that squares the job to a crooked plate.
+ *
+ * `state` walks `idle` → `markedge` → `setorigin` and back on each press, and it is machine
+ * state rather than one client's: the panel and a laptop both show the same step.
+ */
+export interface PlasmaAlignment {
+  state: 'idle' | 'markedge' | 'setorigin';
+  kind: 'laser' | 'camera';
+  firstMark: [number, number] | null;
+  /** Zero on both axes is how QtPlasmaC records "not fitted"; the button stays hidden. */
+  fitted: Record<'laser' | 'camera', boolean>;
+  offsets: Record<'laser' | 'camera', Record<string, number>>;
+  /** Only on the press that finished the routine. */
+  angle?: number;
+}
+
+/**
  * One polyline of the preview: a run of same-kind moves from one G-code line.
  *
  * `line` is the source line the interpreter was on, which is what makes clicking a segment a
@@ -653,6 +670,7 @@ export interface PlasmaSlice {
   /** Null until the backend reports them; stays null without an INI to find the files in. */
   plasmaMaterials: PlasmaMaterials | null;
   plasmaParameters: PlasmaParameters | null;
+  plasmaAlignment: PlasmaAlignment | null;
   /** Preview of the loaded program; null while none has been parsed. */
   plasmaToolpath: PlasmaToolpath | null;
   /** Why the last preview failed (a G-code error, usually), for the screen to show. */
@@ -663,6 +681,7 @@ export interface PlasmaSlice {
   setPlasmaState: (state: PlasmaState) => void;
   setPlasmaMaterials: (materials: PlasmaMaterials) => void;
   setPlasmaParameters: (parameters: PlasmaParameters) => void;
+  setPlasmaAlignment: (alignment: PlasmaAlignment) => void;
   setPlasmaToolpath: (toolpath: PlasmaToolpath | null) => void;
   setPlasmaToolpathError: (message: string | null) => void;
   setPlasmaToolpathLoading: (loading: boolean) => void;

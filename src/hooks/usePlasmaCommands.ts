@@ -16,6 +16,9 @@ export type PlasmaToggle =
 
 export type TorchPulseAction = 'press' | 'release' | 'abort';
 
+/** What the sheet alignment sets the origin by: the alignment laser, or a camera. */
+export type PlasmaPeripheral = 'laser' | 'camera';
+
 /**
  * Senders for the `plasma` command category.
  *
@@ -75,6 +78,13 @@ export function usePlasmaCommands() {
         send('single_cut', { xLength, yLength }),
       saveOffsetProbing: (values: Record<string, number>) =>
         send('save_offset_probing', { values }),
+      getAlignment: () => sendForResult('get_alignment'),
+      /** One press of the LASER → MARK EDGE → SET ORIGIN routine. */
+      alignmentPress: (kind: PlasmaPeripheral = 'laser') =>
+        sendForResult('alignment_press', { kind }),
+      alignmentCancel: () => send('alignment_cancel'),
+      savePeripheralOffset: (kind: PlasmaPeripheral, values: Record<string, number>) =>
+        send('save_peripheral_offset', { kind, values }),
       ohmicTest: (enabled: boolean) => send('ohmic_test', { enabled }),
       consumableChange: (enabled: boolean) => send('consumable_change', { enabled }),
       cutRecovery: (params: {

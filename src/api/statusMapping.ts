@@ -4,6 +4,7 @@ import type {
   ConnectionStatus,
   IniRuntimeConfig,
   PlasmaMaterials,
+  PlasmaAlignment,
   PlasmaParameters,
   PlasmaPinValues,
   PlasmaState,
@@ -178,6 +179,13 @@ export interface PlasmaParametersChangedEventMessage {
   payload: PlasmaParameters;
 }
 
+export interface PlasmaAlignmentEventMessage {
+  type: 'machine_event';
+  protocolVersion?: 1;
+  event: 'plasma.alignment';
+  payload: PlasmaAlignment;
+}
+
 /** A material change the machine asked for and could not have (unknown number, timeout). */
 export interface PlasmaConfigErrorEventMessage {
   type: 'machine_event';
@@ -298,6 +306,18 @@ export function isPlasmaParametersChangedEventMessage(
     typeof msg.payload === 'object' &&
     !!msg.payload &&
     typeof (msg.payload as PlasmaParameters).values === 'object'
+  );
+}
+
+export function isPlasmaAlignmentEventMessage(
+  msg: BackendMessage,
+): msg is PlasmaAlignmentEventMessage {
+  return (
+    msg.type === 'machine_event' &&
+    msg.event === 'plasma.alignment' &&
+    typeof msg.payload === 'object' &&
+    !!msg.payload &&
+    typeof (msg.payload as PlasmaAlignment).state === 'string'
   );
 }
 

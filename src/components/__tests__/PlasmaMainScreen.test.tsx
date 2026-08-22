@@ -15,8 +15,11 @@ interface SentCommand {
  * Commands the test actually exercised. The user-button panel asks the machine for its button
  * list when it mounts, which is not what any of these tests are about.
  */
+/** Panels that ask the backend a question on mount; not what any of these tests is about. */
+const MOUNT_QUERIES = ['get_user_buttons', 'get_alignment'];
+
 function commandsOfInterest(sent: SentCommand[]): SentCommand[] {
-  return sent.filter((command) => command.action !== 'get_user_buttons');
+  return sent.filter((command) => !MOUNT_QUERIES.includes(command.action));
 }
 
 function installFakeSocket(): SentCommand[] {

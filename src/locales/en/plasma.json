@@ -107,14 +107,19 @@
       "probe": "Probing",
       "motion": "Motion and safety",
       "scribe": "Scribe, spotting and offsets",
-      "offsetProbing": "Offset probing"
+      "offsetProbing": "Offset probing",
+      "peripherals": "Laser and camera offsets"
     },
     "offsetProbing": {
       "X axis": "Probe X offset",
       "Y axis": "Probe Y offset",
       "Delay": "Probe deploy delay"
     },
-    "outOfRange": "Between {{minimum}} and {{maximum}} {{unit}}"
+    "outOfRange": "Between {{minimum}} and {{maximum}} {{unit}}",
+    "peripheral": {
+      "laser": "Laser",
+      "camera": "Camera"
+    }
   },
   "preview": {
     "refresh": "Refresh",
@@ -277,5 +282,24 @@
     "title": "Machine buttons",
     "none": "No user buttons configured.",
     "unsupported": "{{reason}}"
+  },
+  "align": {
+    "title": {
+      "laser": "Sheet alignment (laser)",
+      "camera": "Sheet alignment (camera)"
+    },
+    "step": {
+      "idle": "Laser",
+      "markedge": "Mark edge",
+      "setorigin": "Set origin"
+    },
+    "hint": {
+      "idle": "Put the laser on one point of the plate edge, then press.",
+      "markedge": "Press to mark this point as the plate edge.",
+      "setorigin": "Drive along the edge to a second point, then press to set the origin and the plate angle."
+    },
+    "cancel": "Cancel",
+    "angle": "Plate angle {{angle}}°",
+    "failed": "The machine refused the alignment step."
   }
 }

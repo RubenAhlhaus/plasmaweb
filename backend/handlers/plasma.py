@@ -20,6 +20,7 @@ from backend.application.command_bus import DispatchResult
 from backend.application.context import AppContext
 from backend.contracts.messages import CommandEnvelope, build_error, build_ok
 from backend.plasma.hal_bridge import PinWriteRejected
+from backend.plasma.alignment import SECTIONS as ALIGNMENT_SECTIONS, AlignmentError
 from backend.plasma.materials import MaterialError
 from backend.plasma.parameters import ParameterRejected
 
@@ -1175,6 +1176,103 @@ async def handle_plasma_save_offset_probing(
         return DispatchResult(ack=build_error(command.commandId, "write_failed", str(exc)))
     await _broadcast_config(ctx, materials=False, parameters=True)
     return DispatchResult(ack=build_ok(command.commandId, {"offsetProbing": values}))
+
+
+class PlasmaAlignmentParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    #: ``laser`` or ``camera`` — which peripheral's offset the origin is set at.
+    kind: str = "laser"
+
+
+class PlasmaPeripheralOffsetParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    kind: str
+    values: Dict[str, float]
+
+
+async def handle_plasma_get_alignment(
+    command: CommandEnvelope, ctx: AppContext
+) -> DispatchResult:
+    """Where the alignment routine stands, and whether this machine has a laser or camera."""
+    if ctx.plasma_alignment is None:
+        return _no_config(command)
+    return DispatchResult(ack=build_ok(command.commandId, ctx.plasma_alignment.status()))
+
+
+async def handle_plasma_alignment_press(
+    command: CommandEnvelope, ctx: AppContext
+) -> DispatchResult:
+    """One press of QtPlasmaC's LASER / MARK EDGE / SET ORIGIN button."""
+    if ctx.plasma_alignment is None:
+        return _no_config(command)
+    try:
+        params = PlasmaAlignmentParams.model_validate(command.params or {})
+    except ValidationError:
+        return _invalid(command, 'plasma.alignment_press params: {"kind"?: "laser"|"camera"}')
+    try:
+        status = await asyncio.to_thread(ctx.plasma_alignment.press, params.kind)
+    except AlignmentError as exc:
+        return DispatchResult(ack=build_error(command.commandId, exc.code, exc.message))
+    await _broadcast_alignment(ctx, status)
+    return DispatchResult(ack=build_ok(command.commandId, status))
+
+
+async def handle_plasma_alignment_cancel(
+    command: CommandEnvelope, ctx: AppContext
+) -> DispatchResult:
+    """Give up part-way through. The work offsets are left exactly as they were."""
+    if ctx.plasma_alignment is None:
+        return _no_config(command)
+    status = ctx.plasma_alignment.cancel()
+    await _broadcast_alignment(ctx, status)
+    return DispatchResult(ack=build_ok(command.commandId, status))
+
+
+async def handle_plasma_save_peripheral_offset(
+    command: CommandEnvelope, ctx: AppContext
+) -> DispatchResult:
+    """Where the laser or camera sits relative to the torch."""
+    if ctx.plasma_config is None:
+        return _no_config(command)
+    try:
+        params = PlasmaPeripheralOffsetParams.model_validate(command.params)
+    except ValidationError:
+        return _invalid(
+            command,
+            'plasma.save_peripheral_offset params: {"kind": "laser"|"camera", "values": object}',
+        )
+    section = ALIGNMENT_SECTIONS.get(params.kind)
+    if section is None:
+        return DispatchResult(
+            ack=build_error(
+                command.commandId, "unknown_peripheral", f"no peripheral named {params.kind!r}"
+            )
+        )
+    try:
+        values = ctx.plasma_config.save_peripheral_offset(section, params.values)
+    except (KeyError, TypeError, ValueError) as exc:
+        return DispatchResult(ack=build_error(command.commandId, "invalid_value", str(exc)))
+    except OSError as exc:
+        return DispatchResult(ack=build_error(command.commandId, "write_failed", str(exc)))
+    if ctx.plasma_alignment is not None:
+        await _broadcast_alignment(ctx, ctx.plasma_alignment.status())
+    return DispatchResult(ack=build_ok(command.commandId, {"kind": params.kind, "values": values}))
+
+
+#: The alignment button's state is machine state, not one client's: a shop may well have the
+#: panel and a laptop open, and both must show the same step of the same routine.
+ALIGNMENT_EVENT = "plasma.alignment"
+
+
+async def _broadcast_alignment(ctx: AppContext, status: Dict[str, Any]) -> None:
+    await ctx.manager.broadcast_json(
+        {
+            "type": "machine_event",
+            "protocolVersion": 1,
+            "event": ALIGNMENT_EVENT,
+            "payload": status,
+        }
+    )
 
 
 class PlasmaUserButtonParams(BaseModel):

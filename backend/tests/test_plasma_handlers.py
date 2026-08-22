@@ -1287,3 +1287,101 @@ def test_a_button_the_machine_does_not_have_is_refused(tmp_path) -> None:
 
     assert result.ack.ok is False
     assert result.ack.error.code == "unknown_button"
+
+
+# ---- sheet alignment -------------------------------------------------------------------
+
+
+def build_alignment_ctx(tmp_path, laser=(10.0, 20.0)):
+    """A context with a real SheetAlignment over the alignment test's own fakes."""
+    from backend.plasma.alignment import SheetAlignment
+    from backend.tests.test_plasma_alignment import INI, FakeConfig, FakeGateway
+
+    ini = tmp_path / "machine.ini"
+    ini.write_text(INI)
+    config = FakeConfig(laser=laser)
+    gateway = FakeGateway()
+    alignment = SheetAlignment(gateway, config, str(ini))
+    ctx = AppContext(
+        manager=FakeManager(), gateway=gateway, plasma_config=config, plasma_alignment=alignment
+    )
+    return ctx, gateway, config
+
+
+def test_get_alignment_reports_which_peripherals_the_machine_has(tmp_path) -> None:
+    from backend.handlers.plasma import handle_plasma_get_alignment
+
+    ctx, _gateway, _config = build_alignment_ctx(tmp_path)
+
+    result = run(handle_plasma_get_alignment, command("get_alignment"), ctx)
+
+    assert result.ack.ok
+    assert result.ack.result["fitted"] == {"laser": True, "camera": False}
+    assert result.ack.result["state"] == "idle"
+
+
+def test_alignment_press_walks_the_routine_and_tells_every_client(tmp_path) -> None:
+    from backend.handlers.plasma import ALIGNMENT_EVENT, handle_plasma_alignment_press
+
+    ctx, gateway, _config = build_alignment_ctx(tmp_path)
+
+    first = run(handle_plasma_alignment_press, command("alignment_press", {}), ctx)
+    second = run(handle_plasma_alignment_press, command("alignment_press", {}), ctx)
+    gateway.position = (300.0, 100.0, 0.0)
+    third = run(handle_plasma_alignment_press, command("alignment_press", {}), ctx)
+
+    assert [r.ack.result["state"] for r in (first, second, third)] == [
+        "markedge",
+        "setorigin",
+        "idle",
+    ]
+    assert third.ack.result["angle"] == 180.0
+    events = [msg for msg in ctx.manager.broadcasts if msg["event"] == ALIGNMENT_EVENT]
+    assert len(events) == 3
+
+
+def test_alignment_press_reports_a_peripheral_the_machine_lacks(tmp_path) -> None:
+    from backend.handlers.plasma import handle_plasma_alignment_press
+
+    ctx, _gateway, _config = build_alignment_ctx(tmp_path)
+
+    result = run(handle_plasma_alignment_press, command("alignment_press", {"kind": "camera"}), ctx)
+
+    assert result.ack.error.code == "not_fitted"
+
+
+def test_alignment_cancel_returns_to_idle(tmp_path) -> None:
+    from backend.handlers.plasma import (
+        handle_plasma_alignment_cancel,
+        handle_plasma_alignment_press,
+    )
+
+    ctx, _gateway, _config = build_alignment_ctx(tmp_path)
+    run(handle_plasma_alignment_press, command("alignment_press", {}), ctx)
+
+    result = run(handle_plasma_alignment_cancel, command("alignment_cancel"), ctx)
+
+    assert result.ack.result["state"] == "idle"
+
+
+def test_a_peripheral_offset_is_saved_to_its_own_section(tmp_path) -> None:
+    from backend.handlers.plasma import handle_plasma_save_peripheral_offset
+
+    ctx, _gateway, config = build_alignment_ctx(tmp_path)
+    saved = {}
+    config.save_peripheral_offset = lambda section, values: saved.setdefault(section, values)
+
+    result = run(handle_plasma_save_peripheral_offset, command("save_peripheral_offset", {"kind": "laser", "values": {"X axis": 5.0}}), ctx)
+
+    assert result.ack.ok
+    assert saved == {"LASER_OFFSET": {"X axis": 5.0}}
+
+
+def test_an_unknown_peripheral_is_refused_by_the_handler(tmp_path) -> None:
+    from backend.handlers.plasma import handle_plasma_save_peripheral_offset
+
+    ctx, _gateway, _config = build_alignment_ctx(tmp_path)
+
+    result = run(handle_plasma_save_peripheral_offset, command("save_peripheral_offset", {"kind": "torch", "values": {}}), ctx)
+
+    assert result.ack.error.code == "unknown_peripheral"

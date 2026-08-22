@@ -646,6 +646,52 @@ def write_conversational_settings(path: str, values: Mapping[str, Any]) -> None:
     write_config(path, parser)
 
 
+#: Where the alignment laser and the camera sit relative to the torch
+#: (``offset_peripherals``, ``qtplasmac_handler.py:1232``). Zero on both axes means the machine
+#: has none, and QtPlasmaC hides the button — so zero is "not fitted", not "fitted at 0,0".
+PERIPHERAL_SECTIONS: Tuple[str, ...] = ("LASER_OFFSET", "CAMERA_OFFSET")
+
+PERIPHERAL_KEYS: Tuple[str, ...] = ("X axis", "Y axis")
+
+
+def read_peripheral_offset(path: str, section: str) -> Dict[str, float]:
+    """``[LASER_OFFSET]`` or ``[CAMERA_OFFSET]`` from the prefs, zeros where the file is silent."""
+    if section not in PERIPHERAL_SECTIONS:
+        raise KeyError(section)
+    parser = read_config(path)
+    values: Dict[str, float] = {}
+    for key in PERIPHERAL_KEYS:
+        value = 0.0
+        if parser.has_option(section, key):
+            raw = parser.get(section, key)
+            try:
+                value = float(raw)
+            except (TypeError, ValueError):
+                logger.warning(
+                    "plasma: %s: [%s] %s is not a number (%r); using 0",
+                    path,
+                    section,
+                    key,
+                    raw,
+                )
+        values[key] = value
+    return values
+
+
+def write_peripheral_offset(path: str, section: str, values: Mapping[str, Any]) -> None:
+    if section not in PERIPHERAL_SECTIONS:
+        raise KeyError(section)
+    parser = read_config(path)
+    if not parser.has_section(section):
+        parser.add_section(section)
+    for key, value in values.items():
+        if key not in PERIPHERAL_KEYS:
+            logger.warning("plasma: refusing to write unknown %s key %r", section, key)
+            continue
+        parser.set(section, key, str(float(value)))
+    write_config(path, parser)
+
+
 OFFSET_PROBING_SECTION = "OFFSET_PROBING"
 
 

@@ -286,3 +286,30 @@ def test_an_unknown_offset_probing_key_is_refused(files, caplog) -> None:
 
     assert "Z axis" not in Path(files.prefs_path).read_text()
     assert "Z axis" in caplog.text
+
+
+def test_the_laser_and_camera_offsets_round_trip(tmp_path) -> None:
+    """Where each peripheral sits vs the torch — the number every alignment depends on."""
+    from backend.plasma.parameters import read_peripheral_offset, write_peripheral_offset
+
+    path = tmp_path / "machine.prefs"
+    path.write_text("[GUI_OPTIONS]\nMode = 0\n")
+
+    assert read_peripheral_offset(str(path), "LASER_OFFSET") == {"X axis": 0.0, "Y axis": 0.0}
+
+    write_peripheral_offset(str(path), "LASER_OFFSET", {"X axis": 12.5, "Y axis": -3.0})
+    assert read_peripheral_offset(str(path), "LASER_OFFSET") == {"X axis": 12.5, "Y axis": -3.0}
+    # The other section is untouched, and so is everything else in the file.
+    assert read_peripheral_offset(str(path), "CAMERA_OFFSET") == {"X axis": 0.0, "Y axis": 0.0}
+    assert "Mode = 0" in path.read_text()
+
+
+def test_an_unknown_peripheral_section_is_refused(tmp_path) -> None:
+    import pytest as _pytest
+
+    from backend.plasma.parameters import read_peripheral_offset
+
+    path = tmp_path / "machine.prefs"
+    path.write_text("")
+    with _pytest.raises(KeyError):
+        read_peripheral_offset(str(path), "TORCH_OFFSET")

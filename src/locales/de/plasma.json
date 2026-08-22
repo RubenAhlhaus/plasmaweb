@@ -107,14 +107,19 @@
       "probe": "Antasten",
       "motion": "Bewegung und Sicherheit",
       "scribe": "Ritzen, Spotting und Offsets",
-      "offsetProbing": "Versetztes Antasten"
+      "offsetProbing": "Versetztes Antasten",
+      "peripherals": "Laser- und Kamera-Offsets"
     },
     "offsetProbing": {
       "X axis": "Taster X-Versatz",
       "Y axis": "Taster Y-Versatz",
       "Delay": "Taster-Verzögerung"
     },
-    "outOfRange": "Zwischen {{minimum}} und {{maximum}} {{unit}}"
+    "outOfRange": "Zwischen {{minimum}} und {{maximum}} {{unit}}",
+    "peripheral": {
+      "laser": "Laser",
+      "camera": "Kamera"
+    }
   },
   "preview": {
     "refresh": "Neu laden",
@@ -277,5 +282,24 @@
     "title": "Maschinentasten",
     "none": "Keine Benutzertasten konfiguriert.",
     "unsupported": "{{reason}}"
+  },
+  "align": {
+    "title": {
+      "laser": "Blechausrichtung (Laser)",
+      "camera": "Blechausrichtung (Kamera)"
+    },
+    "step": {
+      "idle": "Laser",
+      "markedge": "Kante markieren",
+      "setorigin": "Nullpunkt setzen"
+    },
+    "hint": {
+      "idle": "Laser auf einen Punkt der Blechkante stellen, dann drücken.",
+      "markedge": "Drücken, um diesen Punkt als Blechkante zu markieren.",
+      "setorigin": "Entlang der Kante zu einem zweiten Punkt fahren, dann drücken — setzt Nullpunkt und Blechwinkel."
+    },
+    "cancel": "Abbrechen",
+    "angle": "Blechwinkel {{angle}}°",
+    "failed": "Die Maschine hat den Ausrichtungsschritt abgelehnt."
   }
 }

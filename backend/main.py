@@ -60,7 +60,11 @@ from backend.handlers.plasma import (
     handle_plasma_run_from_line,
     handle_plasma_save_conversational_settings,
     handle_plasma_save_material,
+    handle_plasma_alignment_cancel,
+    handle_plasma_alignment_press,
+    handle_plasma_get_alignment,
     handle_plasma_save_offset_probing,
+    handle_plasma_save_peripheral_offset,
     handle_plasma_save_parameters,
     handle_plasma_select_material,
     handle_plasma_set_default_material,
@@ -102,6 +106,8 @@ from backend.config import (
     WEBSOCKET_PATH,
 )
 from backend.application.context import AppContext
+from backend.plasma.alignment import SheetAlignment
+from backend.plasma.machine_files import ini_path as plasma_ini_path
 from backend.plasma.startup import create_plasma_stack
 from backend.services.plasma_publisher import PlasmaPublisher
 from backend.application.command_bus import CommandBus
@@ -137,11 +143,20 @@ command_bus = CommandBus()
 # the lifespan handler. Both are None off the machine (no hal module).
 plasma_bridge, plasma_service, plasma_config = create_plasma_stack()
 
+# Sheet alignment squares the job to the plate; it needs the prefs for the laser offset, the
+# machine for MDI, and the INI for the travel limits it checks a mark against.
+plasma_alignment = (
+    SheetAlignment(gateway=gateway, config=plasma_config, ini_path=plasma_ini_path())
+    if plasma_config is not None and plasma_ini_path()
+    else None
+)
+
 app_context = AppContext(
     manager=manager,
     gateway=gateway,
     plasma=plasma_service,
     plasma_config=plasma_config,
+    plasma_alignment=plasma_alignment,
 )
 plasma_publisher = (
     PlasmaPublisher(
@@ -268,6 +283,12 @@ command_bus.register("plasma", "single_cut", handle_plasma_single_cut)
 command_bus.register("plasma", "get_user_buttons", handle_plasma_get_user_buttons)
 command_bus.register("plasma", "user_button", handle_plasma_user_button)
 command_bus.register("plasma", "save_offset_probing", handle_plasma_save_offset_probing)
+command_bus.register("plasma", "get_alignment", handle_plasma_get_alignment)
+command_bus.register("plasma", "alignment_press", handle_plasma_alignment_press)
+command_bus.register("plasma", "alignment_cancel", handle_plasma_alignment_cancel)
+command_bus.register(
+    "plasma", "save_peripheral_offset", handle_plasma_save_peripheral_offset
+)
 command_bus.register("plasma", "run_from_line", handle_plasma_run_from_line)
 command_bus.register("plasma", "conversational_shapes", handle_plasma_conversational_shapes)
 command_bus.register("plasma", "conversational", handle_plasma_conversational_generate)

@@ -78,6 +78,14 @@ const PARAMETER_GROUPS = [
 ] as const;
 
 /**
+ * `[LASER_OFFSET]` and `[CAMERA_OFFSET]`: where each peripheral sits relative to the torch.
+ * Sheet alignment sets the origin at the *peripheral's* position, so these are the numbers
+ * every aligned job depends on. Zero on both axes means the machine has none fitted, and the
+ * alignment button hides itself accordingly.
+ */
+const PERIPHERALS: Array<{ kind: 'laser' | 'camera' }> = [{ kind: 'laser' }, { kind: 'camera' }];
+
+/**
  * `[OFFSET_PROBING]`, which is not a `[PLASMA_PARAMETERS]` key but belongs on the same screen:
  * where the probe sits relative to the torch, and how long it takes to deploy. Zero on both
  * axes means the probe is under the torch, which is the common case.
@@ -106,17 +114,20 @@ export function PlasmaParametersScreen() {
 
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [probeDraft, setProbeDraft] = useState<Record<string, string>>({});
+  const [peripheralDraft, setPeripheralDraft] = useState<Record<string, string>>({});
+  const alignment = useAppStore((s) => s.plasmaAlignment);
 
   // Whatever the backend reports wins: a save, a reload or another client's edit all arrive
   // as a parameters event, and keeping a stale draft on top of that would be a lie.
   useEffect(() => {
     setDraft({});
     setProbeDraft({});
+    setPeripheralDraft({});
   }, [parameters]);
 
   const dirtyKeys = useMemo(
-    () => [...Object.keys(draft), ...Object.keys(probeDraft)],
-    [draft, probeDraft],
+    () => [...Object.keys(draft), ...Object.keys(probeDraft), ...Object.keys(peripheralDraft)],
+    [draft, probeDraft, peripheralDraft],
   );
 
   if (!parameters) {
@@ -169,6 +180,18 @@ export function PlasmaParametersScreen() {
       if (Number.isFinite(parsed)) probeValues[key] = parsed;
     }
     if (Object.keys(probeValues).length > 0) commands.saveOffsetProbing(probeValues);
+
+    // Each peripheral has its own prefs section, so each saves on its own.
+    for (const { kind } of PERIPHERALS) {
+      const values: Record<string, number> = {};
+      for (const axis of ['X axis', 'Y axis']) {
+        const value = peripheralDraft[`${kind}.${axis}`];
+        if (value === undefined) continue;
+        const parsed = Number(value);
+        if (Number.isFinite(parsed)) values[axis] = parsed;
+      }
+      if (Object.keys(values).length > 0) commands.savePeripheralOffset(kind, values);
+    }
   };
 
   return (
@@ -191,6 +214,7 @@ export function PlasmaParametersScreen() {
           onClick={() => {
             setDraft({});
             setProbeDraft({});
+            setPeripheralDraft({});
           }}
         >
           {t('parameters.revert')}
@@ -230,6 +254,35 @@ export function PlasmaParametersScreen() {
                 data-e2e={`plasma-offset-probe-${key.replace(/\s+/g, '-').toLowerCase()}`}
               />
             ))}
+          </div>
+        </section>
+
+        <section data-e2e="plasma-parameters-group-peripherals">
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            {t('parameters.group.peripherals')}
+          </h2>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {PERIPHERALS.map(({ kind }) =>
+              ['X axis', 'Y axis'].map((axis) => {
+                const key = `${kind}.${axis}`;
+                return (
+                  <TouchNumericPickerField
+                    key={key}
+                    label={t(`parameters.peripheral.${kind}`, { axis }) + ` ${axis}`}
+                    unit="mm"
+                    value={
+                      key in peripheralDraft
+                        ? peripheralDraft[key]
+                        : String(alignment?.offsets?.[kind]?.[axis] ?? 0)
+                    }
+                    onChange={(value) =>
+                      setPeripheralDraft((prev) => ({ ...prev, [key]: value }))
+                    }
+                    data-e2e={`plasma-peripheral-${kind}-${axis.replace(/\s+/g, '-').toLowerCase()}`}
+                  />
+                );
+              }),
+            )}
           </div>
         </section>
 
