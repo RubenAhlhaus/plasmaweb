@@ -246,3 +246,22 @@ def test_a_refused_write_is_reported_even_when_no_pin_moved() -> None:
 
     events = [msg for msg in manager.broadcasts if msg["event"] == WRITE_ERROR_EVENT]
     assert events and "not writable" in events[0]["payload"]["message"]
+
+
+def test_the_laser_recovery_request_is_dropped_when_plasmac_acts_on_it() -> None:
+    """Left raised, it would re-arm the laser offset on the next pause — nobody at the button."""
+    publisher, _manager, bridge, runtime = build()
+
+    asyncio.run(publisher.publish_diff({PLASMAC_COMPONENT: {"laser-recovery-state": 2}}))
+    bridge._apply_pending_writes()
+
+    assert dict(runtime.set_p_calls)["plasmac.laser-recovery-start"] == "0"
+
+
+def test_an_unrelated_pin_change_does_not_touch_the_laser_request() -> None:
+    publisher, _manager, bridge, runtime = build()
+
+    asyncio.run(publisher.publish_diff({PLASMAC_COMPONENT: {"torch-on": True}}))
+    bridge._apply_pending_writes()
+
+    assert "plasmac.laser-recovery-start" not in dict(runtime.set_p_calls)

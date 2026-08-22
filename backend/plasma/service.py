@@ -307,9 +307,57 @@ class PlasmaService:
         self._bridge.request_write(PLASMAC_COMPONENT, "cut-recovery", True)
         return x_counts, y_counts
 
+    def laser_recovery(self, x_offset: float, y_offset: float) -> Tuple[int, int]:
+        """Put the *alignment laser* where the torch stopped, so the operator can see the spot.
+
+        Restarting a cut means finding exactly where it stopped, and the torch is in the way of
+        looking at it. QtPlasmaC's answer (``laser_pressed``, ``qtplasmac_handler.py:5392``) is
+        to offset the axes by the laser offset while paused, so the laser sits on the spot; the
+        recovery pad then nudges from there, and plasmac reverses the laser offset on resume
+        (``plasmac.comp:1122``).
+
+        The offsets are *counts* of ``plasmac.offset-scale``, the same unit the recovery pad
+        uses. Returns the counts written.
+        """
+        if not (x_offset or y_offset):
+            raise PinWriteRejected(
+                "no_laser_offset",
+                "this machine has no laser offset configured, so there is nothing to offset by",
+            )
+
+        scale = self._plasmac_value("offset-scale")
+        try:
+            scale = float(scale)
+        except (TypeError, ValueError):
+            scale = 0.0
+        if not scale:
+            raise PinWriteRejected(
+                "offset_scale_unavailable",
+                "plasmac.offset-scale reads zero; the machine cannot offset the torch",
+            )
+
+        x_counts = int(x_offset / scale)
+        y_counts = int(y_offset / scale)
+        self._bridge.request_write(PLASMAC_COMPONENT, "laser-x-offset", x_counts)
+        self._bridge.request_write(PLASMAC_COMPONENT, "laser-y-offset", y_counts)
+        # Order matters: the offsets have to be readable when plasmac sees the start request.
+        self._bridge.request_write(PLASMAC_COMPONENT, "laser-recovery-start", 1)
+        self._bridge.request_write(PLASMAC_COMPONENT, "cut-recovery", True)
+        return x_counts, y_counts
+
+    def laser_recovery_started(self) -> None:
+        """Drop the start request once plasmac has acted on it.
+
+        Upstream clears it whenever ``laser-recovery-state`` changes
+        (``laser_recovery_state_changed``): the pin is a request, not a state, and leaving it
+        raised would re-arm the offset the next time the machine paused.
+        """
+        self._bridge.request_write(PLASMAC_COMPONENT, "laser-recovery-start", 0)
+
     def cut_recovery_cancel(self) -> None:
         """Give up the recovery: the torch returns to the path and the offsets are dropped."""
         self._bridge.request_write(PLASMAC_COMPONENT, "cut-recovery", False)
+        self._bridge.request_write(PLASMAC_COMPONENT, "laser-recovery-start", 0)
         self._bridge.request_write(PLASMAC_COMPONENT, "x-offset", 0)
         self._bridge.request_write(PLASMAC_COMPONENT, "y-offset", 0)
         self._bridge.request_write(PLASMAC_COMPONENT, "paused-motion-speed", 0.0)

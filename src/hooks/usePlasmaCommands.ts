@@ -93,7 +93,7 @@ export function usePlasmaCommands() {
       ohmicTest: (enabled: boolean) => send('ohmic_test', { enabled }),
       consumableChange: (enabled: boolean) => send('consumable_change', { enabled }),
       cutRecovery: (params: {
-        action: 'move' | 'offset' | 'cancel';
+        action: 'move' | 'offset' | 'laser' | 'cancel';
         direction?: number;
         speedPercent?: number;
         x?: number;

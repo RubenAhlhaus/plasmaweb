@@ -120,6 +120,7 @@ class PlasmaPublisher:
         for event, payload in self._panel_events(diff):
             await self._broadcast(event, payload)
         await self._handle_probe_error(diff)
+        self._clear_laser_recovery_request(diff)
         if not self._manager.active_connections:
             return
         await self._manager.broadcast_json(
@@ -182,6 +183,20 @@ class PlasmaPublisher:
             PROBE_ERROR_EVENT,
             {"code": "probe_test_error", "message": "Probe test error: no material found."},
         )
+
+    def _clear_laser_recovery_request(self, diff: Snapshot) -> None:
+        """``laser-recovery-start`` is a request, not a state; drop it once plasmac acts.
+
+        Upstream clears it whenever ``laser-recovery-state`` changes
+        (``laser_recovery_state_changed``). Left raised, it would re-arm the laser offset the
+        next time the machine paused — with the operator nowhere near the button.
+        """
+        if "laser-recovery-state" not in diff.get(PLASMAC_COMPONENT, {}):
+            return
+        try:
+            self._service.laser_recovery_started()
+        except Exception:
+            logger.exception("plasma: could not clear the laser recovery request")
 
     def _panel_events(self, diff: Snapshot) -> list:
         try:

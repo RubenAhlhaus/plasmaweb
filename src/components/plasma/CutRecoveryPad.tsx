@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 
 import { usePlasmaCommands } from '@/hooks/usePlasmaCommands';
 import { usePlasmacFlag, usePlasmacNumber } from '@/hooks/usePlasmaPins';
+import { useAppStore } from '@/store';
 
 const padButtonClass =
   'flex h-11 items-center justify-center rounded-md border border-white/10 bg-slate-900/60 text-sm font-semibold text-foreground hover:border-white/25 disabled:opacity-30';
@@ -27,6 +28,10 @@ const DIRECTIONS: Array<{ key: string; x: number; y: number; label: string }> = 
  * and REV run along the path itself at a share of the cut feed rate; releasing them stops the
  * motion but leaves the recovery armed, so the operator can nudge repeatedly.
  *
+ * A third gesture on machines with an alignment laser: LASER offsets the axes by the laser
+ * offset, so the laser lands where the torch stopped and the operator can see the spot they
+ * are restarting from. plasmac reverses that offset on resume.
+ *
  * Only enabled while the interpreter is paused, because that is the only time plasmac accepts
  * it — and the realtime side, not this pad, owns how far the torch may travel.
  */
@@ -34,6 +39,10 @@ export function CutRecoveryPad({ paused }: { paused: boolean }) {
   const { t } = useTranslation('plasma');
   const commands = usePlasmaCommands();
   const recovering = usePlasmacFlag('cut-recovering');
+  const laserState = usePlasmacNumber('laser-recovery-state');
+  // Zero on both axes is how QtPlasmaC records "no laser fitted", so there is nothing to
+  // offset by and the button has no meaning.
+  const laserFitted = useAppStore((s) => s.plasmaAlignment?.fitted?.laser === true);
   const xOffset = usePlasmacNumber('x-offset-current');
   const yOffset = usePlasmacNumber('y-offset-current');
 
@@ -105,6 +114,20 @@ export function CutRecoveryPad({ paused }: { paused: boolean }) {
           {t('cutRecovery.forward')}
         </button>
       </div>
+
+      {laserFitted && (
+        <button
+          type="button"
+          className={padButtonClass}
+          data-e2e="plasma-cut-recovery-laser"
+          data-active={Boolean(laserState)}
+          disabled={disabled}
+          onClick={() => commands.cutRecovery({ action: 'laser' })}
+          title={t('cutRecovery.laserHint')}
+        >
+          {t('cutRecovery.laser')}
+        </button>
+      )}
 
       <div className="text-xs text-muted-foreground" data-e2e="plasma-cut-recovery-offset">
         {t('cutRecovery.offset', {

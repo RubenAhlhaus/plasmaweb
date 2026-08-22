@@ -280,7 +280,9 @@
     "forward": "Vor",
     "reverse": "Zurück",
     "cancel": "Abbrechen",
-    "offset": "Versatz X {{x}} Y {{y}}"
+    "offset": "Versatz X {{x}} Y {{y}}",
+    "laser": "Laser",
+    "laserHint": "Achsen versetzen, damit der Laser dort steht, wo der Brenner stehen geblieben ist."
   },
   "singleCut": {
     "title": "Einzelschnitt",

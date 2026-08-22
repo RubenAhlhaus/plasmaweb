@@ -1046,7 +1046,7 @@ async def handle_plasma_cut_recovery(
     except ValidationError:
         return _invalid(
             command,
-            'plasma.cut_recovery params: {"action": "move"|"offset"|"cancel", '
+            'plasma.cut_recovery params: {"action": "move"|"offset"|"laser"|"cancel", '
             '"direction": -1|0|1, "speedPercent": number, "x": int, "y": int}',
         )
 
@@ -1070,13 +1070,32 @@ async def handle_plasma_cut_recovery(
                     {"action": "offset", "kerfWidth": kerf, "counts": list(counts)},
                 )
             )
+        if params.action == "laser":
+            # The laser offset comes from the machine's prefs, the same number sheet alignment
+            # uses: the point of it is that the laser lands where the torch was.
+            offset = {"X axis": 0.0, "Y axis": 0.0}
+            if ctx.plasma_config is not None:
+                offset = ctx.plasma_config.peripheral_offset("LASER_OFFSET")
+            counts = service.laser_recovery(offset["X axis"], offset["Y axis"])
+            if ctx.plasma_config is not None:
+                ctx.plasma_config.set_laser(True)
+            return DispatchResult(
+                ack=build_ok(
+                    command.commandId,
+                    {"action": "laser", "offset": offset, "counts": list(counts)},
+                )
+            )
         if params.action == "cancel":
             service.cut_recovery_cancel()
+            if ctx.plasma_config is not None:
+                ctx.plasma_config.set_laser(False)
             return DispatchResult(ack=build_ok(command.commandId, {"action": "cancel"}))
     except PinWriteRejected as exc:
         return _rejected(command, exc)
 
-    return _invalid(command, 'plasma.cut_recovery action: "move", "offset" or "cancel"')
+    return _invalid(
+        command, 'plasma.cut_recovery action: "move", "offset", "laser" or "cancel"'
+    )
 
 
 class PlasmaSingleCutParams(BaseModel):

@@ -280,7 +280,9 @@
     "forward": "Fwd",
     "reverse": "Rev",
     "cancel": "Cancel recovery",
-    "offset": "Offset X {{x}} Y {{y}}"
+    "offset": "Offset X {{x}} Y {{y}}",
+    "laser": "Laser",
+    "laserHint": "Offset the axes so the laser sits where the torch stopped."
   },
   "singleCut": {
     "title": "Single cut",

@@ -227,6 +227,32 @@ describe('PlasmaMainScreen — probing and cut recovery', () => {
     expect(commandsOfInterest(sent).map((command) => command.params.direction)).toEqual([1, 0]);
   });
 
+  it('the laser button only exists on a machine with an alignment laser', () => {
+    snapshot({ 'program-is-paused': true });
+    render(<PlasmaMainScreen />);
+
+    expect(document.querySelector('[data-e2e="plasma-cut-recovery-laser"]')).toBeNull();
+  });
+
+  it('the laser offsets the axes so the laser sits where the torch stopped', async () => {
+    const sent = installFakeSocket();
+    snapshot({ 'program-is-paused': true });
+    useAppStore.getState().setPlasmaAlignment({
+      state: 'idle',
+      kind: 'laser',
+      firstMark: null,
+      fitted: { laser: true, camera: false },
+      offsets: { laser: { 'X axis': -25, 'Y axis': 0 }, camera: {} },
+    });
+    render(<PlasmaMainScreen />);
+
+    await userEvent.click(
+      document.querySelector('[data-e2e="plasma-cut-recovery-laser"]') as HTMLElement,
+    );
+
+    expect(commandsOfInterest(sent)[0].params).toEqual({ action: 'laser' });
+  });
+
   it('cancel gives up the recovery', async () => {
     const sent = installFakeSocket();
     snapshot({ 'program-is-paused': true });

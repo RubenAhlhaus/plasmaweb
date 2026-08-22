@@ -282,3 +282,64 @@ def test_a_consumable_change_is_a_plain_toggle() -> None:
     applied(bridge, runtime)
 
     assert ("plasmac.consumable-change", "1") in runtime.set_p_calls
+
+
+# ---- laser cut recovery ---------------------------------------------------------------
+
+
+def test_laser_recovery_offsets_the_axes_by_the_laser_offset() -> None:
+    """Restarting a cut means seeing where it stopped, and the torch is in the way."""
+    service, runtime, bridge = build(plasmac_values={"offset-scale": 0.001})
+    bridge.poll_once()
+
+    counts = service.laser_recovery(-25.0, 10.0)
+    bridge._apply_pending_writes()
+    written = dict(runtime.set_p_calls)
+
+    assert counts == (-25000, 10000)
+    assert written["plasmac.laser-x-offset"] == "-25000"
+    assert written["plasmac.laser-y-offset"] == "10000"
+    assert written["plasmac.laser-recovery-start"] == "1"
+    assert written["plasmac.cut-recovery"] == "1"
+
+
+def test_laser_recovery_needs_a_laser_offset_to_offset_by() -> None:
+    service, _runtime, bridge = build(plasmac_values={"offset-scale": 0.001})
+    bridge.poll_once()
+
+    with pytest.raises(PinWriteRejected) as excinfo:
+        service.laser_recovery(0.0, 0.0)
+    assert excinfo.value.code == "no_laser_offset"
+
+
+def test_laser_recovery_refuses_when_the_machine_cannot_offset() -> None:
+    """An offset scale of zero would divide by nothing; the pad refuses the same way."""
+    service, _runtime, bridge = build(plasmac_values={"offset-scale": 0.0})
+    bridge.poll_once()
+
+    with pytest.raises(PinWriteRejected) as excinfo:
+        service.laser_recovery(-25.0, 0.0)
+    assert excinfo.value.code == "offset_scale_unavailable"
+
+
+def test_the_start_request_is_dropped_once_plasmac_has_acted() -> None:
+    """It is a request, not a state: left raised it re-arms on the next pause."""
+    service, runtime, bridge = build()
+    bridge.poll_once()
+
+    service.laser_recovery_started()
+    bridge._apply_pending_writes()
+
+    assert dict(runtime.set_p_calls)["plasmac.laser-recovery-start"] == "0"
+
+
+def test_cancelling_a_recovery_also_drops_the_laser_request() -> None:
+    service, runtime, bridge = build()
+    bridge.poll_once()
+
+    service.cut_recovery_cancel()
+    bridge._apply_pending_writes()
+    written = dict(runtime.set_p_calls)
+
+    assert written["plasmac.cut-recovery"] == "0"
+    assert written["plasmac.laser-recovery-start"] == "0"
