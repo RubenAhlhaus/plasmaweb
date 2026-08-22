@@ -74,6 +74,17 @@ const PARAMETER_GROUPS = [
   },
 ] as const;
 
+/**
+ * `[OFFSET_PROBING]`, which is not a `[PLASMA_PARAMETERS]` key but belongs on the same screen:
+ * where the probe sits relative to the torch, and how long it takes to deploy. Zero on both
+ * axes means the probe is under the torch, which is the common case.
+ */
+const OFFSET_PROBING_FIELDS: Array<{ key: string; unit: string }> = [
+  { key: 'X axis', unit: 'mm' },
+  { key: 'Y axis', unit: 'mm' },
+  { key: 'Delay', unit: 's' },
+];
+
 const buttonClass =
   'rounded-md border border-white/10 bg-slate-900/60 px-4 py-2 text-sm font-semibold uppercase tracking-wide hover:border-white/25 disabled:opacity-40';
 
@@ -91,14 +102,19 @@ export function PlasmaParametersScreen() {
   const parameters = useAppStore((s) => s.plasmaParameters);
 
   const [draft, setDraft] = useState<Record<string, string>>({});
+  const [probeDraft, setProbeDraft] = useState<Record<string, string>>({});
 
   // Whatever the backend reports wins: a save, a reload or another client's edit all arrive
   // as a parameters event, and keeping a stale draft on top of that would be a lie.
   useEffect(() => {
     setDraft({});
+    setProbeDraft({});
   }, [parameters]);
 
-  const dirtyKeys = useMemo(() => Object.keys(draft), [draft]);
+  const dirtyKeys = useMemo(
+    () => [...Object.keys(draft), ...Object.keys(probeDraft)],
+    [draft, probeDraft],
+  );
 
   if (!parameters) {
     return (
@@ -119,11 +135,19 @@ export function PlasmaParametersScreen() {
 
   const save = () => {
     const values: Record<string, number> = {};
-    for (const key of dirtyKeys) {
-      const parsed = Number(draft[key]);
+    for (const [key, value] of Object.entries(draft)) {
+      const parsed = Number(value);
       if (Number.isFinite(parsed)) values[key] = parsed;
     }
     if (Object.keys(values).length > 0) commands.saveParameters(values);
+
+    // The offset probe lives in its own prefs section, so it saves through its own command.
+    const probeValues: Record<string, number> = {};
+    for (const [key, value] of Object.entries(probeDraft)) {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) probeValues[key] = parsed;
+    }
+    if (Object.keys(probeValues).length > 0) commands.saveOffsetProbing(probeValues);
   };
 
   return (
@@ -143,7 +167,10 @@ export function PlasmaParametersScreen() {
           className={buttonClass}
           data-e2e="plasma-parameters-revert"
           disabled={dirtyKeys.length === 0}
-          onClick={() => setDraft({})}
+          onClick={() => {
+            setDraft({});
+            setProbeDraft({});
+          }}
         >
           {t('parameters.revert')}
         </button>
@@ -163,6 +190,28 @@ export function PlasmaParametersScreen() {
       </div>
 
       <div className="min-h-0 flex-1 space-y-5 overflow-y-auto pb-2">
+        <section data-e2e="plasma-parameters-group-offsetProbing">
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            {t('parameters.group.offsetProbing')}
+          </h2>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {OFFSET_PROBING_FIELDS.map(({ key, unit }) => (
+              <TouchNumericPickerField
+                key={key}
+                label={t(`parameters.offsetProbing.${key}`, { defaultValue: key })}
+                unit={unit}
+                value={
+                  key in probeDraft
+                    ? probeDraft[key]
+                    : String(parameters.offsetProbing?.[key] ?? 0)
+                }
+                onChange={(value) => setProbeDraft((prev) => ({ ...prev, [key]: value }))}
+                data-e2e={`plasma-offset-probe-${key.replace(/\s+/g, '-').toLowerCase()}`}
+              />
+            ))}
+          </div>
+        </section>
+
         {PARAMETER_GROUPS.map((group) => (
           <section key={group.titleKey} data-e2e={`plasma-parameters-group-${group.titleKey}`}>
             <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">

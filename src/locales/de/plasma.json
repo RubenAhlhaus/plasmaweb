@@ -106,7 +106,13 @@
       "thc": "Höhenregelung",
       "probe": "Antasten",
       "motion": "Bewegung und Sicherheit",
-      "scribe": "Ritzen, Spotting und Offsets"
+      "scribe": "Ritzen, Spotting und Offsets",
+      "offsetProbing": "Versetztes Antasten"
+    },
+    "offsetProbing": {
+      "X axis": "Taster X-Versatz",
+      "Y axis": "Taster Y-Versatz",
+      "Delay": "Taster-Verzögerung"
     }
   },
   "preview": {

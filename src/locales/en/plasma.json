@@ -106,7 +106,13 @@
       "thc": "Torch height control",
       "probe": "Probing",
       "motion": "Motion and safety",
-      "scribe": "Scribe, spotting and offsets"
+      "scribe": "Scribe, spotting and offsets",
+      "offsetProbing": "Offset probing"
+    },
+    "offsetProbing": {
+      "X axis": "Probe X offset",
+      "Y axis": "Probe Y offset",
+      "Delay": "Probe deploy delay"
     }
   },
   "preview": {

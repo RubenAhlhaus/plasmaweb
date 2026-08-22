@@ -105,3 +105,45 @@ describe('PlasmaParametersScreen', () => {
     expect(sent.map((command) => command.action)).toEqual(['reload_config']);
   });
 });
+
+describe('PlasmaParametersScreen — offset probing', () => {
+  beforeEach(() => {
+    useAppStore.getState().resetPlasma();
+    useAppStore.setState({ backendWebSocket: null });
+  });
+
+  it('shows where the probe sits, defaulting to under the torch', () => {
+    setParameters();
+
+    render(<PlasmaParametersScreen />);
+
+    expect(e2e('plasma-offset-probe-x-axis').textContent).toContain('0');
+    expect(e2e('plasma-offset-probe-delay').textContent).toContain('0');
+  });
+
+  it('saves the offset probe through its own command, not with the parameters', async () => {
+    const sent = installFakeSocket();
+    useAppStore.getState().setPlasmaParameters({
+      values: { 'Pid P Gain': 10 },
+      defaults: { 'Pid P Gain': 10 },
+      enables: {},
+      offsetProbing: { 'X axis': 0, 'Y axis': 0, Delay: 0 },
+      unitsPerMm: 1,
+      path: '/x.prefs',
+    });
+    render(<PlasmaParametersScreen />);
+
+    await userEvent.click(e2e('plasma-offset-probe-x-axis'));
+    const entry = document.querySelector('[role=dialog] input') as HTMLInputElement;
+    await userEvent.clear(entry);
+    await userEvent.type(entry, '25');
+    await userEvent.keyboard('{Enter}');
+    await userEvent.click(e2e('plasma-parameters-save'));
+
+    const actions = sent.map((command) => command.action);
+    expect(actions).toContain('save_offset_probing');
+    expect(actions).not.toContain('save_parameters');
+    const save = sent.find((command) => command.action === 'save_offset_probing');
+    expect(save!.params.values).toEqual({ 'X axis': 25 });
+  });
+});

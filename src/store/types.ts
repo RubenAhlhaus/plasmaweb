@@ -588,6 +588,8 @@ export interface PlasmaParameters {
   values: Record<string, number>;
   defaults: Record<string, number>;
   enables: Record<string, boolean>;
+  /** `[OFFSET_PROBING]`: where the probe sits relative to the torch, and its deploy delay. */
+  offsetProbing?: Record<string, number>;
   /** 1 on a metric machine, 0.03937 on an imperial one (QtPlasmaC's own constant). */
   unitsPerMm: number;
   path: string;
