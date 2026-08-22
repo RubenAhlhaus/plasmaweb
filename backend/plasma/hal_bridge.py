@@ -190,6 +190,8 @@ class HalBridge:
         self._missing: Tuple[str, ...] = ()
         self._read_plasmac: Tuple[PlasmaPin, ...] = ()
         self._write_errors: List[str] = []
+        #: Extra HAL pins this machine's own config named (see ``allow_external_pin``).
+        self._allowed_external: set = set()
 
     # ---- lifecycle -----------------------------------------------------------------
 
@@ -337,6 +339,10 @@ class HalBridge:
         """``plasmac.*`` pins the pin table knows but this LinuxCNC build does not export."""
         return self._missing
 
+    def external_pin_value(self, name: str) -> Any:
+        """Read any HAL pin by full name — for a user button that toggles one."""
+        return self._runtime.get_value(name)
+
     def snapshot(self) -> Snapshot:
         """Latest full snapshot — what a newly connected WebSocket client gets."""
         with self._lock:
@@ -388,18 +394,29 @@ class HalBridge:
         pin = self._resolve_writable(component, name)
         self._writes.put((component, pin.name, format_hal_value(pin, value)))
 
+    def allow_external_pin(self, name: str) -> None:
+        """Permit writes to one more HAL pin outside the plasma components.
+
+        For the pins a machine's *own config file* names — a user button's
+        ``toggle-halpin dust-extractor``. The name comes from the machine owner's prefs, never
+        from a request, so this is configuration rather than an open door; a client can only
+        ask for a button by number.
+        """
+        self._allowed_external.add(name)
+
     def request_external_write(self, name: str, value: Any) -> None:
         """Queue a write to one of the few HAL pins outside the plasma components.
 
-        Deliberately an allowlist of one: ``motion.digital-in-03`` is the pin ``M190`` polls
-        while it waits for a material change, so answering it is not optional — but a general
-        "write any HAL pin" door would undo the whole point of the write policy.
+        The base allowlist is one pin: ``motion.digital-in-03`` is what ``M190`` polls while it
+        waits for a material change, so answering it is not optional. Anything else has to have
+        been declared through :meth:`allow_external_pin` — a general "write any HAL pin" door
+        would undo the whole point of the write policy.
         """
-        if name not in EXTERNAL_WRITABLE_PINS:
+        if name not in EXTERNAL_WRITABLE_PINS and name not in self._allowed_external:
+            allowed = sorted(EXTERNAL_WRITABLE_PINS | self._allowed_external)
             raise PinWriteRejected(
                 "pin_not_writable",
-                f"{name} is not one of the pins the plasma layer may write "
-                f"({', '.join(sorted(EXTERNAL_WRITABLE_PINS))})",
+                f"{name} is not one of the pins the plasma layer may write ({', '.join(allowed)})",
             )
         self._writes.put((_EXTERNAL, name, "1" if bool(value) else "0"))
 

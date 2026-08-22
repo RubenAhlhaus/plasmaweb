@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
+import sys
 from typing import Any, Dict, Optional
 
 from pydantic import BaseModel, ConfigDict, ValidationError
@@ -1167,3 +1169,273 @@ async def handle_plasma_save_offset_probing(
         return DispatchResult(ack=build_error(command.commandId, "write_failed", str(exc)))
     await _broadcast_config(ctx, materials=False, parameters=True)
     return DispatchResult(ack=build_ok(command.commandId, {"offsetProbing": values}))
+
+
+class PlasmaUserButtonParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    number: int
+    #: Momentary codes (torch pulse) act on press and release; the rest ignore this.
+    pressed: bool = True
+
+
+async def handle_plasma_get_user_buttons(
+    command: CommandEnvelope, ctx: AppContext
+) -> DispatchResult:
+    """The buttons this machine's owner defined, and whether each one can be run here."""
+    if ctx.plasma_config is None:
+        return _no_config(command)
+    from backend.plasma.user_buttons import allow_configured_pins, read_user_buttons
+
+    buttons = read_user_buttons(ctx.plasma_config.files.prefs_path)
+    if ctx.plasma is not None:
+        # The pins a button may write come from the config file, not from a request.
+        allow_configured_pins(ctx.plasma.bridge, buttons)
+    return DispatchResult(
+        ack=build_ok(
+            command.commandId, {"buttons": [button.as_dict() for button in buttons]}
+        )
+    )
+
+
+async def handle_plasma_user_button(
+    command: CommandEnvelope, ctx: AppContext
+) -> DispatchResult:
+    """Press one of the machine's own buttons.
+
+    The client sends a *number*; the code it runs comes from the machine's prefs file. That is
+    the whole security model here: a browser can ask for button 3, it cannot say what button 3
+    does.
+    """
+    if ctx.plasma is None:
+        return _unavailable(command)
+    if ctx.plasma_config is None:
+        return _no_config(command)
+
+    from backend.plasma.user_buttons import UserButtonError, latest_file, user_button
+
+    try:
+        params = PlasmaUserButtonParams.model_validate(command.params)
+    except ValidationError:
+        return _invalid(command, 'plasma.user_button params: {"number": int, "pressed": bool}')
+
+    try:
+        button = user_button(ctx.plasma_config.files.prefs_path, params.number)
+    except KeyError:
+        return DispatchResult(
+            ack=build_error(
+                command.commandId, "unknown_button", f"no user button {params.number}"
+            )
+        )
+    if not button.supported:
+        return DispatchResult(
+            ack=build_error(
+                command.commandId,
+                "button_unsupported",
+                button.reason or f"{button.kind} buttons are not supported yet",
+            )
+        )
+
+    service = ctx.plasma
+    try:
+        result = await _run_user_button(ctx, service, button, params.pressed)
+    except UserButtonError as exc:
+        return DispatchResult(ack=build_error(command.commandId, exc.code, exc.message))
+    except PinWriteRejected as exc:
+        return _rejected(command, exc)
+
+    if isinstance(result, dict) and result.get("error"):
+        return DispatchResult(
+            ack=build_error(command.commandId, result["error"], result.get("message", ""))
+        )
+    return DispatchResult(
+        ack=build_ok(
+            command.commandId,
+            {"number": button.number, "kind": button.kind, **(result or {})},
+        )
+    )
+
+
+async def _run_user_button(
+    ctx: AppContext, service: Any, button: Any, pressed: bool
+) -> Optional[Dict[str, Any]]:
+    """Do what one button's code says. Returns extra payload for the ack, or an error dict."""
+    import asyncio as _asyncio
+
+    from backend.plasma.user_buttons import latest_file
+
+    kind = button.kind
+    params = button.params
+
+    if kind == "probe-test":
+        return await _dispatch_child(
+            ctx, "probe_test", {"seconds": params["seconds"] if pressed else 0}
+        )
+
+    if kind == "ohmic-test":
+        service.ohmic_test(pressed)
+        return {"enabled": pressed}
+
+    if kind == "torch-pulse":
+        service.torch_pulse("press" if pressed else "release", params.get("seconds"))
+        return {"pressed": pressed}
+
+    if kind == "single-cut":
+        # The lengths live in the prefs, as upstream's dialog leaves them.
+        from backend.plasma.single_cut import read_lengths
+
+        lengths = read_lengths(ctx.plasma_config.files.prefs_path)
+        return await _dispatch_child(
+            ctx,
+            "single_cut",
+            {"xLength": lengths["X length"], "yLength": lengths["Y length"]},
+        )
+
+    if kind == "cut-type":
+        # `qtplasmac.cut_type` selects pierce-and-cut (0) or centre-line scribe/cut (1); one
+        # button toggles it, and the G-code filter reads the pin.
+        current = int(service.bridge.snapshot().get("qtplasmac", {}).get("cut_type", 0) or 0)
+        if pressed:
+            service.set_own_output("cut_type", 0 if current else 1)
+        return {"cutType": 0 if current else 1}
+
+    if kind == "toggle-halpin":
+        if not pressed:
+            return None
+        pin = params["pin"]
+        try:
+            current = bool(service.bridge.external_pin_value(pin))
+        except Exception:
+            # A pin the config names but this machine does not have. Toggling from an unknown
+            # state would be a guess, so say so instead.
+            return {
+                "error": "pin_not_found",
+                "message": f"this machine has no HAL pin {pin}",
+            }
+        service.bridge.request_external_write(pin, not current)
+        return {"pin": pin, "value": not current}
+
+    if kind == "pulse-halpin":
+        if not pressed:
+            return None
+        pin = params["pin"]
+        service.bridge.request_external_write(pin, True)
+        _asyncio.get_running_loop().create_task(
+            _drop_pin_after(service, pin, params["seconds"])
+        )
+        return {"pin": pin, "seconds": params["seconds"]}
+
+    if kind in ("load", "latest-file"):
+        if not pressed:
+            return None
+        path = params["path"]
+        if kind == "latest-file":
+            path = latest_file(path)
+        elif not os.path.isabs(path):
+            # Upstream resolves a relative path against the program directory.
+            prefixes = ctx.gateway.get_program_prefix_directories()
+            if prefixes:
+                path = os.path.join(prefixes[0], path)
+        opened = ctx.gateway.program_open(path)
+        if not opened.ok:
+            return {
+                "error": opened.error_code or "open_failed",
+                "message": opened.error_message or "Could not load that program.",
+            }
+        return {"path": path, "loaded": True}
+
+    if kind == "gcode":
+        if not pressed:
+            return None
+        result = ctx.gateway.program_mdi(params["gcode"])
+        if not result.ok:
+            return {
+                "error": result.error_code or "mdi_failed",
+                "message": result.error_message or "The MDI command was refused.",
+            }
+        return {"gcode": params["gcode"]}
+
+    if kind == "external":
+        if not pressed:
+            return None
+        return await _run_external_command(params["command"])
+
+    return None
+
+
+async def _dispatch_child(
+    ctx: AppContext, action: str, params: Dict[str, Any]
+) -> Optional[Dict[str, Any]]:
+    """Run another plasma command's handler, so a button and a screen tap take one path."""
+    handlers = {
+        "probe_test": handle_plasma_probe_test,
+        "single_cut": handle_plasma_single_cut,
+    }
+    child = CommandEnvelope(
+        type="command",
+        commandId="user-button",
+        category="plasma",
+        action=action,
+        params=params,
+    )
+    result = await handlers[action](child, ctx)
+    if result.ack.ok:
+        return dict(result.ack.result or {})
+    return {
+        "error": result.ack.error.code if result.ack.error else "failed",
+        "message": result.ack.error.message if result.ack.error else "",
+    }
+
+
+async def _drop_pin_after(service: Any, pin: str, seconds: float) -> None:
+    """Lower a pulsed pin again. The backend owns the timer, as it does for the probe test."""
+    import asyncio as _asyncio
+
+    try:
+        await _asyncio.sleep(seconds)
+    except _asyncio.CancelledError:
+        service.bridge.request_external_write(pin, False)
+        raise
+    try:
+        service.bridge.request_external_write(pin, False)
+    except Exception:
+        logger.exception("plasma: could not lower the pulsed pin %s", pin)
+
+
+async def _run_external_command(command_line: str) -> Dict[str, Any]:
+    """Run a user button's external command, as the machine's own user.
+
+    The command comes from the machine's prefs file, which only its owner edits — the same
+    trust as an INI-configured macro. It is still run without a shell and with a timeout: a
+    button that hangs must not take the plasma layer's event loop with it.
+    """
+    import asyncio as _asyncio
+    import shlex
+
+    parts = shlex.split(command_line)
+    if not parts:
+        return {"error": "invalid_command", "message": "the button has no command to run"}
+    if parts[0].endswith(".py"):
+        parts.insert(0, sys.executable)
+
+    try:
+        process = await _asyncio.create_subprocess_exec(
+            *parts,
+            stdout=_asyncio.subprocess.PIPE,
+            stderr=_asyncio.subprocess.STDOUT,
+        )
+    except (OSError, ValueError) as exc:
+        return {"error": "command_failed", "message": str(exc)}
+
+    try:
+        output, _ = await _asyncio.wait_for(process.communicate(), timeout=30)
+    except _asyncio.TimeoutError:
+        process.kill()
+        return {"error": "command_timeout", "message": f"{parts[0]} did not finish in 30 s"}
+
+    text = (output or b"").decode("utf-8", "replace").strip()
+    if process.returncode:
+        return {
+            "error": "command_failed",
+            "message": f"{parts[0]} exited {process.returncode}: {text[:500]}",
+        }
+    return {"command": parts[0], "output": text[:500]}

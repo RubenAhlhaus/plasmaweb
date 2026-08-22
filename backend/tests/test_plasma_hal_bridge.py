@@ -62,6 +62,8 @@ class FakeHalRuntime:
             "motion.feed-upm": "float",
         }
         self.signals: Dict[str, str] = {}
+        #: Values of pins outside the two plasma components (a machine's own HAL).
+        self.extra_pin_values: Dict[str, Any] = {}
         self.links: Dict[str, str] = {}
         self._absent = set(absent)
         self._written_by_hal = set(written_by_hal)
@@ -88,6 +90,10 @@ class FakeHalRuntime:
     def get_value(self, name: str) -> Any:
         component, _, pin = name.partition(".")
         if component != PLASMAC_COMPONENT:
+            # Real `hal.get_value` reads any pin or signal by full name, which is what a user
+            # button's `toggle-halpin` relies on.
+            if name in self.extra_pins:
+                return self.extra_pin_values.get(name, False)
             raise KeyError(name)
         if pin in self._absent:
             raise KeyError(name)
@@ -98,6 +104,8 @@ class FakeHalRuntime:
         component, _, pin = name.partition(".")
         if component == PLASMAC_COMPONENT:
             self.plasmac_values[pin] = value
+        else:
+            self.extra_pin_values[name] = value not in ("0", "FALSE", "False", "false")
 
     def pin_names(self) -> Tuple[str, ...]:
         return tuple(

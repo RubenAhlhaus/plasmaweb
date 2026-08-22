@@ -50,6 +50,7 @@ from backend.handlers.plasma import (
     handle_plasma_cut_recovery,
     handle_plasma_get_conversational_settings,
     handle_plasma_get_materials,
+    handle_plasma_get_user_buttons,
     handle_plasma_get_parameters,
     handle_plasma_get_snapshot,
     handle_plasma_height_override,
@@ -70,6 +71,7 @@ from backend.handlers.plasma import (
     handle_plasma_toolpath,
     handle_plasma_torch_enable,
     handle_plasma_torch_pulse,
+    handle_plasma_user_button,
 )
 from backend.handlers.hal import handle_hal_set_jog_wheel_scale, handle_hal_softkey_pulse
 from backend.handlers.machine import (
@@ -263,6 +265,8 @@ command_bus.register("plasma", "ohmic_test", handle_plasma_ohmic_test)
 command_bus.register("plasma", "consumable_change", handle_plasma_consumable_change)
 command_bus.register("plasma", "cut_recovery", handle_plasma_cut_recovery)
 command_bus.register("plasma", "single_cut", handle_plasma_single_cut)
+command_bus.register("plasma", "get_user_buttons", handle_plasma_get_user_buttons)
+command_bus.register("plasma", "user_button", handle_plasma_user_button)
 command_bus.register("plasma", "save_offset_probing", handle_plasma_save_offset_probing)
 command_bus.register("plasma", "run_from_line", handle_plasma_run_from_line)
 command_bus.register("plasma", "conversational_shapes", handle_plasma_conversational_shapes)

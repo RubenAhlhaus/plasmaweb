@@ -37,6 +37,8 @@ from backend.handlers.plasma import (
     handle_plasma_toolpath,
     handle_plasma_torch_enable,
     handle_plasma_torch_pulse,
+    handle_plasma_get_user_buttons,
+    handle_plasma_user_button,
 )
 from backend.plasma.pins import PLASMAC_COMPONENT, QTPLASMAC_COMPONENT
 from backend.plasma.service import PlasmaService
@@ -1152,3 +1154,136 @@ def test_saving_the_offset_probe_puts_it_on_the_pins(tmp_path) -> None:
     written = dict(applied(bridge, runtime))
     assert written["plasmac.offset-probe-x"] == "30.0"
     assert written["plasmac.offset-probe-delay"] == "0.25"
+
+
+# ---- user buttons --------------------------------------------------------------------
+
+
+BUTTON_PREFS = """\
+[BUTTONS]
+1 Name = Probe
+1 Code = probe-test 6
+2 Name = Extractor
+2 Code = toggle-halpin dust-extractor
+3 Name = Park
+3 Code = G53 G0 X0 Y0
+4 Name = Frame
+4 Code = framing
+5 Name = Blowdown
+5 Code = pulse-halpin air-blast 0.05
+"""
+
+
+class MdiGateway(FakeGateway):
+    """A gateway that records MDI lines as well as opens."""
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(None, **kwargs)
+        self.mdi: list = []
+
+    def program_mdi(self, text: str):
+        from backend.adapters.linuxcnc_gateway import GatewayCommandResult
+
+        self.mdi.append(text)
+        return GatewayCommandResult(ok=True, noop=False)
+
+
+def build_button_ctx(tmp_path):
+    ctx, runtime, bridge = build_config_ctx(tmp_path)
+    from pathlib import Path
+
+    Path(ctx.plasma_config.files.prefs_path).write_text(BUTTON_PREFS)
+    ctx = AppContext(
+        manager=ctx.manager,
+        gateway=MdiGateway(),
+        plasma=ctx.plasma,
+        plasma_config=ctx.plasma_config,
+    )
+    return ctx, runtime, bridge
+
+
+def test_the_button_list_says_what_each_one_does(tmp_path) -> None:
+    ctx, _runtime, _bridge = build_button_ctx(tmp_path)
+
+    result = run(handle_plasma_get_user_buttons, command("get_user_buttons"), ctx)
+
+    buttons = {b["number"]: b for b in result.ack.result["buttons"]}
+    assert buttons[1]["kind"] == "probe-test"
+    assert buttons[3]["kind"] == "gcode"
+    assert buttons[4]["supported"] is False
+    assert "not implemented" in buttons[4]["reason"]
+
+
+def test_pressing_a_probe_test_button_starts_its_own_time(tmp_path) -> None:
+    ctx, runtime, bridge = build_button_ctx(tmp_path)
+
+    result = run(handle_plasma_user_button, command("user_button", {"number": 1}), ctx)
+
+    assert result.ack.ok is True
+    assert result.ack.result["seconds"] == 6.0
+    assert ("plasmac.probe-test", "1") in applied(bridge, runtime)
+    ctx.plasma.probe_test_stop()
+
+
+def test_a_gcode_button_goes_through_the_mdi(tmp_path) -> None:
+    ctx, _runtime, _bridge = build_button_ctx(tmp_path)
+
+    result = run(handle_plasma_user_button, command("user_button", {"number": 3}), ctx)
+
+    assert result.ack.ok is True
+    assert ctx.gateway.mdi == ["G53 G0 X0 Y0"]
+
+
+def test_a_hal_toggle_button_needs_the_config_to_have_named_the_pin(tmp_path) -> None:
+    """The permission comes from the prefs file; a client can only ask for a button number."""
+    ctx, runtime, bridge = build_button_ctx(tmp_path)
+    runtime.extra_pins["dust-extractor"] = "bit"
+    runtime.plasmac_values.setdefault("torch-on", False)
+
+    # Without reading the list first, the pin is not allowed…
+    refused = run(handle_plasma_user_button, command("user_button", {"number": 2}), ctx)
+    assert refused.ack.ok is False
+    assert refused.ack.error.code == "pin_not_writable"
+
+    # …and reading it (which is what a client does on connect) is what permits it.
+    run(handle_plasma_get_user_buttons, command("get_user_buttons"), ctx)
+    result = run(handle_plasma_user_button, command("user_button", {"number": 2}), ctx)
+
+    assert result.ack.ok is True
+    assert result.ack.result["pin"] == "dust-extractor"
+    assert ("dust-extractor", "1") in applied(bridge, runtime)
+
+
+def test_a_pulsed_pin_is_lowered_again_by_the_backend(tmp_path) -> None:
+    ctx, runtime, bridge = build_button_ctx(tmp_path)
+    runtime.extra_pins["air-blast"] = "bit"
+    run(handle_plasma_get_user_buttons, command("get_user_buttons"), ctx)
+
+    async def scenario():
+        await handle_plasma_user_button(command("user_button", {"number": 5}), ctx)
+        await asyncio.sleep(0.15)
+
+    asyncio.run(scenario())
+    calls = applied(bridge, runtime)
+
+    assert ("air-blast", "1") in calls
+    assert ("air-blast", "0") in calls
+
+
+def test_an_unsupported_button_is_refused_with_its_reason(tmp_path) -> None:
+    ctx, _runtime, _bridge = build_button_ctx(tmp_path)
+
+    result = run(handle_plasma_user_button, command("user_button", {"number": 4}), ctx)
+
+    assert result.ack.ok is False
+    assert result.ack.error.code == "button_unsupported"
+    assert "framing" in result.ack.error.message
+
+
+def test_a_button_the_machine_does_not_have_is_refused(tmp_path) -> None:
+    ctx, _runtime, _bridge = build_button_ctx(tmp_path)
+
+    result = run(handle_plasma_user_button, command("user_button", {"number": 12}), ctx)
+
+    assert result.ack.ok is False
+    assert result.ack.error.code == "unknown_button"
