@@ -527,6 +527,19 @@ values that reach these pins are bounded here — 30 s of probing, 100% of the c
 kerf widths per press — not because plasmac needs the help, but because they arrive over a
 WebSocket and "probe for an hour" should not be expressible.
 
+**Second cluster done and verified on the sim VM:** single cut and offset probing.
+
+| Checked on the VM | Result |
+|---|---|
+| SINGLE CUT, 150 mm in X | written from the machine position with `G53` on both moves, `M190 P0`, loaded — and then run: probe, pierce, `CUT_MODE_01` at 100 V, ending at X 150 |
+| The lengths | remembered in `[SINGLE CUT]`, so the next cut defaults to the last |
+| Offset probe, X 25 / delay 0.4 | saved to `[OFFSET_PROBING]` and on `plasmac.offset-probe-x` / `-delay` straight away |
+
+The single cut is *loaded*, not started: the panel sits next to a torch that is about to fire,
+so pressing cycle start stays a separate deliberate act — which is what upstream's dialog does
+too. `G53` on both moves is the load-bearing detail; the cut belongs where the torch is standing
+rather than where a work offset says the origin is.
+
 ### M6 — Look, feel, customisability
 
 - Port `qtplasmac.style` (21 KB Qt stylesheet) semantics to CSS custom properties so the
