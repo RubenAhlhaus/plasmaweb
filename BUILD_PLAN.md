@@ -680,6 +680,32 @@ That cluster fixed a real hole of our own: **the error channel was only drained 
 was connected.** With no clients the publisher skipped the poll entirely, throwing away exactly
 the faults somebody would come looking for later. It now records first and broadcasts second.
 
+**Eighth cluster done and verified on the sim VM: keyboard shortcuts, and the GUI options
+that gate them.** A shop with a keyboard at the panel expects ESC to abort, space to pause and
+the arrows to jog. QtPlasmaC has the whole table documented (`qtplasmac.adoc` "Keyboard
+Shortcuts") and ships it **disabled**, which is the safe default and now ours: nothing binds
+until `[GUI_OPTIONS] Use keyboard shortcuts` says so.
+
+| Checked on the VM | Result |
+|---|---|
+| the KEYBOARD switch on the PARAMETERS tab | `Use keyboard shortcuts = True` written into the machine's own prefs |
+| holding ArrowRight with the machine homed | X moved and the axis stopped on release, velocity back to zero |
+| the switch turned off again | the pref went back to `False` and the keys went inert |
+
+Modifiers are part of a binding's identity rather than decoration: plain HOME does nothing,
+`CTRL+HOME` homes, `SHIFT`+digit sets the rapid override where the bare digit sets the jog
+speed, and a chord with an unexpected `ALT` resolves to no binding at all — a mistyped modifier
+must not silently move a machine. A held jog stops on release, on window blur and on unmount,
+because a keyup that never arrives must not leave an axis running.
+
+Two deliberate deviations, both documented in the code. A held key follows *this* UI's jog mode
+(one increment per press, or motion while held) rather than upstream's always-continuous
+jogging — a keyboard that behaved differently from the arrows beside it would be the more
+surprising of the two. And the speed digits are a percentage of this UI's jog-speed range
+rather than of `[DISPLAY] DEFAULT_LINEAR_VELOCITY`, because the jog speed here is the UI's own
+control. Codes needing features we lack — F9 manual cut, F12's stylesheet editor, the A/B axis
+jogs — are listed with their reason rather than quietly missing.
+
 Hole cutting, both manual (`M67 E3 Q`) and automatic (`#<holes>`, `#<h_diameter>`,
 `#<h_velocity>`), needs no port: it is handled by the `qtplasmac_gcode` filter LinuxCNC runs on
 load, the same filter M3 verified is still applied. THC tuning, auto-volts, velocity and void
