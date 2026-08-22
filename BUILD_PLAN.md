@@ -625,6 +625,37 @@ One thing worth knowing for any later torch test: with `plasmac.torch-enable` fa
 walks the whole cut sequence without ever firing, skipping `TORCH_ON` and `ARC_OK`. A spot that
 appears to do nothing is usually that, not a broken spot.
 
+**Sixth cluster done and verified on the sim VM: sheet alignment from the laser or camera.**
+A plate never lands square on the slats, and squaring the job to it is the setup step every
+plasma operator does daily. QtPlasmaC's answer is one button pressed three times — LASER →
+MARK EDGE → SET ORIGIN — marking two points along the plate edge; `plasma/alignment.py` is the
+same routine, driven by the same three MDI lines.
+
+| Checked on the VM | Result |
+|---|---|
+| the three presses | `idle` → `markedge` → `setorigin` → `idle`, with the first mark recorded at (200, 100) |
+| `qtplasmac.laser_on` | true while marking, false when the origin is set |
+| marks at (200, 100) and (400, 150) | plate angle 194.036°, and `stat.rotation_xy` came back 194.036 |
+| the origin it set | `g5x_offset` (425, 150) — the *laser's* position, 25 mm from the torch, not the torch's |
+| the same button in the browser | label followed the machine's state, CANCEL appeared only part-way through and returned it to the start |
+
+Two details carry it, and both are ported rather than invented. The **order** — `G10 L20 P0`
+for the origin, then `G10 L2 P0 R` for the rotation — because the origin has to be placed
+before the rotation turns the axes under it. And the **angle**, which is upstream's own
+arithmetic with its quirks kept: `atan` rather than `atan2` with the quadrant corrections
+applied afterwards, the `-90` when the move is steeper than it is wide, `180` for an edge along
+a single axis. An operator marking the same two points in both GUIs has to get the same plate
+angle; that matters more than the maths reading the way one would write it from scratch.
+
+The routine's state lives on the backend and is broadcast, so a shop with the panel and a
+laptop open sees the same step of the same alignment. Zero on both axes is how QtPlasmaC
+records "not fitted", and the button hides itself the same way. The mark is bounds-checked
+before anything moves, because the laser hangs off the torch and a mark near the edge of the
+table can ask the machine for a position it does not have.
+
+The camera's live view is the one part not ported: it needs a video feed this UI has no way to
+show yet. The alignment itself works from the camera offset exactly as from the laser's.
+
 Hole cutting, both manual (`M67 E3 Q`) and automatic (`#<holes>`, `#<h_diameter>`,
 `#<h_velocity>`), needs no port: it is handled by the `qtplasmac_gcode` filter LinuxCNC runs on
 load, the same filter M3 verified is still applied. THC tuning, auto-volts, velocity and void
