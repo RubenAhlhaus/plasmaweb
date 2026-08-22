@@ -42,12 +42,29 @@ ENABLE_PINS: Dict[str, str] = {
 #: the pulse still works, it just cannot be held or aborted early.
 _OPTIONAL_PULSE_PINS = ("torch-pulse-hold", "torch-pulse-abort")
 
+#: Longest probe test this layer will start. QtPlasmaC's own PROBE TEST button takes its time
+#: from a user-button argument and shows a countdown; the point of a ceiling here is that the
+#: value arrives over a WebSocket, and "probe for an hour" must not be expressible.
+MAX_PROBE_TEST_SECONDS = 30.0
+
+#: Cut recovery motion is a percentage of the cut feed rate — upstream's spinbox is 1…100, and
+#: anything above 100 would run the recovery faster than the cut it is recovering.
+MAX_RECOVERY_SPEED_PERCENT = 100.0
+
+#: Kerf widths per press on the recovery pad. Upstream moves exactly one; a request for
+#: hundreds is a bug or a stuck key, not an operator.
+MAX_RECOVERY_STEPS = 10
+
 
 class PlasmaService:
     """UI intents → plasmac setpoint writes, through :class:`HalBridge`'s policy check."""
 
     def __init__(self, bridge: HalBridge) -> None:
         self._bridge = bridge
+        #: The countdown for a running probe test. It lives with the pin it lowers, so that
+        #: whoever stops the test — the timer, a second press, or a probe error seen by the
+        #: publisher — cancels the other two through one owner rather than racing them.
+        self._probe_test_timer: Any = None
 
     # ---- reads ---------------------------------------------------------------------
 
@@ -178,6 +195,11 @@ class PlasmaService:
             raise PinWriteRejected(
                 "invalid_params", "a probe test needs a time greater than zero"
             )
+        if seconds > MAX_PROBE_TEST_SECONDS:
+            raise PinWriteRejected(
+                "invalid_params",
+                f"a probe test may run for at most {MAX_PROBE_TEST_SECONDS:.0f} seconds",
+            )
         if self._plasmac_value("torch-on"):
             raise PinWriteRejected(
                 "torch_already_on", "the torch is on; probing now would fight the running cut"
@@ -186,8 +208,30 @@ class PlasmaService:
         return float(seconds)
 
     def probe_test_stop(self) -> None:
-        """Lower ``probe-test`` again — on the timer, on a second press, or on a probe error."""
+        """Lower ``probe-test`` again — on the timer, on a second press, or on a probe error.
+
+        Cancels the countdown as well: leaving it running would let the *old* test's expiry
+        arrive in the middle of a new one and lower the pin under it.
+        """
+        self.cancel_probe_test_timer()
         self._bridge.request_write(PLASMAC_COMPONENT, "probe-test", False)
+
+    def set_probe_test_timer(self, timer: Any) -> None:
+        """Hand the countdown to the service, which owns the pin it will lower."""
+        self._probe_test_timer = timer
+
+    def probe_test_running(self) -> bool:
+        timer = self._probe_test_timer
+        return timer is not None and not timer.done()
+
+    def cancel_probe_test_timer(self) -> bool:
+        """Stop the countdown if one is running. Returns whether there was one."""
+        timer = self._probe_test_timer
+        self._probe_test_timer = None
+        if timer is None or timer.done():
+            return False
+        timer.cancel()
+        return True
 
     def ohmic_test(self, enabled: bool) -> None:
         """``plasmac.ohmic-test`` while the operator holds the button, as QtPlasmaC does."""
@@ -204,6 +248,11 @@ class PlasmaService:
             raise PinWriteRejected(
                 "invalid_params", "cut recovery direction must be -1, 0 or 1"
             )
+        if not 0 <= speed_percent <= MAX_RECOVERY_SPEED_PERCENT:
+            raise PinWriteRejected(
+                "invalid_params",
+                f"cut recovery speed must be between 0 and {MAX_RECOVERY_SPEED_PERCENT:.0f}%",
+            )
         self._bridge.request_write(
             PLASMAC_COMPONENT, "paused-motion-speed", direction * speed_percent * 0.01
         )
@@ -219,6 +268,16 @@ class PlasmaService:
 
         Returns the counts written, for the caller to report.
         """
+        if abs(x_steps) > MAX_RECOVERY_STEPS or abs(y_steps) > MAX_RECOVERY_STEPS:
+            raise PinWriteRejected(
+                "invalid_params",
+                f"a recovery move is at most {MAX_RECOVERY_STEPS} kerf widths per press",
+            )
+        if kerf_width <= 0:
+            raise PinWriteRejected(
+                "invalid_params", "the material's kerf width must be greater than zero"
+            )
+
         scale = self._plasmac_value("offset-scale")
         try:
             scale = float(scale)

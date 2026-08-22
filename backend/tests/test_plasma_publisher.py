@@ -192,3 +192,26 @@ def test_no_probe_error_means_no_interference() -> None:
     bridge._apply_pending_writes()
 
     assert not any(call[0] == "plasmac.probe-test" for call in runtime.set_p_calls)
+
+
+def test_a_probe_error_also_cancels_the_countdown() -> None:
+    """Otherwise the dead test's timer arrives mid-way through the next one."""
+    publisher, _manager, bridge, _runtime = build()
+
+    class FakeTimer:
+        def __init__(self) -> None:
+            self.cancelled = False
+
+        def done(self) -> bool:
+            return False
+
+        def cancel(self) -> None:
+            self.cancelled = True
+
+    timer = FakeTimer()
+    publisher._service.set_probe_test_timer(timer)
+
+    asyncio.run(publisher.publish_diff({PLASMAC_COMPONENT: {"probe-test-error": True}}))
+
+    assert timer.cancelled is True
+    assert publisher._service.probe_test_running() is False

@@ -919,7 +919,12 @@ class PlasmaCutRecoveryParams(BaseModel):
 async def handle_plasma_probe_test(
     command: CommandEnvelope, ctx: AppContext
 ) -> DispatchResult:
-    """Timed probe test. The timer lives here, so a closed browser cannot leave it probing."""
+    """Timed probe test. The timer lives here, so a closed browser cannot leave it probing.
+
+    A request while one is already running **aborts** it rather than starting another, which is
+    what upstream's second press does — and what keeps one shared pin from being owned by two
+    timers at once. The service owns the countdown, because it owns the pin.
+    """
     if ctx.plasma is None:
         return _unavailable(command)
     try:
@@ -928,16 +933,21 @@ async def handle_plasma_probe_test(
         return _invalid(command, 'plasma.probe_test params: {"seconds": number}')
 
     service = ctx.plasma
-    if params.seconds <= 0:
+    was_running = service.probe_test_running()
+    if params.seconds <= 0 or was_running:
         service.probe_test_stop()
-        return DispatchResult(ack=build_ok(command.commandId, {"running": False}))
+        return DispatchResult(
+            ack=build_ok(command.commandId, {"running": False, "aborted": was_running})
+        )
 
     try:
         seconds = service.probe_test(params.seconds)
     except PinWriteRejected as exc:
         return _rejected(command, exc)
 
-    asyncio.get_running_loop().create_task(_stop_probe_test_after(service, seconds))
+    service.set_probe_test_timer(
+        asyncio.get_running_loop().create_task(_stop_probe_test_after(service, seconds))
+    )
     return DispatchResult(
         ack=build_ok(command.commandId, {"running": True, "seconds": seconds})
     )
@@ -946,11 +956,14 @@ async def handle_plasma_probe_test(
 async def _stop_probe_test_after(service: Any, seconds: float) -> None:
     try:
         await asyncio.sleep(seconds)
-        service.probe_test_stop()
     except asyncio.CancelledError:
-        # A shutdown mid-test still has to lower the pin.
+        # Cancelled because something else stopped the test — a second press, a probe error,
+        # or the process going down. The pin is lowered here too: a shutdown that never got
+        # round to it would leave the torch probing.
         service.probe_test_stop()
         raise
+    try:
+        service.probe_test_stop()
     except Exception:
         logger.exception("plasma: stopping the probe test failed")
 

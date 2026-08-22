@@ -888,7 +888,7 @@ def test_probe_test_with_no_time_stops_a_running_one() -> None:
 
     result = run(handle_plasma_probe_test, command("probe_test", {"seconds": 0}), ctx)
 
-    assert result.ack.result == {"running": False}
+    assert result.ack.result == {"running": False, "aborted": False}
     assert ("plasmac.probe-test", "0") in applied(bridge, runtime)
 
 
@@ -982,6 +982,63 @@ def test_an_unknown_recovery_action_is_refused() -> None:
     ctx, _runtime, _bridge = build_ctx()
 
     result = run(handle_plasma_cut_recovery, command("cut_recovery", {"action": "wiggle"}), ctx)
+
+    assert result.ack.ok is False
+    assert result.ack.error.code == "invalid_params"
+
+
+def test_a_second_probe_test_request_aborts_rather_than_stacking_a_timer() -> None:
+    """One machine, one probe test: two timers would have the first cut the second short."""
+    ctx, runtime, bridge = build_ctx()
+
+    async def scenario():
+        first = await handle_plasma_probe_test(command("probe_test", {"seconds": 10}), ctx)
+        second = await handle_plasma_probe_test(command("probe_test", {"seconds": 10}), ctx)
+        # Nothing left ticking that could lower the pin under a later test.
+        running = ctx.plasma.probe_test_running()
+        await asyncio.sleep(0)
+        return first, second, running
+
+    first, second, still_running = asyncio.run(scenario())
+
+    assert first.ack.result["running"] is True
+    assert second.ack.result == {"running": False, "aborted": True}
+    assert still_running is False
+    assert ("plasmac.probe-test", "0") in applied(bridge, runtime)
+
+
+def test_a_probe_test_longer_than_the_ceiling_is_refused() -> None:
+    ctx, _runtime, _bridge = build_ctx()
+
+    result = run(handle_plasma_probe_test, command("probe_test", {"seconds": 3600}), ctx)
+
+    assert result.ack.ok is False
+    assert result.ack.error.code == "invalid_params"
+
+
+def test_a_recovery_speed_above_the_cut_feed_is_refused() -> None:
+    ctx, _runtime, _bridge = build_ctx()
+
+    result = run(
+        handle_plasma_cut_recovery,
+        command("cut_recovery", {"action": "move", "direction": 1, "speedPercent": 900}),
+        ctx,
+    )
+
+    assert result.ack.ok is False
+    assert result.ack.error.code == "invalid_params"
+
+
+def test_a_wild_recovery_offset_is_refused(tmp_path) -> None:
+    ctx, runtime, bridge = build_config_ctx(tmp_path)
+    runtime.plasmac_values["offset-scale"] = 0.1
+    bridge.poll_once()
+
+    result = run(
+        handle_plasma_cut_recovery,
+        command("cut_recovery", {"action": "offset", "x": 5000, "y": 0}),
+        ctx,
+    )
 
     assert result.ack.ok is False
     assert result.ack.error.code == "invalid_params"
