@@ -754,6 +754,40 @@ the button. Upstream clears it whenever `laser-recovery-state` changes, so the p
 the same from the pin diff it already receives — which also means it clears with no browser
 connected.
 
+**Eleventh cluster done and verified on the sim VM: Hypertherm PowerMax over RS485 — the last
+item on the M5 list.** A PowerMax with an RS485 port takes its cut mode, current and gas
+pressure from the job and reports its faults back, so the supply follows the *material* instead
+of a knob on its front. LinuxCNC already speaks that protocol in `hal/user_comps/pmx485.py`;
+`plasma/powermax.py` does what QtPlasmaC's handler does around it and nothing more — no serial
+port is touched here.
+
+| Checked on the VM (no PowerMax hardware, so the refusal paths a shop hits) | Result |
+|---|---|
+| connect with no `[POWERMAX] Port` | `no_port`, named as such |
+| a port that does not exist | `port_not_found: /dev/ttyUSB9 cannot be found` |
+| a port the user cannot open | `port_unavailable: … Permission denied` — the OS reason, which is the actual diagnosis |
+| without `python3-serial` | `serial_missing`, before anything was loaded |
+| the setpoints reported | cut mode 1, cut amps 45 — read from the selected material |
+
+Three details are ported because they are the difference between working and *appearing* to
+work. The port is checked **before** the component is loaded, since a `loadusr` against a port
+that is not there leaves a component in HAL failing forever with nothing said. Connecting is
+refused while the material's cut mode or current is zero, because the supply would be commanded
+to nothing. And a fault is shown with its name from upstream's own 57-entry table — including
+`0210`, whose meaning depends on the supply's maximum current — because a bare code means a trip
+to the manual with the torch still hot.
+
+The three setpoints needed pins of their own: QtPlasmaC routes them through the HAL pins qtvcp
+creates for its cut-mode, cut-amps and gas-pressure *spinboxes*, and we have no widgets. Rather
+than pretend otherwise, `scripts/gen_plasma_pins.py` now declares four `WIDGET_SUBSTITUTES`
+explicitly, so the generated table still matches upstream's component plus a documented four.
+
+Doing it found a real bug: the setpoints were being read with the prefs file's key names
+(`CUT_AMPS`) instead of ours (`cutAmps`), so they came back zero and connecting would always
+have been refused as invalid. The sim's own material made that obvious in one call.
+
+**M5 is complete.**
+
 Hole cutting, both manual (`M67 E3 Q`) and automatic (`#<holes>`, `#<h_diameter>`,
 `#<h_velocity>`), needs no port: it is handled by the `qtplasmac_gcode` filter LinuxCNC runs on
 load, the same filter M3 verified is still applied. THC tuning, auto-volts, velocity and void
