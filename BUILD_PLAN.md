@@ -565,6 +565,35 @@ the plasmac end already has a writer and HAL refuses a second — the write has 
 pin, which is what upstream does. The M1 verification predates the nets, which is exactly why it
 did not catch it.
 
+**Fourth cluster done and verified on the sim VM: the machine owner's own buttons.**
+QtPlasmaC lets a shop define up to twenty buttons in `[BUTTONS]` of `<machine>.prefs` — a name
+and a code each — and they are how a table gets *its* routines on the screen. `plasma/
+user_buttons.py` parses that section and classifies each code; the client can only say "press
+button 3", never what the button does, because the code comes from the machine's own file.
+
+| Checked on the VM (10 buttons configured in the prefs) | Result |
+|---|---|
+| the panel on load | all 10 listed, with `Frame`, `CHANGE CONS` and `USER MANUAL` disabled and carrying the reason why |
+| `probe-test 4` | plasmac to `PROBE_HEIGHT`, back down after its 4 s |
+| `toggle-halpin motion.digital-in-01` | pin TRUE on the first press, FALSE on the second |
+| `%/bin/echo hello from the machine` | ran without a shell; the output came back in the ack |
+| `ohmic-test`, `G53 G0 X0 Y0` | same path as the on-screen control and the MDI |
+| `toggle-halpin motion.digital-out-00` | refused, and *said so* — see below |
+
+A code this layer cannot run is still listed, with the reason: a button that is defined but does
+nothing should say why rather than look broken. Codes that write a HAL pin only ever reach the
+pins the parsed config names — the permission comes from the file, not from the request — and a
+`pulse-halpin` time is bounded, because a typo of 600 for 0.6 would hold a solenoid on for ten
+minutes.
+
+That test found a second real bug: **a pin write the realtime side refused was invisible.** A
+queued write is acked when it is *accepted*, so the button on the unsettable output pin reported
+success while nothing moved. The bridge was already collecting the failures and only logging
+them; they now surface as a `plasma.write.error` event and a toast. The first fix was still not
+enough — the publisher only hears from the bridge when a pin changed, and an idle machine
+produces no diff, which is exactly when a write is most likely to be refused — so a pending
+error now counts as a change in its own right.
+
 Hole cutting, both manual (`M67 E3 Q`) and automatic (`#<holes>`, `#<h_diameter>`,
 `#<h_velocity>`), needs no port: it is handled by the `qtplasmac_gcode` filter LinuxCNC runs on
 load, the same filter M3 verified is still applied. THC tuning, auto-volts, velocity and void
