@@ -313,3 +313,43 @@ def test_an_unknown_peripheral_section_is_refused(tmp_path) -> None:
     path.write_text("")
     with _pytest.raises(KeyError):
         read_peripheral_offset(str(path), "TORCH_OFFSET")
+
+
+def test_gui_options_default_to_off_and_round_trip(tmp_path) -> None:
+    """`Use keyboard shortcuts` is off by default because the shortcuts jog a torch."""
+    from backend.plasma.parameters import read_gui_options, write_gui_option
+
+    path = tmp_path / "machine.prefs"
+    path.write_text("[GUI_OPTIONS]\nDefault material = 1\n")
+
+    assert read_gui_options(str(path)) == {
+        "keyboardShortcuts": False,
+        "softKeyboard": False,
+        "flashError": False,
+    }
+
+    write_gui_option(str(path), "keyboardShortcuts", True)
+    assert read_gui_options(str(path))["keyboardShortcuts"] is True
+    # Spelled the way QtPlasmaC spells it, so it reads the same value back.
+    assert "Use keyboard shortcuts = True" in path.read_text()
+    assert "Default material = 1" in path.read_text()
+
+
+def test_a_gui_option_the_file_garbles_falls_back_to_its_default(tmp_path) -> None:
+    from backend.plasma.parameters import read_gui_options
+
+    path = tmp_path / "machine.prefs"
+    path.write_text("[GUI_OPTIONS]\nUse keyboard shortcuts = perhaps\n")
+
+    assert read_gui_options(str(path))["keyboardShortcuts"] is False
+
+
+def test_an_unknown_gui_option_is_refused(tmp_path) -> None:
+    import pytest as _pytest
+
+    from backend.plasma.parameters import write_gui_option
+
+    path = tmp_path / "machine.prefs"
+    path.write_text("")
+    with _pytest.raises(KeyError):
+        write_gui_option(str(path), "makeItFaster", True)

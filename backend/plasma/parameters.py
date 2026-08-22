@@ -692,6 +692,70 @@ def write_peripheral_offset(path: str, section: str, values: Mapping[str, Any]) 
     write_config(path, parser)
 
 
+GUI_OPTIONS_SECTION = "GUI_OPTIONS"
+
+
+class GuiOption(NamedTuple):
+    """One ``[GUI_OPTIONS]`` switch: its prefs key, the name we use, and its default."""
+
+    key: str
+    name: str
+    default: bool
+
+
+#: The GUI switches QtPlasmaC remembers that this UI can honour
+#: (``qtplasmac_handler.py:1046``).
+#:
+#: ``Use keyboard shortcuts`` is **off** by default, and that is upstream's choice rather than
+#: caution for its own sake: the shortcuts jog the machine and abort programs, so a keyboard
+#: left on a bench near a running table must not be able to do either by accident.
+GUI_OPTIONS: Tuple[GuiOption, ...] = (
+    GuiOption("Use keyboard shortcuts", "keyboardShortcuts", False),
+    GuiOption("Use soft keyboard", "softKeyboard", False),
+    GuiOption("Flash error", "flashError", False),
+)
+
+_GUI_OPTIONS_BY_NAME: Dict[str, GuiOption] = {option.name: option for option in GUI_OPTIONS}
+
+
+def read_gui_options(path: str) -> Dict[str, bool]:
+    """``[GUI_OPTIONS]`` switches, defaults where the file is silent."""
+    parser = read_config(path)
+    values: Dict[str, bool] = {}
+    for option in GUI_OPTIONS:
+        value = option.default
+        if parser.has_option(GUI_OPTIONS_SECTION, option.key):
+            raw = (parser.get(GUI_OPTIONS_SECTION, option.key) or "").strip().lower()
+            # QtPlasmaC writes Python's own bool repr; be liberal about what we accept back.
+            if raw in ("true", "1", "yes", "on"):
+                value = True
+            elif raw in ("false", "0", "no", "off"):
+                value = False
+            else:
+                logger.warning(
+                    "plasma: %s: [%s] %s is not a boolean (%r); using %s",
+                    path,
+                    GUI_OPTIONS_SECTION,
+                    option.key,
+                    raw,
+                    option.default,
+                )
+        values[option.name] = value
+    return values
+
+
+def write_gui_option(path: str, name: str, value: bool) -> None:
+    """Store one switch, spelled the way QtPlasmaC spells it so it reads the same value back."""
+    option = _GUI_OPTIONS_BY_NAME.get(name)
+    if option is None:
+        raise KeyError(name)
+    parser = read_config(path)
+    if not parser.has_section(GUI_OPTIONS_SECTION):
+        parser.add_section(GUI_OPTIONS_SECTION)
+    parser.set(GUI_OPTIONS_SECTION, option.key, "True" if value else "False")
+    write_config(path, parser)
+
+
 OFFSET_PROBING_SECTION = "OFFSET_PROBING"
 
 

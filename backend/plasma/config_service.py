@@ -48,7 +48,9 @@ from backend.plasma.parameters import (
     default_parameters,
     offset_probing_pin_values,
     read_offset_probing,
+    read_gui_options,
     read_peripheral_offset,
+    write_gui_option,
     write_peripheral_offset,
     write_offset_probing,
     read_conversational_settings,
@@ -255,6 +257,7 @@ class PlasmaConfigService:
             },
             "enables": dict(self._enables),
             "offsetProbing": dict(self._offset_probing),
+            "guiOptions": self.gui_options(),
             "defaults": default_parameters(self._files),
             "unitsPerMm": self._files.units_per_mm,
             "path": self._files.prefs_path,
@@ -273,6 +276,14 @@ class PlasmaConfigService:
     def apply_offset_probing(self) -> Tuple[str, ...]:
         """Push ``[OFFSET_PROBING]`` onto its pins: where the probe is, and how long it takes."""
         return self._write_plasmac(offset_probing_pin_values(self._offset_probing))
+
+    def gui_options(self) -> Dict[str, bool]:
+        """``[GUI_OPTIONS]``: the switches QtPlasmaC remembers between runs."""
+        return read_gui_options(self._files.prefs_path)
+
+    def save_gui_option(self, name: str, value: bool) -> Dict[str, bool]:
+        write_gui_option(self._files.prefs_path, name, value)
+        return self.gui_options()
 
     def peripheral_offset(self, section: str) -> Dict[str, float]:
         """``[LASER_OFFSET]`` / ``[CAMERA_OFFSET]``: where the peripheral sits vs the torch."""

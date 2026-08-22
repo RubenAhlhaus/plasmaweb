@@ -18,6 +18,7 @@ import { useProgramExecutionEventBridge } from './hooks/useProgramExecutionEvent
 import { usePlasmaToolpath } from './hooks/usePlasmaToolpath';
 import { useReloadToolOnStartup } from './hooks/useReloadToolOnStartup';
 import { useGlobalHotkeyListener } from './hooks/useGlobalHotkeyListener';
+import { usePlasmaKeyboardShortcuts } from './hooks/usePlasmaKeyboardShortcuts';
 import { useLiveProgramLineHighlight } from './hooks/useLiveProgramLineHighlight';
 import { HomingDialog } from './components/HomingDialog';
 import { UnhomedAxisJogDialog } from './components/UnhomedAxisJogDialog';
@@ -62,6 +63,8 @@ function AppContent() {
   // so the program has to be parsed whether or not the plasma screen has been opened.
   usePlasmaToolpath();
   useGlobalHotkeyListener();
+  // QtPlasmaC's own shortcuts, which stay inert until the machine's prefs enable them.
+  usePlasmaKeyboardShortcuts();
   useLiveProgramLineHighlight();
 
   useEffect(() => {

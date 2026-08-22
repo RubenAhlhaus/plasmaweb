@@ -605,6 +605,11 @@ export interface PlasmaParameters {
   enables: Record<string, boolean>;
   /** `[OFFSET_PROBING]`: where the probe sits relative to the torch, and its deploy delay. */
   offsetProbing?: Record<string, number>;
+  /**
+   * `[GUI_OPTIONS]`: the switches the machine remembers between runs. `keyboardShortcuts` is
+   * off by default — the shortcuts jog the torch, so a keyboard on a bench must not.
+   */
+  guiOptions?: Record<string, boolean>;
   /** 1 on a metric machine, 0.03937 on an imperial one (QtPlasmaC's own constant). */
   unitsPerMm: number;
   path: string;

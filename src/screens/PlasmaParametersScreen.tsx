@@ -257,6 +257,29 @@ export function PlasmaParametersScreen() {
           </div>
         </section>
 
+        <section data-e2e="plasma-parameters-group-gui">
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            {t('parameters.group.gui')}
+          </h2>
+          <label className="flex items-center gap-3 text-sm">
+            <input
+              type="checkbox"
+              className="h-5 w-5 accent-emerald-400"
+              data-e2e="plasma-gui-keyboard-shortcuts"
+              checked={parameters.guiOptions?.keyboardShortcuts === true}
+              onChange={(event) =>
+                commands.saveGuiOption('keyboardShortcuts', event.target.checked)
+              }
+            />
+            <span>
+              {t('parameters.gui.keyboardShortcuts')}
+              <span className="ml-2 text-xs text-muted-foreground">
+                {t('parameters.gui.keyboardShortcutsHint')}
+              </span>
+            </span>
+          </label>
+        </section>
+
         <section data-e2e="plasma-parameters-group-peripherals">
           <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {t('parameters.group.peripherals')}

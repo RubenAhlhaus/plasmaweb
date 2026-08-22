@@ -82,7 +82,9 @@ describe('PlasmaParametersScreen', () => {
 
     // The field opens a keypad dialog; go through it the way an operator would.
     await userEvent.click(e2e('plasma-parameter-pid-p-gain'));
-    const entry = document.querySelector('input') as HTMLInputElement;
+    // Scoped to the dialog: the screen has its own checkboxes, and the first `input` on the
+    // page is no longer the keypad's.
+    const entry = document.querySelector('[role=dialog] input') as HTMLInputElement;
     await userEvent.clear(entry);
     await userEvent.type(entry, '15');
     await userEvent.keyboard('{Enter}');

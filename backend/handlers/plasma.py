@@ -1275,6 +1275,42 @@ async def _broadcast_alignment(ctx: AppContext, status: Dict[str, Any]) -> None:
     )
 
 
+class PlasmaGuiOptionParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str
+    enabled: bool
+
+
+async def handle_plasma_save_gui_option(
+    command: CommandEnvelope, ctx: AppContext
+) -> DispatchResult:
+    """One ``[GUI_OPTIONS]`` switch — keyboard shortcuts, soft keyboard, flashing errors.
+
+    Stored in the machine's own prefs file, spelled the way QtPlasmaC spells it, so whichever
+    GUI the shop opens next reads the same setting.
+    """
+    if ctx.plasma_config is None:
+        return _no_config(command)
+    try:
+        params = PlasmaGuiOptionParams.model_validate(command.params)
+    except ValidationError:
+        return _invalid(
+            command, 'plasma.save_gui_option params: {"name": string, "enabled": bool}'
+        )
+    try:
+        options = ctx.plasma_config.save_gui_option(params.name, params.enabled)
+    except KeyError:
+        return DispatchResult(
+            ack=build_error(
+                command.commandId, "unknown_option", f"no GUI option named {params.name!r}"
+            )
+        )
+    except OSError as exc:
+        return DispatchResult(ack=build_error(command.commandId, "write_failed", str(exc)))
+    await _broadcast_config(ctx, materials=False, parameters=True)
+    return DispatchResult(ack=build_ok(command.commandId, {"guiOptions": options}))
+
+
 class PlasmaMachineLogParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
     #: Newest entries only, when a client does not want the whole history.

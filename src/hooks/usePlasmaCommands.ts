@@ -79,6 +79,8 @@ export function usePlasmaCommands() {
       saveOffsetProbing: (values: Record<string, number>) =>
         send('save_offset_probing', { values }),
       getAlignment: () => sendForResult('get_alignment'),
+      saveGuiOption: (name: string, enabled: boolean) =>
+        send('save_gui_option', { name, enabled }),
       machineLog: (params?: { limit?: number; severity?: 'critical' | 'warning' | 'info' }) =>
         sendForResult('get_machine_log', params ?? {}),
       saveMachineLog: () => sendForResult('save_machine_log'),

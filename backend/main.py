@@ -66,6 +66,7 @@ from backend.handlers.plasma import (
     handle_plasma_get_alignment,
     handle_plasma_get_machine_log,
     handle_plasma_save_offset_probing,
+    handle_plasma_save_gui_option,
     handle_plasma_save_machine_log,
     handle_plasma_save_peripheral_offset,
     handle_plasma_save_parameters,
@@ -293,6 +294,7 @@ command_bus.register("plasma", "single_cut", handle_plasma_single_cut)
 command_bus.register("plasma", "get_user_buttons", handle_plasma_get_user_buttons)
 command_bus.register("plasma", "user_button", handle_plasma_user_button)
 command_bus.register("plasma", "save_offset_probing", handle_plasma_save_offset_probing)
+command_bus.register("plasma", "save_gui_option", handle_plasma_save_gui_option)
 command_bus.register("plasma", "get_machine_log", handle_plasma_get_machine_log)
 command_bus.register("plasma", "save_machine_log", handle_plasma_save_machine_log)
 command_bus.register("plasma", "get_alignment", handle_plasma_get_alignment)

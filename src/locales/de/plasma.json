@@ -109,7 +109,8 @@
       "motion": "Bewegung und Sicherheit",
       "scribe": "Ritzen, Spotting und Offsets",
       "offsetProbing": "Versetztes Antasten",
-      "peripherals": "Laser- und Kamera-Offsets"
+      "peripherals": "Laser- und Kamera-Offsets",
+      "gui": "Tastatur"
     },
     "offsetProbing": {
       "X axis": "Taster X-Versatz",
@@ -120,6 +121,10 @@
     "peripheral": {
       "laser": "Laser",
       "camera": "Kamera"
+    },
+    "gui": {
+      "keyboardShortcuts": "Tastenkürzel",
+      "keyboardShortcutsHint": "Standardmäßig aus: sie verfahren den Brenner und brechen Programme ab."
     }
   },
   "preview": {

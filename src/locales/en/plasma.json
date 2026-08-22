@@ -109,7 +109,8 @@
       "motion": "Motion and safety",
       "scribe": "Scribe, spotting and offsets",
       "offsetProbing": "Offset probing",
-      "peripherals": "Laser and camera offsets"
+      "peripherals": "Laser and camera offsets",
+      "gui": "Keyboard"
     },
     "offsetProbing": {
       "X axis": "Probe X offset",
@@ -120,6 +121,10 @@
     "peripheral": {
       "laser": "Laser",
       "camera": "Camera"
+    },
+    "gui": {
+      "keyboardShortcuts": "Keyboard shortcuts",
+      "keyboardShortcutsHint": "Off by default: these jog the torch and abort programs."
     }
   },
   "preview": {
