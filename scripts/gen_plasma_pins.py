@@ -119,7 +119,26 @@ def parse_handler(path: Path) -> List[Pin]:
         )
     if not pins:
         raise SystemExit(f"no newpin() calls parsed from {path}")
+    have = {pin.name for pin in pins}
+    for name, kind, direction in WIDGET_SUBSTITUTES:
+        if name not in have:
+            pins.append(Pin(name=name, type=kind, direction=direction, doc=""))
     return pins
+
+
+#: Pins this UI exports that QtPlasmaC gets from a *widget* instead of its component.
+#:
+#: The PowerMax RS485 component (``pmx485``) reads its setpoints from
+#: ``qtplasmac.cut_mode-f``, ``qtplasmac.cut_amps-f`` and ``qtplasmac.gas_pressure-f`` — HAL
+#: pins qtvcp creates for those three spinboxes. We have no widgets, so the same three values
+#: (which live in the *material*, not on a screen) need pins of our own to travel on. Named for
+#: what they feed rather than after a widget we do not have.
+WIDGET_SUBSTITUTES: Tuple[Tuple[str, str, str], ...] = (
+    ("pmx485_enable", "bit", "out"),
+    ("pmx485_mode_set", "float", "out"),
+    ("pmx485_current_set", "float", "out"),
+    ("pmx485_pressure_set", "float", "out"),
+)
 
 
 def parse_nets(path: Path, own_pins: Set[str]) -> List[Tuple[str, Tuple[str, ...]]]:

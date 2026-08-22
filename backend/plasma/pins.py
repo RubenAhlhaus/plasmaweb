@@ -5,7 +5,7 @@ Regenerate with ``scripts/gen_plasma_pins.py`` after bumping the reference tree.
 Sources (reference/linuxcnc @ v2.9.10-5116-g0bb86dd667):
   * src/hal/components/plasmac.comp                    194 pins
   * lib/hallib/*.hal + configs/sim/qtplasmac/*          32 HAL-netted pins
-  * share/qtvcp/screens/qtplasmac/qtplasmac_handler.py 91 own-component pins
+  * share/qtvcp/screens/qtplasmac/qtplasmac_handler.py 95 own-component pins
 
 The write policy is the safety boundary from BUILD_PLAN.md expressed as data:
 
@@ -329,11 +329,15 @@ QTPLASMAC_PINS: Tuple[PlasmaPin, ...] = (
     PlasmaPin("pmx485_current", "float", "in", EXTERNAL_IN, ""),
     PlasmaPin("pmx485_current_max", "float", "in", EXTERNAL_IN, ""),
     PlasmaPin("pmx485_current_min", "float", "in", EXTERNAL_IN, ""),
+    PlasmaPin("pmx485_current_set", "float", "out", OWNED_OUT, ""),
+    PlasmaPin("pmx485_enable", "bit", "out", OWNED_OUT, ""),
     PlasmaPin("pmx485_fault", "float", "in", EXTERNAL_IN, ""),
     PlasmaPin("pmx485_mode", "float", "in", EXTERNAL_IN, ""),
+    PlasmaPin("pmx485_mode_set", "float", "out", OWNED_OUT, ""),
     PlasmaPin("pmx485_pressure", "float", "in", EXTERNAL_IN, ""),
     PlasmaPin("pmx485_pressure_max", "float", "in", EXTERNAL_IN, ""),
     PlasmaPin("pmx485_pressure_min", "float", "in", EXTERNAL_IN, ""),
+    PlasmaPin("pmx485_pressure_set", "float", "out", OWNED_OUT, ""),
     PlasmaPin("pmx485_status", "bit", "in", EXTERNAL_IN, ""),
     PlasmaPin("probe_test_error", "bit", "in", EXTERNAL_IN, ""),
     PlasmaPin("sensor_active", "bit", "in", EXTERNAL_IN, ""),

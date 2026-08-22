@@ -354,6 +354,62 @@ class PlasmaService:
         """
         self._bridge.request_write(PLASMAC_COMPONENT, "laser-recovery-start", 0)
 
+    def powermax_enable(
+        self, enabled: bool, cut_mode: float = 0.0, cut_amps: float = 0.0, pressure: float = 0.0
+    ) -> None:
+        """Turn PowerMax comms on or off, and hand the supply its setpoints.
+
+        Upstream refuses to connect while the cut mode or current is zero
+        (``pmx485_enable_changed``): the supply would be commanded to nothing, which is worse
+        than not being commanded at all. The setpoints go out before the enable, so the first
+        thing the component reads is a valid one.
+        """
+        if enabled:
+            if not cut_mode or not cut_amps:
+                raise PinWriteRejected(
+                    "invalid_setpoints",
+                    "the material's cut mode and cut amps must both be set before "
+                    "connecting to the Powermax",
+                )
+            self._bridge.request_write(QTPLASMAC_COMPONENT, "pmx485_mode_set", float(cut_mode))
+            self._bridge.request_write(
+                QTPLASMAC_COMPONENT, "pmx485_current_set", float(cut_amps)
+            )
+            self._bridge.request_write(
+                QTPLASMAC_COMPONENT, "pmx485_pressure_set", float(pressure)
+            )
+        self._bridge.request_write(QTPLASMAC_COMPONENT, "pmx485_enable", bool(enabled))
+
+    def powermax_status(self) -> Dict[str, Any]:
+        """What the supply is reporting: connected, its readings, and any fault."""
+        from backend.plasma.powermax import format_fault, pressure_unit  # noqa: PLC0415
+
+        own = self._bridge.snapshot().get(QTPLASMAC_COMPONENT, {})
+
+        def number(name: str) -> float:
+            try:
+                return float(own.get(name) or 0.0)
+            except (TypeError, ValueError):
+                return 0.0
+
+        current_max = number("pmx485_current_max")
+        pressure_max = number("pmx485_pressure_max")
+        fault = format_fault(number("pmx485_fault"), current_max)
+        return {
+            "enabled": bool(own.get("pmx485_enable")),
+            "connected": bool(own.get("pmx485_status")),
+            "mode": number("pmx485_mode"),
+            "current": number("pmx485_current"),
+            "currentMin": number("pmx485_current_min"),
+            "currentMax": current_max,
+            "pressure": number("pmx485_pressure"),
+            "pressureMin": number("pmx485_pressure_min"),
+            "pressureMax": pressure_max,
+            "pressureUnit": pressure_unit(pressure_max),
+            "arcTime": number("pmx485_arc_time"),
+            "fault": fault.as_dict() if fault else None,
+        }
+
     def cut_recovery_cancel(self) -> None:
         """Give up the recovery: the torch returns to the path and the offsets are dropped."""
         self._bridge.request_write(PLASMAC_COMPONENT, "cut-recovery", False)

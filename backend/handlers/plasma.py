@@ -12,7 +12,7 @@ import asyncio
 import logging
 import os
 import sys
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
@@ -1354,6 +1354,118 @@ async def handle_plasma_save_gui_option(
         return DispatchResult(ack=build_error(command.commandId, "write_failed", str(exc)))
     await _broadcast_config(ctx, materials=False, parameters=True)
     return DispatchResult(ack=build_ok(command.commandId, {"guiOptions": options}))
+
+
+class PlasmaPowerMaxParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    enabled: bool
+
+
+class PlasmaPowerMaxPortParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    port: str
+
+
+async def handle_plasma_powermax_status(
+    command: CommandEnvelope, ctx: AppContext
+) -> DispatchResult:
+    """What the PowerMax is reporting, and whether this machine has one at all."""
+    if ctx.plasma is None:
+        return _unavailable(command)
+    status = ctx.plasma.powermax_status()
+    status["port"] = ctx.plasma_config.powermax_port() if ctx.plasma_config else ""
+    status["setpoints"] = (
+        ctx.plasma_config.powermax_setpoints() if ctx.plasma_config else {}
+    )
+    return DispatchResult(ack=build_ok(command.commandId, status))
+
+
+async def handle_plasma_powermax_enable(
+    command: CommandEnvelope, ctx: AppContext
+) -> DispatchResult:
+    """Connect to the power supply, or let it go.
+
+    Connecting checks the serial port first and loads LinuxCNC's own ``pmx485`` component —
+    the protocol is its job, not ours. The setpoints come from the selected material.
+    """
+    if ctx.plasma is None:
+        return _unavailable(command)
+    try:
+        params = PlasmaPowerMaxParams.model_validate(command.params)
+    except ValidationError:
+        return _invalid(command, 'plasma.powermax params: {"enabled": bool}')
+
+    from backend.plasma.powermax import PowerMaxError, check_port, load_component
+
+    if not params.enabled:
+        try:
+            ctx.plasma.powermax_enable(False)
+        except PinWriteRejected as exc:
+            return _rejected(command, exc)
+        return DispatchResult(ack=build_ok(command.commandId, {"enabled": False}))
+
+    if ctx.plasma_config is None:
+        return _no_config(command)
+    port = ctx.plasma_config.powermax_port()
+    setpoints = ctx.plasma_config.powermax_setpoints()
+    try:
+        await asyncio.to_thread(check_port, port)
+        await asyncio.to_thread(load_component, port)
+    except PowerMaxError as exc:
+        return DispatchResult(ack=build_error(command.commandId, exc.code, exc.message))
+
+    try:
+        ctx.plasma.powermax_enable(
+            True,
+            cut_mode=setpoints.get("cutMode", 0.0),
+            cut_amps=setpoints.get("cutAmps", 0.0),
+            pressure=setpoints.get("gasPressure", 0.0),
+        )
+    except PinWriteRejected as exc:
+        return _rejected(command, exc)
+
+    nets = await asyncio.to_thread(_link_powermax, ctx)
+    return DispatchResult(
+        ack=build_ok(
+            command.commandId,
+            {"enabled": True, "port": port, "setpoints": setpoints, "linked": nets},
+        )
+    )
+
+
+def _link_powermax(ctx: AppContext) -> List[str]:
+    """Net the ``pmx485`` component to ours, the way ``pmx485_setup`` nets it.
+
+    The signal names are upstream's, so a machine that already has a ``*_connections.hal``
+    referring to them keeps working.
+    """
+    from backend.plasma.powermax import NETS
+
+    if ctx.plasma is None:
+        return []
+    return ctx.plasma.bridge.link_external(
+        [
+            (f"plasmac:pmx485_{theirs}", (f"pmx485.{theirs}", f"qtplasmac.{ours}"))
+            for theirs, ours in NETS
+        ]
+    )
+
+
+async def handle_plasma_save_powermax_port(
+    command: CommandEnvelope, ctx: AppContext
+) -> DispatchResult:
+    """Which serial port the power supply is on. Stored in the machine's own prefs."""
+    if ctx.plasma_config is None:
+        return _no_config(command)
+    try:
+        params = PlasmaPowerMaxPortParams.model_validate(command.params)
+    except ValidationError:
+        return _invalid(command, 'plasma.save_powermax_port params: {"port": string}')
+    try:
+        port = ctx.plasma_config.save_powermax_port(params.port)
+    except OSError as exc:
+        return DispatchResult(ack=build_error(command.commandId, "write_failed", str(exc)))
+    return DispatchResult(ack=build_ok(command.commandId, {"port": port}))
 
 
 class PlasmaMachineLogParams(BaseModel):

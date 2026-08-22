@@ -280,6 +280,39 @@ class HalBridge:
             logger.info("plasma: %d net members left alone (absent or already linked)", len(skipped))
         return tuple(skipped)
 
+    def link_external(
+        self, nets: Iterable[Tuple[str, Tuple[str, ...]]]
+    ) -> Tuple[str, ...]:
+        """Net pins that only exist once another component is loaded — the PowerMax comms.
+
+        Same rules as :meth:`apply_nets`: an absent pin is skipped rather than fatal, an
+        existing signal is joined, and a member somebody already wired is left alone. Returns
+        the signals that were linked, which is what the caller wants to report.
+        """
+        pin_types = self._runtime.pin_types()
+        signals = set(self._runtime.signal_names())
+        linked: List[str] = []
+
+        for signal, members in nets:
+            present = [name for name in members if name in pin_types]
+            if len(present) < 2:
+                logger.info("plasma: %s not linked; %s absent", signal, set(members) - set(present))
+                continue
+            if signal not in signals:
+                try:
+                    self._runtime.new_signal(signal, pin_types[present[0]])
+                    signals.add(signal)
+                except Exception as exc:
+                    logger.warning("plasma: could not create signal %s: %s", signal, exc)
+                    continue
+            for member in present:
+                try:
+                    self._runtime.connect(member, signal)
+                except Exception as exc:
+                    logger.debug("plasma: net %s <- %s: %s", signal, member, exc)
+            linked.append(signal)
+        return tuple(linked)
+
     def apply_startup_values(self, values: Mapping[str, Any]) -> Tuple[str, ...]:
         """Give our own output pins the values QtPlasmaC's handler gives them at startup.
 

@@ -160,7 +160,7 @@ def test_create_component_exports_every_qtplasmac_pin() -> None:
     bridge.create_component()
 
     comp = runtime.components[QTPLASMAC_COMPONENT]
-    assert len(comp.pins) == len(QTPLASMAC_PINS) == 91
+    assert len(comp.pins) == len(QTPLASMAC_PINS) == 95
     assert comp.pins["ext_abort"] == ("bit", "in")
     assert comp.pins["laser_on"] == ("bit", "out")
     assert not comp.is_ready, "ready() is the launcher's cue to load POSTGUI halfiles"

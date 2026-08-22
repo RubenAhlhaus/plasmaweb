@@ -42,7 +42,7 @@ def test_pin_table_sizes_match_upstream() -> None:
     assert len(PLASMAC_PINS) == 194
     assert sum(1 for p in PLASMAC_PINS if p.direction == "in") == 144
     assert sum(1 for p in PLASMAC_PINS if p.direction == "out") == 50
-    assert len(QTPLASMAC_PINS) == 91
+    assert len(QTPLASMAC_PINS) == 95
 
 
 def test_pin_names_are_unique_and_hal_shaped() -> None:

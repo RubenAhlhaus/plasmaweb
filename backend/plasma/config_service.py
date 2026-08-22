@@ -42,6 +42,8 @@ from backend.plasma.materials import (
     read_temporary_material,
     write_materials,
 )
+from backend.plasma.powermax import read_port as read_powermax_port
+from backend.plasma.powermax import write_port as write_powermax_port
 from backend.plasma.parameters import (
     check_parameters,
     parameter_limits,
@@ -276,6 +278,30 @@ class PlasmaConfigService:
     def apply_offset_probing(self) -> Tuple[str, ...]:
         """Push ``[OFFSET_PROBING]`` onto its pins: where the probe is, and how long it takes."""
         return self._write_plasmac(offset_probing_pin_values(self._offset_probing))
+
+    def powermax_port(self) -> str:
+        """``[POWERMAX] Port`` — the serial port the power supply is on, if it has one."""
+        return read_powermax_port(self._files.prefs_path)
+
+    def save_powermax_port(self, port: str) -> str:
+        write_powermax_port(self._files.prefs_path, port)
+        return self.powermax_port()
+
+    def powermax_setpoints(self) -> Dict[str, float]:
+        """Cut mode, current and gas pressure for the selected material.
+
+        These are the three values the power supply is told, and they come from the material
+        rather than from a screen: a job that changes material changes the supply with it.
+        """
+        material = self._materials.get(self._selected) if self._selected is not None else None
+        if material is None:
+            return {"cutMode": 0.0, "cutAmps": 0.0, "gasPressure": 0.0}
+        # `values` is keyed by our own JSON names, not the prefs file's keys.
+        return {
+            "cutMode": float(material.values.get("cutMode", 0.0)),
+            "cutAmps": float(material.values.get("cutAmps", 0.0)),
+            "gasPressure": float(material.values.get("gasPressure", 0.0)),
+        }
 
     def gui_options(self) -> Dict[str, bool]:
         """``[GUI_OPTIONS]``: the switches QtPlasmaC remembers between runs."""

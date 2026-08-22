@@ -441,3 +441,13 @@ def test_offset_probing_is_applied_to_its_pins(service) -> None:
     assert values["plasmac.offset-probe-y"] == "-10.0"
     assert values["plasmac.offset-probe-delay"] == "0.4"
     assert config.parameters_payload()["offsetProbing"]["X axis"] == 25.0
+
+
+def test_the_powermax_setpoints_come_from_the_selected_material(service) -> None:
+    """A job that changes material changes what the power supply is told."""
+    config, _bridge, _runtime = service
+
+    setpoints = config.powermax_setpoints()
+
+    assert setpoints["cutAmps"] > 0
+    assert setpoints["cutMode"] > 0

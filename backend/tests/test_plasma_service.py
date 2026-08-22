@@ -343,3 +343,77 @@ def test_cancelling_a_recovery_also_drops_the_laser_request() -> None:
 
     assert written["plasmac.cut-recovery"] == "0"
     assert written["plasmac.laser-recovery-start"] == "0"
+
+
+# ---- PowerMax RS485 -------------------------------------------------------------------
+
+
+def test_the_powermax_setpoints_go_out_before_the_enable() -> None:
+    """The first thing the component reads has to be a valid setpoint, not a stale one."""
+    service, runtime, bridge = build()
+
+    service.powermax_enable(True, cut_mode=1.0, cut_amps=45.0, pressure=4.5)
+    bridge._apply_pending_writes()
+    own = runtime.components["qtplasmac"].values
+
+    assert own["pmx485_mode_set"] == 1.0
+    assert own["pmx485_current_set"] == 45.0
+    assert own["pmx485_pressure_set"] == 4.5
+    assert own["pmx485_enable"] is True
+
+
+def test_connecting_without_a_cut_mode_or_current_is_refused() -> None:
+    """The supply would be commanded to nothing, which is worse than not commanding it."""
+    service, _runtime, _bridge = build()
+
+    with pytest.raises(PinWriteRejected) as excinfo:
+        service.powermax_enable(True, cut_mode=0.0, cut_amps=45.0)
+    assert excinfo.value.code == "invalid_setpoints"
+
+    with pytest.raises(PinWriteRejected):
+        service.powermax_enable(True, cut_mode=1.0, cut_amps=0.0)
+
+
+def test_disconnecting_needs_no_setpoints() -> None:
+    service, runtime, bridge = build()
+
+    service.powermax_enable(False)
+    bridge._apply_pending_writes()
+
+    assert runtime.components["qtplasmac"].values["pmx485_enable"] is False
+
+
+def test_the_powermax_status_reads_the_supplys_own_pins() -> None:
+    service, runtime, bridge = build()
+    own = runtime.components["qtplasmac"].values
+    own.update(
+        {
+            "pmx485_status": True,
+            "pmx485_current": 45.0,
+            "pmx485_current_max": 125.0,
+            "pmx485_pressure": 72.0,
+            "pmx485_pressure_max": 120.0,
+            "pmx485_arc_time": 3600.0,
+            "pmx485_fault": 210.0,
+        }
+    )
+    bridge.poll_once()
+
+    status = service.powermax_status()
+
+    assert status["connected"] is True
+    assert status["current"] == 45.0
+    assert status["pressureUnit"] == "psi"  # over 15, so the supply is reporting psi
+    # 0210 above 110 A is the arc voltage fault, not the gas one.
+    assert status["fault"]["name"] == "Excessive arc voltage"
+    assert status["fault"]["code"] == "0-21-0"
+
+
+def test_a_healthy_supply_reports_no_fault_at_all() -> None:
+    service, runtime, bridge = build()
+    runtime.components["qtplasmac"].values.update(
+        {"pmx485_status": True, "pmx485_fault": 0.0}
+    )
+    bridge.poll_once()
+
+    assert service.powermax_status()["fault"] is None

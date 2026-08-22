@@ -79,6 +79,9 @@ export function usePlasmaCommands() {
       saveOffsetProbing: (values: Record<string, number>) =>
         send('save_offset_probing', { values }),
       getAlignment: () => sendForResult('get_alignment'),
+      powermaxStatus: () => sendForResult('powermax_status'),
+      powermax: (enabled: boolean) => sendForResult('powermax', { enabled }),
+      savePowermaxPort: (port: string) => send('save_powermax_port', { port }),
       saveGuiOption: (name: string, enabled: boolean) =>
         send('save_gui_option', { name, enabled }),
       machineLog: (params?: { limit?: number; severity?: 'critical' | 'warning' | 'info' }) =>

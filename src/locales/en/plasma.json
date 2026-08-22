@@ -323,5 +323,19 @@
     "save": "Save to file",
     "lastCritical": "Last critical:",
     "empty": "The machine has not said anything yet."
+  },
+  "powermax": {
+    "title": "Powermax",
+    "connected": "Connected",
+    "connecting": "Connecting…",
+    "offline": "Offline",
+    "connect": "Connect",
+    "disconnect": "Disconnect",
+    "fault": "Fault {{code}}:",
+    "current": "Current",
+    "pressure": "Gas pressure",
+    "mode": "Cut mode",
+    "arcTime": "Arc on time",
+    "failed": "The Powermax could not be connected."
   }
 }

@@ -16,7 +16,7 @@ interface SentCommand {
  * list when it mounts, which is not what any of these tests are about.
  */
 /** Panels that ask the backend a question on mount; not what any of these tests is about. */
-const MOUNT_QUERIES = ['get_user_buttons', 'get_alignment'];
+const MOUNT_QUERIES = ['get_user_buttons', 'get_alignment', 'powermax_status'];
 
 function commandsOfInterest(sent: SentCommand[]): SentCommand[] {
   return sent.filter((command) => !MOUNT_QUERIES.includes(command.action));

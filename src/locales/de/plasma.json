@@ -323,5 +323,19 @@
     "save": "In Datei speichern",
     "lastCritical": "Letzter kritischer Fehler:",
     "empty": "Die Maschine hat noch nichts gemeldet."
+  },
+  "powermax": {
+    "title": "Powermax",
+    "connected": "Verbunden",
+    "connecting": "Verbinde…",
+    "offline": "Offline",
+    "connect": "Verbinden",
+    "disconnect": "Trennen",
+    "fault": "Fehler {{code}}:",
+    "current": "Strom",
+    "pressure": "Gasdruck",
+    "mode": "Schneidmodus",
+    "arcTime": "Lichtbogenzeit",
+    "failed": "Die Powermax konnte nicht verbunden werden."
   }
 }
