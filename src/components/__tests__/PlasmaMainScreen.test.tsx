@@ -11,6 +11,14 @@ interface SentCommand {
   params: Record<string, unknown>;
 }
 
+/**
+ * Commands the test actually exercised. The user-button panel asks the machine for its button
+ * list when it mounts, which is not what any of these tests are about.
+ */
+function commandsOfInterest(sent: SentCommand[]): SentCommand[] {
+  return sent.filter((command) => command.action !== 'get_user_buttons');
+}
+
 function installFakeSocket(): SentCommand[] {
   const sent: SentCommand[] = [];
   const socket = {
@@ -99,7 +107,7 @@ describe('PlasmaMainScreen', () => {
     const toggle = document.querySelector('[data-e2e="plasma-toggle-torch"]') as HTMLButtonElement;
     await userEvent.click(toggle);
 
-    expect(sent).toEqual([
+    expect(commandsOfInterest(sent)).toEqual([
       { type: 'command', protocolVersion: 1, commandId: expect.any(String), category: 'plasma', action: 'torch_enable', params: { enabled: true } },
     ]);
     // no optimistic flip: the pin still reads false, so the button must still read false
@@ -114,7 +122,7 @@ describe('PlasmaMainScreen', () => {
     await userEvent.click(document.querySelector('[data-e2e="plasma-toggle-cornerlock"]') as HTMLButtonElement);
     await userEvent.click(document.querySelector('[data-e2e="plasma-toggle-auto-volts"]') as HTMLButtonElement);
 
-    expect(sent.map((c) => [c.action, c.params])).toEqual([
+    expect(commandsOfInterest(sent).map((c) => [c.action, c.params])).toEqual([
       ['set_enable', { name: 'cornerlock', enabled: true }],
       ['set_enable', { name: 'autoVolts', enabled: true }],
     ]);
@@ -129,7 +137,7 @@ describe('PlasmaMainScreen', () => {
     await userEvent.click(document.querySelector('[data-e2e="plasma-height-override-minus"]') as HTMLButtonElement);
     await userEvent.click(document.querySelector('[data-e2e="plasma-height-override-reset"]') as HTMLButtonElement);
 
-    expect(sent.map((c) => c.params)).toEqual([{ volts: 3 }, { volts: 1 }, { volts: 0 }]);
+    expect(commandsOfInterest(sent).map((c) => c.params)).toEqual([{ volts: 3 }, { volts: 1 }, { volts: 0 }]);
     expect(document.querySelector('[data-e2e="plasma-height-override-value"]')?.textContent).toContain('2.0');
   });
 
@@ -141,8 +149,8 @@ describe('PlasmaMainScreen', () => {
     const button = document.querySelector('[data-e2e="plasma-torch-pulse"]') as HTMLButtonElement;
     await userEvent.pointer([{ keys: '[MouseLeft>]', target: button }, { keys: '[/MouseLeft]', target: button }]);
 
-    expect(sent.map((c) => c.params.action)).toContain('press');
-    expect(sent.map((c) => c.params.action)).toContain('release');
+    expect(commandsOfInterest(sent).map((c) => c.params.action)).toContain('press');
+    expect(commandsOfInterest(sent).map((c) => c.params.action)).toContain('release');
   });
 
   it('does nothing but stay quiet when the socket is closed', async () => {
@@ -170,7 +178,7 @@ describe('PlasmaMainScreen — probing and cut recovery', () => {
 
     await userEvent.click(document.querySelector('[data-e2e="plasma-probe-test"]') as HTMLElement);
 
-    expect(sent.map((command) => [command.action, command.params])).toEqual([
+    expect(commandsOfInterest(sent).map((command) => [command.action, command.params])).toEqual([
       ['probe_test', { seconds: 5 }],
     ]);
   });
@@ -183,7 +191,7 @@ describe('PlasmaMainScreen — probing and cut recovery', () => {
     const button = document.querySelector('[data-e2e="plasma-ohmic-test"]') as HTMLElement;
     await userEvent.pointer([{ keys: '[MouseLeft>]', target: button }, { keys: '[/MouseLeft]', target: button }]);
 
-    expect(sent.map((command) => command.params.enabled)).toEqual([true, false]);
+    expect(commandsOfInterest(sent).map((command) => command.params.enabled)).toEqual([true, false]);
   });
 
   it('the recovery pad is dead unless the program is paused', () => {
@@ -201,8 +209,8 @@ describe('PlasmaMainScreen — probing and cut recovery', () => {
 
     await userEvent.click(document.querySelector('[data-e2e="plasma-cut-recovery-ne"]') as HTMLElement);
 
-    expect(sent[0].action).toBe('cut_recovery');
-    expect(sent[0].params).toEqual({ action: 'offset', x: 1, y: 1 });
+    expect(commandsOfInterest(sent)[0].action).toBe('cut_recovery');
+    expect(commandsOfInterest(sent)[0].params).toEqual({ action: 'offset', x: 1, y: 1 });
   });
 
   it('forward and reverse move along the path and stop on release', async () => {
@@ -213,7 +221,7 @@ describe('PlasmaMainScreen — probing and cut recovery', () => {
     const fwd = document.querySelector('[data-e2e="plasma-cut-recovery-fwd"]') as HTMLElement;
     await userEvent.pointer([{ keys: '[MouseLeft>]', target: fwd }, { keys: '[/MouseLeft]', target: fwd }]);
 
-    expect(sent.map((command) => command.params.direction)).toEqual([1, 0]);
+    expect(commandsOfInterest(sent).map((command) => command.params.direction)).toEqual([1, 0]);
   });
 
   it('cancel gives up the recovery', async () => {
@@ -225,7 +233,7 @@ describe('PlasmaMainScreen — probing and cut recovery', () => {
       document.querySelector('[data-e2e="plasma-cut-recovery-cancel"]') as HTMLElement,
     );
 
-    expect(sent[0].params).toEqual({ action: 'cancel' });
+    expect(commandsOfInterest(sent)[0].params).toEqual({ action: 'cancel' });
   });
 });
 
@@ -259,11 +267,11 @@ describe('PlasmaMainScreen — single cut', () => {
       document.querySelector('[data-e2e="plasma-single-cut-load"]') as HTMLElement,
     );
 
-    expect(sent.map((command) => [command.action, command.params])).toEqual([
+    expect(commandsOfInterest(sent).map((command) => [command.action, command.params])).toEqual([
       ['single_cut', { xLength: 150, yLength: 0 }],
     ]);
     // Nothing was started: cycle start stays a separate, deliberate act.
-    expect(sent.some((command) => command.action.includes('auto'))).toBe(false);
+    expect(commandsOfInterest(sent).some((command) => command.action.includes('auto'))).toBe(false);
     expect(
       document.querySelector('[data-e2e="plasma-single-cut-hint"]')?.textContent,
     ).toContain('cycle start');
