@@ -142,7 +142,12 @@ app_context = AppContext(
     plasma_config=plasma_config,
 )
 plasma_publisher = (
-    PlasmaPublisher(manager=manager, service=plasma_service, config=plasma_config)
+    PlasmaPublisher(
+        manager=manager,
+        service=plasma_service,
+        config=plasma_config,
+        gateway=gateway,
+    )
     if plasma_service is not None
     else None
 )

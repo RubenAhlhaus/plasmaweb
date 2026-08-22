@@ -17,6 +17,7 @@ from typing import Any, Dict, Optional
 
 from backend.contracts.messages import EventMessage
 from backend.plasma.config_service import PlasmaConfigService
+from backend.plasma.external_panel import ExternalPanel
 from backend.plasma.hal_bridge import Snapshot
 from backend.plasma.pins import PLASMAC_COMPONENT
 from backend.plasma.service import PlasmaService
@@ -41,9 +42,13 @@ class PlasmaPublisher:
         manager: ConnectionManager,
         service: PlasmaService,
         config: Optional[PlasmaConfigService] = None,
+        gateway: Any = None,
     ) -> None:
         self._manager = manager
         self._service = service
+        #: The machine's own buttons. They arrive as pin diffs like everything else, so this is
+        #: the place that already has them.
+        self._panel = ExternalPanel(service, gateway, config)
         #: Watches our own pins for the material-change handshake. It answers HAL itself and
         #: hands back the events to broadcast, so the protocol never touches asyncio.
         self._config = config
@@ -109,6 +114,8 @@ class PlasmaPublisher:
         # The M190 handshake has to be answered whether or not a browser is listening.
         for event, payload in self._config_events(diff):
             await self._broadcast(event, payload)
+        for event, payload in self._panel_events(diff):
+            await self._broadcast(event, payload)
         await self._handle_probe_error(diff)
         if not self._manager.active_connections:
             return
@@ -165,6 +172,13 @@ class PlasmaPublisher:
             PROBE_ERROR_EVENT,
             {"code": "probe_test_error", "message": "Probe test error: no material found."},
         )
+
+    def _panel_events(self, diff: Snapshot) -> list:
+        try:
+            return self._panel.observe(diff)
+        except Exception:
+            logger.exception("plasma: handling an external button failed")
+            return []
 
     def _config_events(self, diff: Snapshot) -> list:
         if self._config is None:
