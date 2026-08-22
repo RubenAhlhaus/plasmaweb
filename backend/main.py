@@ -68,6 +68,7 @@ from backend.handlers.plasma import (
     handle_plasma_save_offset_probing,
     handle_plasma_powermax_enable,
     handle_plasma_powermax_status,
+    handle_plasma_save_colors,
     handle_plasma_save_gui_option,
     handle_plasma_save_machine_log,
     handle_plasma_save_peripheral_offset,
@@ -298,6 +299,7 @@ command_bus.register("plasma", "get_user_buttons", handle_plasma_get_user_button
 command_bus.register("plasma", "user_button", handle_plasma_user_button)
 command_bus.register("plasma", "save_offset_probing", handle_plasma_save_offset_probing)
 command_bus.register("plasma", "save_gui_option", handle_plasma_save_gui_option)
+command_bus.register("plasma", "save_colors", handle_plasma_save_colors)
 command_bus.register("plasma", "powermax_status", handle_plasma_powermax_status)
 command_bus.register("plasma", "powermax", handle_plasma_powermax_enable)
 command_bus.register(

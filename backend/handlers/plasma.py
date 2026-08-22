@@ -21,6 +21,7 @@ from backend.application.context import AppContext
 from backend.contracts.messages import CommandEnvelope, build_error, build_ok
 from backend.plasma.hal_bridge import PinWriteRejected
 from backend.plasma.alignment import SECTIONS as ALIGNMENT_SECTIONS, AlignmentError
+from backend.plasma.colors import ColorRejected
 from backend.plasma.materials import MaterialError
 from backend.plasma.parameters import ParameterRejected
 
@@ -1466,6 +1467,33 @@ async def handle_plasma_save_powermax_port(
     except OSError as exc:
         return DispatchResult(ack=build_error(command.commandId, "write_failed", str(exc)))
     return DispatchResult(ack=build_ok(command.commandId, {"port": port}))
+
+
+class PlasmaColorsParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    values: Dict[str, str]
+
+
+async def handle_plasma_save_colors(
+    command: CommandEnvelope, ctx: AppContext
+) -> DispatchResult:
+    """The machine's nine theme colours, stored where QtPlasmaC reads them too."""
+    if ctx.plasma_config is None:
+        return _no_config(command)
+    try:
+        params = PlasmaColorsParams.model_validate(command.params)
+    except ValidationError:
+        return _invalid(command, 'plasma.save_colors params: {"values": {name: "#rrggbb"}}')
+    try:
+        colors = ctx.plasma_config.save_colors(params.values)
+    except ColorRejected as exc:
+        return DispatchResult(
+            ack=build_error(command.commandId, exc.code, exc.message, path=exc.name)
+        )
+    except OSError as exc:
+        return DispatchResult(ack=build_error(command.commandId, "write_failed", str(exc)))
+    await _broadcast_config(ctx, materials=False, parameters=True)
+    return DispatchResult(ack=build_ok(command.commandId, {"colors": colors}))
 
 
 class PlasmaMachineLogParams(BaseModel):

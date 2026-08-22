@@ -111,7 +111,8 @@
       "offsetProbing": "Versetztes Antasten",
       "peripherals": "Laser- und Kamera-Offsets",
       "gui": "Tastatur",
-      "capabilities": "LinuxCNC dieser Maschine"
+      "capabilities": "LinuxCNC dieser Maschine",
+      "colors": "Farben"
     },
     "offsetProbing": {
       "X axis": "Taster X-Versatz",
@@ -131,7 +132,18 @@
       "all": "Dieses LinuxCNC unterstützt alle Funktionen dieses Bildschirms.",
       "needs": "benötigt Pins, die dieses LinuxCNC nicht hat ({{pins}})."
     },
-    "noPin": "Dieses LinuxCNC hat keinen Pin für diese Einstellung — sie wird gespeichert, wirkt aber nicht."
+    "noPin": "Dieses LinuxCNC hat keinen Pin für diese Einstellung — sie wird gespeichert, wirkt aber nicht.",
+    "color": {
+      "foreground": "Vordergrund",
+      "highlight": "Hervorhebung",
+      "led": "LED",
+      "background": "Hintergrund",
+      "backgroundAlt": "Hintergrund alt",
+      "frames": "Rahmen",
+      "estop": "Not-Aus",
+      "disabled": "Deaktiviert",
+      "preview": "Vorschau"
+    }
   },
   "preview": {
     "refresh": "Neu laden",

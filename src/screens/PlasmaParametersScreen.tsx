@@ -86,6 +86,22 @@ const PARAMETER_GROUPS = [
 const PERIPHERALS: Array<{ kind: 'laser' | 'camera' }> = [{ kind: 'laser' }, { kind: 'camera' }];
 
 /**
+ * `[COLOR_OPTIONS]`, in the order QtPlasmaC's own settings screen lists them. Changing one
+ * here changes it for QtPlasmaC too — it is the same file, and a shop runs one look.
+ */
+const COLOR_NAMES = [
+  'foreground',
+  'highlight',
+  'led',
+  'background',
+  'backgroundAlt',
+  'frames',
+  'estop',
+  'disabled',
+  'preview',
+] as const;
+
+/**
  * `[OFFSET_PROBING]`, which is not a `[PLASMA_PARAMETERS]` key but belongs on the same screen:
  * where the probe sits relative to the torch, and how long it takes to deploy. Zero on both
  * axes means the probe is under the torch, which is the common case.
@@ -295,6 +311,32 @@ export function PlasmaParametersScreen() {
                   ))}
               </ul>
             )}
+          </section>
+        )}
+
+        {parameters.colors && (
+          <section data-e2e="plasma-parameters-group-colors">
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {t('parameters.group.colors')}
+            </h2>
+            <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-5">
+              {COLOR_NAMES.map((name) => (
+                <label key={name} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="color"
+                    className="h-9 w-12 shrink-0 rounded border border-white/10 bg-transparent"
+                    data-e2e={`plasma-color-${name}`}
+                    value={parameters.colors?.[name] ?? '#000000'}
+                    onChange={(event) =>
+                      commands.saveColors({ [name]: event.target.value })
+                    }
+                  />
+                  <span className="text-muted-foreground">
+                    {t(`parameters.color.${name}`, { defaultValue: name })}
+                  </span>
+                </label>
+              ))}
+            </div>
           </section>
         )}
 

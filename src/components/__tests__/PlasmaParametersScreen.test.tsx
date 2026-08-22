@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { render } from '@testing-library/react';
+import { fireEvent, render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { PlasmaParametersScreen } from '@/screens/PlasmaParametersScreen';
@@ -42,6 +42,17 @@ function setParameters(values: Record<string, number> = {}) {
     },
     defaults: { 'Pid P Gain': 10, 'Arc Maximum Starts': 3, 'THC Delay': 0.5, 'Probe Feed Rate': 300 },
     enables: { 'thc-enable': true },
+    colors: {
+      foreground: '#ffee06',
+      highlight: '#ffee06',
+      led: '#ffee06',
+      background: '#16160e',
+      backgroundAlt: '#36362e',
+      frames: '#ffee06',
+      estop: '#ff0000',
+      disabled: '#b0b0b0',
+      preview: '#000000',
+    },
     limits: {
       'Pid P Gain': { minimum: 0, maximum: 1000, decimals: 0, unit: '' },
       'Probe Feed Rate': { minimum: 0, maximum: 500, decimals: 0, unit: 'mm/min' },
@@ -129,6 +140,18 @@ describe('PlasmaParametersScreen', () => {
     expect(document.querySelector('[role=dialog]')).not.toBeNull();
     await userEvent.keyboard('{Escape}');
     expect(sent.find((command) => command.action === 'save_parameters')).toBeUndefined();
+  });
+
+  it('a colour change goes straight to the machine, which is what QtPlasmaC does', async () => {
+    const sent = installFakeSocket();
+    setParameters();
+    render(<PlasmaParametersScreen />);
+
+    const swatch = e2e('plasma-color-foreground') as HTMLInputElement;
+    fireEvent.change(swatch, { target: { value: '#00ff88' } });
+
+    const save = sent.find((command) => command.action === 'save_colors');
+    expect(save?.params.values).toEqual({ foreground: '#00ff88' });
   });
 
   it('reload asks the backend to re-read both files', async () => {

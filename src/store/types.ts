@@ -610,6 +610,8 @@ export interface PlasmaParameters {
    * off by default — the shortcuts jog the torch, so a keyboard on a bench must not.
    */
   guiOptions?: Record<string, boolean>;
+  /** `[COLOR_OPTIONS]`: the nine colours QtPlasmaC themes the machine with. */
+  colors?: Record<string, string>;
   /** 1 on a metric machine, 0.03937 on an imperial one (QtPlasmaC's own constant). */
   unitsPerMm: number;
   path: string;

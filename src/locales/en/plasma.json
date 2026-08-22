@@ -111,7 +111,8 @@
       "offsetProbing": "Offset probing",
       "peripherals": "Laser and camera offsets",
       "gui": "Keyboard",
-      "capabilities": "This machine's LinuxCNC"
+      "capabilities": "This machine's LinuxCNC",
+      "colors": "Colours"
     },
     "offsetProbing": {
       "X axis": "Probe X offset",
@@ -131,7 +132,18 @@
       "all": "This LinuxCNC supports every feature this screen offers.",
       "needs": "needs pins this LinuxCNC does not have ({{pins}})."
     },
-    "noPin": "This LinuxCNC has no pin for this setting, so it is stored but has no effect."
+    "noPin": "This LinuxCNC has no pin for this setting, so it is stored but has no effect.",
+    "color": {
+      "foreground": "Foreground",
+      "highlight": "Highlight",
+      "led": "LED",
+      "background": "Background",
+      "backgroundAlt": "Background alt",
+      "frames": "Frames",
+      "estop": "E-stop",
+      "disabled": "Disabled",
+      "preview": "Preview"
+    }
   },
   "preview": {
     "refresh": "Refresh",

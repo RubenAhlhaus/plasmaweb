@@ -42,6 +42,7 @@ from backend.plasma.materials import (
     read_temporary_material,
     write_materials,
 )
+from backend.plasma.colors import read_colors, write_colors
 from backend.plasma.powermax import read_port as read_powermax_port
 from backend.plasma.powermax import write_port as write_powermax_port
 from backend.plasma.parameters import (
@@ -260,6 +261,7 @@ class PlasmaConfigService:
             "enables": dict(self._enables),
             "offsetProbing": dict(self._offset_probing),
             "guiOptions": self.gui_options(),
+            "colors": self.colors(),
             "defaults": default_parameters(self._files),
             "unitsPerMm": self._files.units_per_mm,
             "path": self._files.prefs_path,
@@ -302,6 +304,14 @@ class PlasmaConfigService:
             "cutAmps": float(material.values.get("cutAmps", 0.0)),
             "gasPressure": float(material.values.get("gasPressure", 0.0)),
         }
+
+    def colors(self) -> Dict[str, str]:
+        """``[COLOR_OPTIONS]``: how this machine is themed, in both GUIs."""
+        return read_colors(self._files.prefs_path)
+
+    def save_colors(self, values: Mapping[str, Any]) -> Dict[str, str]:
+        write_colors(self._files.prefs_path, values)
+        return self.colors()
 
     def gui_options(self) -> Dict[str, bool]:
         """``[GUI_OPTIONS]``: the switches QtPlasmaC remembers between runs."""

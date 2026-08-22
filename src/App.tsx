@@ -19,6 +19,7 @@ import { usePlasmaToolpath } from './hooks/usePlasmaToolpath';
 import { useReloadToolOnStartup } from './hooks/useReloadToolOnStartup';
 import { useGlobalHotkeyListener } from './hooks/useGlobalHotkeyListener';
 import { usePlasmaKeyboardShortcuts } from './hooks/usePlasmaKeyboardShortcuts';
+import { usePlasmaTheme } from './hooks/usePlasmaTheme';
 import { useLiveProgramLineHighlight } from './hooks/useLiveProgramLineHighlight';
 import { HomingDialog } from './components/HomingDialog';
 import { UnhomedAxisJogDialog } from './components/UnhomedAxisJogDialog';
@@ -65,6 +66,8 @@ function AppContent() {
   useGlobalHotkeyListener();
   // QtPlasmaC's own shortcuts, which stay inert until the machine's prefs enable them.
   usePlasmaKeyboardShortcuts();
+  // The machine's own colours, from the same prefs file QtPlasmaC themes itself from.
+  usePlasmaTheme();
   useLiveProgramLineHighlight();
 
   useEffect(() => {

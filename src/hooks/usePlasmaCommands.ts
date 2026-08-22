@@ -84,6 +84,7 @@ export function usePlasmaCommands() {
       savePowermaxPort: (port: string) => send('save_powermax_port', { port }),
       saveGuiOption: (name: string, enabled: boolean) =>
         send('save_gui_option', { name, enabled }),
+      saveColors: (values: Record<string, string>) => send('save_colors', { values }),
       machineLog: (params?: { limit?: number; severity?: 'critical' | 'warning' | 'info' }) =>
         sendForResult('get_machine_log', params ?? {}),
       saveMachineLog: () => sendForResult('save_machine_log'),
