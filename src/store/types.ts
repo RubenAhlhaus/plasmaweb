@@ -584,9 +584,24 @@ export interface PlasmaMaterials {
  * the contract with the file and with QtPlasmaC itself — renaming them in the UI layer would
  * mean two names for one thing. `enables` is keyed by dashed `plasmac.*` pin name.
  */
+/**
+ * What one parameter may be set to. QtPlasmaC's spinboxes carry these, and they are not
+ * decoration: the value lands on a live `plasmac.*` setpoint. Two of the bounds come from
+ * the machine's INI and one from another parameter, so only the backend can work them out.
+ */
+export interface PlasmaParameterLimits {
+  minimum: number;
+  maximum: number;
+  /** Digits after the point; 0 means whole numbers. */
+  decimals: number;
+  /** As QtPlasmaC labels it — `mS` for `Spotting Time` is its real unit, not a typo. */
+  unit: string;
+}
+
 export interface PlasmaParameters {
   values: Record<string, number>;
   defaults: Record<string, number>;
+  limits?: Record<string, PlasmaParameterLimits>;
   enables: Record<string, boolean>;
   /** `[OFFSET_PROBING]`: where the probe sits relative to the torch, and its deploy delay. */
   offsetProbing?: Record<string, number>;

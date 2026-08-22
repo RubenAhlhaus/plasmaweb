@@ -113,7 +113,8 @@
       "X axis": "Probe X offset",
       "Y axis": "Probe Y offset",
       "Delay": "Probe deploy delay"
-    }
+    },
+    "outOfRange": "Between {{minimum}} and {{maximum}} {{unit}}"
   },
   "preview": {
     "refresh": "Refresh",

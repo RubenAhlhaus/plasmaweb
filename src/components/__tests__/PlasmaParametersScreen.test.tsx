@@ -42,6 +42,12 @@ function setParameters(values: Record<string, number> = {}) {
     },
     defaults: { 'Pid P Gain': 10, 'Arc Maximum Starts': 3, 'THC Delay': 0.5, 'Probe Feed Rate': 300 },
     enables: { 'thc-enable': true },
+    limits: {
+      'Pid P Gain': { minimum: 0, maximum: 1000, decimals: 0, unit: '' },
+      'Probe Feed Rate': { minimum: 0, maximum: 500, decimals: 0, unit: 'mm/min' },
+      'Spotting Time': { minimum: 0, maximum: 9999, decimals: 0, unit: 'mS' },
+      'Height Per Volt': { minimum: 0.025, maximum: 0.25, decimals: 3, unit: 'mm' },
+    },
     unitsPerMm: 1,
     path: '/home/ruben/linuxcnc/configs/qtplasmac/qtplasmac-metric.prefs',
   });
@@ -93,6 +99,34 @@ describe('PlasmaParametersScreen', () => {
 
     expect((e2e('plasma-parameters-save') as HTMLButtonElement).disabled).toBe(true);
     expect(findE2e('plasma-parameters-dirty')).toBeNull();
+  });
+
+  it('labels each field with the unit the backend reported, not one of its own', () => {
+    setParameters({ 'Spotting Time': 250 });
+
+    render(<PlasmaParametersScreen />);
+
+    // `mS`, not seconds: the realtime component divides this by 1000.
+    const unitOf = (name: string) => e2e(name).parentElement?.textContent ?? '';
+    expect(unitOf('plasma-parameter-spotting-time')).toContain('mS');
+    expect(unitOf('plasma-parameter-probe-feed-rate')).toContain('mm/min');
+  });
+
+  it('refuses a value past its bound where it is typed', async () => {
+    const sent = installFakeSocket();
+    setParameters({ 'Height Per Volt': 0.1 });
+    render(<PlasmaParametersScreen />);
+
+    await userEvent.click(e2e('plasma-parameter-height-per-volt'));
+    const entry = document.querySelector('[role=dialog] input') as HTMLInputElement;
+    await userEvent.clear(entry);
+    await userEvent.type(entry, '10');
+    await userEvent.keyboard('{Enter}');
+
+    // A Height Per Volt of 10 would command 100 mm of Z for every volt of arc error.
+    expect(document.querySelector('[role=dialog]')).not.toBeNull();
+    await userEvent.keyboard('{Escape}');
+    expect(sent.find((command) => command.action === 'save_parameters')).toBeUndefined();
   });
 
   it('reload asks the backend to re-read both files', async () => {

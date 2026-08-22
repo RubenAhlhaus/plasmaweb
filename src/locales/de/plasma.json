@@ -113,7 +113,8 @@
       "X axis": "Taster X-Versatz",
       "Y axis": "Taster Y-Versatz",
       "Delay": "Taster-Verzögerung"
-    }
+    },
+    "outOfRange": "Zwischen {{minimum}} und {{maximum}} {{unit}}"
   },
   "preview": {
     "refresh": "Neu laden",

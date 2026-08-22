@@ -95,6 +95,309 @@ PLASMA_PARAMETERS: Tuple[PlasmaParameter, ...] = (
 _BY_KEY: Dict[str, PlasmaParameter] = {p.key: p for p in PLASMA_PARAMETERS}
 
 
+class ParameterLimits(NamedTuple):
+    """What a parameter may be set to, and how it is written.
+
+    QtPlasmaC's spinboxes carry these: a range, a precision and a unit suffix. They are not
+    presentation — the value goes straight onto a live ``plasmac.*`` setpoint, so a
+    ``Height Per Volt`` of 10 instead of 0.1 makes every volt of arc error command 100 mm of
+    Z motion. Ours arrive over a WebSocket, which is one more reason to bound them here
+    rather than trust the field that produced them.
+    """
+
+    minimum: float
+    maximum: float
+    #: Digits after the point the machine's owner may enter; 0 means whole numbers.
+    decimals: int
+    #: Unit as QtPlasmaC labels it. ``mS`` for ``Spotting Time`` is not a typo — see below.
+    unit: str
+
+
+#: ``key → (metric, imperial)`` bounds, from QtPlasmaC's ``qtplasmac.ui`` spinbox properties
+#: and the imperial overrides in ``set_spinbox_parameters`` (``qtplasmac_handler.py:3176``).
+#:
+#: Three entries carry a ``None`` maximum: it comes from the machine's INI, not the screen —
+#: see :func:`machine_bounds`. Everything else is the same on every machine.
+#:
+#: ``Spotting Time`` is **milliseconds**, with 0 decimals and a 9999 ceiling. That is
+#: upstream's unit (``spotting_time`` suffix ``mS``) and the realtime component divides it by
+#: 1000 (``plasmac.comp:1542``), so labelling it seconds here would make every spot 1000×
+#: too short.
+_LIMITS: Dict[str, Tuple[ParameterLimits, ParameterLimits]] = {
+    # ---- arc ----
+    "Arc Fail Timeout": (
+        ParameterLimits(0.0, 60.0, 1, "s"),
+        ParameterLimits(0.0, 60.0, 1, "s"),
+    ),
+    "Arc Maximum Starts": (
+        ParameterLimits(0.0, 10.0, 0, ""),
+        ParameterLimits(0.0, 10.0, 0, ""),
+    ),
+    "Arc Restart Delay": (
+        ParameterLimits(0.0, 60.0, 0, "s"),
+        ParameterLimits(0.0, 60.0, 0, "s"),
+    ),
+    "Arc OK High": (
+        ParameterLimits(0.0, 99999.0, 0, "V"),
+        ParameterLimits(0.0, 99999.0, 0, "V"),
+    ),
+    "Arc OK Low": (
+        ParameterLimits(0.0, 99.0, 0, "V"),
+        ParameterLimits(0.0, 99.0, 0, "V"),
+    ),
+    "Arc Voltage Scale": (
+        ParameterLimits(0.0, 9999.0, 6, ""),
+        ParameterLimits(0.0, 9999.0, 6, ""),
+    ),
+    "Arc Voltage Offset": (
+        ParameterLimits(0.0, 999999.0, 3, ""),
+        ParameterLimits(0.0, 999999.0, 3, ""),
+    ),
+    # ---- THC ----
+    "Pid P Gain": (
+        ParameterLimits(0.0, 1000.0, 0, ""),
+        ParameterLimits(0.0, 1000.0, 0, ""),
+    ),
+    "Pid I Gain": (
+        ParameterLimits(0.0, 1000.0, 0, ""),
+        ParameterLimits(0.0, 1000.0, 0, ""),
+    ),
+    "Pid D Gain": (
+        ParameterLimits(0.0, 1000.0, 0, ""),
+        ParameterLimits(0.0, 1000.0, 0, ""),
+    ),
+    "THC Delay": (
+        ParameterLimits(0.0, 9.0, 2, "s"),
+        ParameterLimits(0.0, 9.0, 2, "s"),
+    ),
+    "THC Threshold": (
+        ParameterLimits(0.05, 10.0, 2, "V"),
+        ParameterLimits(0.05, 10.0, 2, "V"),
+    ),
+    "THC Sample Counts": (
+        ParameterLimits(0.0, 1000.0, 0, ""),
+        ParameterLimits(0.0, 1000.0, 0, ""),
+    ),
+    "THC Sample Threshold": (
+        ParameterLimits(0.0, 99.0, 2, "V"),
+        ParameterLimits(0.0, 99.0, 2, "V"),
+    ),
+    "Height Per Volt": (
+        ParameterLimits(0.025, 0.25, 3, "mm"),
+        ParameterLimits(0.001, 0.01, 3, "in"),
+    ),
+    "Velocity Anti Dive Threshold": (
+        ParameterLimits(0.0, 99.0, 0, "%"),
+        ParameterLimits(0.0, 99.0, 0, "%"),
+    ),
+    "Void Sense Slope": (
+        ParameterLimits(0.0, 10000.0, 0, "V/sec"),
+        ParameterLimits(0.0, 10000.0, 0, "V/sec"),
+    ),
+    # ---- probing ----
+    "Probe Feed Rate": (
+        ParameterLimits(0.0, None, 0, "mm/min"),  # type: ignore[arg-type]
+        ParameterLimits(4.0, None, 1, "in/min"),  # type: ignore[arg-type]
+    ),
+    "Probe Start Height": (
+        ParameterLimits(0.0, None, 2, "mm"),  # type: ignore[arg-type]
+        ParameterLimits(0.0, None, 3, "in"),  # type: ignore[arg-type]
+    ),
+    "Float Switch Travel": (
+        ParameterLimits(-25.0, 25.0, 2, "mm"),
+        ParameterLimits(-1.0, 1.0, 3, "in"),
+    ),
+    "Skip IHS Distance": (
+        ParameterLimits(0.0, 999.0, 0, "mm"),
+        ParameterLimits(0.0, 40.0, 1, "in"),
+    ),
+    "Ohmic Probe Offset": (
+        ParameterLimits(-25.0, 25.0, 2, "mm"),
+        ParameterLimits(-1.0, 1.0, 3, "in"),
+    ),
+    "Ohmic Maximum Attempts": (
+        ParameterLimits(0.0, 10.0, 0, ""),
+        ParameterLimits(0.0, 10.0, 0, ""),
+    ),
+    # ---- motion ----
+    "Setup Feed Rate": (
+        ParameterLimits(0.0, None, 0, "mm/min"),  # type: ignore[arg-type]
+        ParameterLimits(4.0, None, 1, "in/min"),  # type: ignore[arg-type]
+    ),
+    "Offset Feed Rate": (
+        ParameterLimits(100.0, None, 0, "mm/min"),  # type: ignore[arg-type]
+        ParameterLimits(4.0, None, 1, "in/min"),  # type: ignore[arg-type]
+    ),
+    "Safe Height": (
+        ParameterLimits(0.0, None, 2, "mm"),  # type: ignore[arg-type]
+        ParameterLimits(0.0, None, 3, "in"),  # type: ignore[arg-type]
+    ),
+    "Slat Height": (
+        ParameterLimits(0.0, None, 2, "mm"),  # type: ignore[arg-type]
+        ParameterLimits(0.0, None, 3, "in"),  # type: ignore[arg-type]
+    ),
+    # ---- scribe, spotting, pierce offsets ----
+    "Scribe Arming Delay": (
+        ParameterLimits(0.0, 10.0, 1, "s"),
+        ParameterLimits(0.0, 10.0, 1, "s"),
+    ),
+    "Scribe On Delay": (
+        ParameterLimits(0.0, 10.0, 1, "s"),
+        ParameterLimits(0.0, 10.0, 1, "s"),
+    ),
+    "Spotting Threshold": (
+        ParameterLimits(0.0, 200.0, 0, "V"),
+        ParameterLimits(0.0, 200.0, 0, "V"),
+    ),
+    "Spotting Time": (
+        ParameterLimits(0.0, 9999.0, 0, "mS"),
+        ParameterLimits(0.0, 9999.0, 0, "mS"),
+    ),
+    "X Pierce Offset": (
+        ParameterLimits(-5.0, 5.0, 2, "mm"),
+        ParameterLimits(-0.2, 0.2, 3, "in"),
+    ),
+    "Y Pierce Offset": (
+        ParameterLimits(-5.0, 5.0, 2, "mm"),
+        ParameterLimits(-0.2, 0.2, 3, "in"),
+    ),
+}
+
+
+class MachineBounds(NamedTuple):
+    """The three ceilings a machine's own INI sets, in the machine's units."""
+
+    #: ``[AXIS_Z] MAX_VELOCITY * OFFSET_AV_RATIO * 60`` — how fast the THC may move Z.
+    thc_feed_rate: Optional[float]
+    #: The slowest of X/Y ``MAX_VELOCITY * 30`` and ``[TRAJ] MAX_LINEAR_VELOCITY``.
+    offset_feed_rate: Optional[float]
+    #: ``[AXIS_Z] MAX_LIMIT - MIN_LIMIT`` — nothing may ask for more Z than the machine has.
+    max_height: Optional[float]
+
+
+def machine_bounds(files: MachineFiles) -> MachineBounds:
+    """QtPlasmaC's ``thcFeedRate``, ``offsetFeedRate`` and ``maxHeight``
+    (``qtplasmac_handler.py:276``).
+
+    A missing INI value gives ``None`` rather than a guess: an invented ceiling on a real
+    machine is worse than no ceiling, because it silently refuses a legitimate setting.
+    """
+    from backend.plasma.machine_files import ini_real  # noqa: PLC0415 — avoids a cycle
+
+    path = files.ini_path
+    z_velocity = ini_real(path, "AXIS_Z", "MAX_VELOCITY")
+    z_ratio = ini_real(path, "AXIS_Z", "OFFSET_AV_RATIO")
+    thc = z_velocity * z_ratio * 60.0 if z_velocity is not None and z_ratio is not None else None
+
+    rates = [
+        rate * 30.0
+        for rate in (
+            ini_real(path, "AXIS_X", "MAX_VELOCITY"),
+            ini_real(path, "AXIS_Y", "MAX_VELOCITY"),
+        )
+        if rate is not None
+    ]
+    traj = ini_real(path, "TRAJ", "MAX_LINEAR_VELOCITY")
+    if traj is not None:
+        rates.append(traj)
+    offset = min(rates) if rates else None
+
+    z_max = ini_real(path, "AXIS_Z", "MAX_LIMIT")
+    z_min = ini_real(path, "AXIS_Z", "MIN_LIMIT")
+    height = z_max - z_min if z_max is not None and z_min is not None else None
+
+    return MachineBounds(thc, offset, height)
+
+
+#: Which INI-derived ceiling fills in each ``None`` maximum above.
+_MACHINE_MAXIMUM = {
+    "Setup Feed Rate": "thc_feed_rate",
+    "Probe Feed Rate": "thc_feed_rate",
+    "Offset Feed Rate": "offset_feed_rate",
+    "Probe Start Height": "max_height",
+    "Safe Height": "max_height",
+    "Slat Height": "max_height",
+}
+
+#: The ceiling QtPlasmaC keeps as high as ``Setup Feed Rate`` and no higher
+#: (``setup_feed_rate_changed``, ``qtplasmac_handler.py:2042``): a probe that descends faster
+#: than the setup rate is a torch into the slats.
+_CAPPED_BY = {"Probe Feed Rate": "Setup Feed Rate"}
+
+
+def parameter_limits(
+    files: MachineFiles, values: Optional[Mapping[str, Any]] = None
+) -> Dict[str, ParameterLimits]:
+    """Bounds for every parameter, for this machine and its units.
+
+    ``values`` supplies the current settings, which two bounds depend on. Without them the
+    machine ceiling is used, which is the wider of the two and so never refuses a value
+    QtPlasmaC would have accepted.
+    """
+    imperial = files.units_per_mm < 0.5
+    bounds = machine_bounds(files)
+    limits: Dict[str, ParameterLimits] = {}
+    for key, pair in _LIMITS.items():
+        limit = pair[1] if imperial else pair[0]
+        maximum = limit.maximum
+        if maximum is None:
+            attribute = _MACHINE_MAXIMUM.get(key)
+            machine_max = getattr(bounds, attribute) if attribute else None
+            # No ceiling in the INI means no ceiling at all, which is what QtPlasmaC does
+            # with a missing value too.
+            maximum = float(machine_max) if machine_max is not None else float("inf")
+        capped_by = _CAPPED_BY.get(key)
+        if capped_by and values is not None:
+            try:
+                maximum = min(maximum, float(values[capped_by]))
+            except (KeyError, TypeError, ValueError):
+                pass
+        limits[key] = limit._replace(maximum=maximum)
+    return limits
+
+
+class ParameterRejected(ValueError):
+    """A parameter outside its bounds, with the bound it broke."""
+
+    def __init__(self, code: str, message: str, key: str) -> None:
+        super().__init__(message)
+        self.code = code
+        self.message = message
+        self.key = key
+
+
+def check_parameters(
+    files: MachineFiles, edits: Mapping[str, Any], current: Optional[Mapping[str, Any]] = None
+) -> Dict[str, Any]:
+    """Validate parameter edits against their bounds, returning them as their stored type.
+
+    Refuses rather than clamps. A clamped value looks accepted, and an operator who typed
+    ``250`` for a cut height would go on believing the machine had it.
+    """
+    limits = parameter_limits(files, {**(current or {}), **edits})
+    checked: Dict[str, Any] = {}
+    for key, raw in edits.items():
+        param = _BY_KEY.get(key)
+        if param is None:
+            raise ParameterRejected("unknown_parameter", f"no parameter named {key!r}", key)
+        try:
+            value = float(raw)
+        except (TypeError, ValueError):
+            raise ParameterRejected(
+                "not_a_number", f"{key} must be a number, not {raw!r}", key
+            ) from None
+        limit = limits.get(key)
+        if limit is not None and not limit.minimum <= value <= limit.maximum:
+            unit = f" {limit.unit}" if limit.unit else ""
+            raise ParameterRejected(
+                "out_of_range",
+                f"{key} must be between {limit.minimum:g} and {limit.maximum:g}{unit}",
+                key,
+            )
+        checked[key] = param.kind(value)
+    return checked
+
+
 def parameter(key: str) -> PlasmaParameter:
     return _BY_KEY[key]
 

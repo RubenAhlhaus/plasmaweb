@@ -13,63 +13,66 @@ import { useAppStore } from '@/store';
  * two names for one setting. `integer` marks the four the file stores without a decimal
  * point; QtPlasmaC reads those with `getint` and resets a value it cannot parse.
  */
+/**
+ * The `[PLASMA_PARAMETERS]` keys, grouped the way QtPlasmaC's PARAMETERS tab groups them.
+ *
+ * Keys are QtPlasmaC's own spelling because that is the contract with the prefs file — the
+ * backend writes and reads exactly these strings, and inventing UI names for them would mean
+ * two names for one setting. The unit, the precision and the bounds are *not* here: they
+ * depend on the machine's INI and on each other, so the backend reports them per parameter.
+ */
 const PARAMETER_GROUPS = [
   {
     titleKey: 'arc',
     keys: [
-      { key: 'Arc Fail Timeout', unit: 's' },
-      { key: 'Arc Maximum Starts', unit: '', integer: true },
-      { key: 'Arc Restart Delay', unit: 's' },
-      { key: 'Arc OK High', unit: 'V' },
-      { key: 'Arc OK Low', unit: 'V' },
-      { key: 'Arc Voltage Scale', unit: '' },
-      { key: 'Arc Voltage Offset', unit: '' },
+      'Arc Fail Timeout',
+      'Arc Maximum Starts',
+      'Arc Restart Delay',
+      'Arc OK High',
+      'Arc OK Low',
+      'Arc Voltage Scale',
+      'Arc Voltage Offset',
     ],
   },
   {
     titleKey: 'thc',
     keys: [
-      { key: 'Pid P Gain', unit: '' },
-      { key: 'Pid I Gain', unit: '' },
-      { key: 'Pid D Gain', unit: '' },
-      { key: 'THC Delay', unit: 's' },
-      { key: 'THC Threshold', unit: 'V' },
-      { key: 'THC Sample Counts', unit: '', integer: true },
-      { key: 'THC Sample Threshold', unit: 'V' },
-      { key: 'Height Per Volt', unit: 'mm' },
-      { key: 'Velocity Anti Dive Threshold', unit: '%' },
-      { key: 'Void Sense Slope', unit: '', integer: true },
+      'Pid P Gain',
+      'Pid I Gain',
+      'Pid D Gain',
+      'THC Delay',
+      'THC Threshold',
+      'THC Sample Counts',
+      'THC Sample Threshold',
+      'Height Per Volt',
+      'Velocity Anti Dive Threshold',
+      'Void Sense Slope',
     ],
   },
   {
     titleKey: 'probe',
     keys: [
-      { key: 'Probe Feed Rate', unit: 'mm/min' },
-      { key: 'Probe Start Height', unit: 'mm' },
-      { key: 'Float Switch Travel', unit: 'mm' },
-      { key: 'Skip IHS Distance', unit: 'mm' },
-      { key: 'Ohmic Probe Offset', unit: 'mm' },
-      { key: 'Ohmic Maximum Attempts', unit: '', integer: true },
+      'Probe Feed Rate',
+      'Probe Start Height',
+      'Float Switch Travel',
+      'Skip IHS Distance',
+      'Ohmic Probe Offset',
+      'Ohmic Maximum Attempts',
     ],
   },
   {
     titleKey: 'motion',
-    keys: [
-      { key: 'Setup Feed Rate', unit: 'mm/min' },
-      { key: 'Offset Feed Rate', unit: 'mm/min' },
-      { key: 'Safe Height', unit: 'mm' },
-      { key: 'Slat Height', unit: 'mm' },
-    ],
+    keys: ['Setup Feed Rate', 'Offset Feed Rate', 'Safe Height', 'Slat Height'],
   },
   {
     titleKey: 'scribe',
     keys: [
-      { key: 'Scribe Arming Delay', unit: 's' },
-      { key: 'Scribe On Delay', unit: 's' },
-      { key: 'Spotting Threshold', unit: 'V' },
-      { key: 'Spotting Time', unit: 's' },
-      { key: 'X Pierce Offset', unit: 'mm' },
-      { key: 'Y Pierce Offset', unit: 'mm' },
+      'Scribe Arming Delay',
+      'Scribe On Delay',
+      'Spotting Threshold',
+      'Spotting Time',
+      'X Pierce Offset',
+      'Y Pierce Offset',
     ],
   },
 ] as const;
@@ -131,6 +134,24 @@ export function PlasmaParametersScreen() {
     if (key in draft) return draft[key];
     const value = parameters.values[key];
     return value === undefined ? '' : String(value);
+  };
+
+  /**
+   * Refuse an out-of-range value where it is typed rather than where it lands. The backend
+   * checks again — it owns the machine — but a bound the operator learns about only after
+   * pressing SAVE is a bound they have already worked around.
+   */
+  const validator = (key: string) => (parsed: number): string | null => {
+    const limit = parameters.limits?.[key];
+    if (!limit) return null;
+    if (parsed < limit.minimum || parsed > limit.maximum) {
+      return t('parameters.outOfRange', {
+        minimum: limit.minimum,
+        maximum: Number.isFinite(limit.maximum) ? limit.maximum : '∞',
+        unit: limit.unit,
+      });
+    }
+    return null;
   };
 
   const save = () => {
@@ -218,17 +239,21 @@ export function PlasmaParametersScreen() {
               {t(`parameters.group.${group.titleKey}`)}
             </h2>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {group.keys.map(({ key, unit, ...rest }) => (
-                <TouchNumericPickerField
-                  key={key}
-                  label={t(`parameters.key.${key}`, { defaultValue: key })}
-                  unit={unit || undefined}
-                  integerOnly={'integer' in rest && rest.integer === true}
-                  value={valueOf(key)}
-                  onChange={(value) => setDraft((prev) => ({ ...prev, [key]: value }))}
-                  data-e2e={`plasma-parameter-${key.replace(/\s+/g, '-').toLowerCase()}`}
-                />
-              ))}
+              {group.keys.map((key) => {
+                const limit = parameters.limits?.[key];
+                return (
+                  <TouchNumericPickerField
+                    key={key}
+                    label={t(`parameters.key.${key}`, { defaultValue: key })}
+                    unit={limit?.unit || undefined}
+                    integerOnly={limit?.decimals === 0}
+                    value={valueOf(key)}
+                    onChange={(value) => setDraft((prev) => ({ ...prev, [key]: value }))}
+                    validateParsed={validator(key)}
+                    data-e2e={`plasma-parameter-${key.replace(/\s+/g, '-').toLowerCase()}`}
+                  />
+                );
+              })}
             </div>
           </section>
         ))}

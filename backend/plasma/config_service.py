@@ -43,6 +43,8 @@ from backend.plasma.materials import (
     write_materials,
 )
 from backend.plasma.parameters import (
+    check_parameters,
+    parameter_limits,
     default_parameters,
     offset_probing_pin_values,
     read_offset_probing,
@@ -238,6 +240,12 @@ class PlasmaConfigService:
     def parameters_payload(self) -> Dict[str, Any]:
         return {
             "values": dict(self._parameters),
+            # The bounds travel with the values: they depend on this machine's INI and on
+            # each other, so a client cannot work them out and should not have to guess.
+            "limits": {
+                key: limit._asdict()
+                for key, limit in parameter_limits(self._files, self._parameters).items()
+            },
             "enables": dict(self._enables),
             "offsetProbing": dict(self._offset_probing),
             "defaults": default_parameters(self._files),
@@ -368,9 +376,14 @@ class PlasmaConfigService:
         self._default = number
 
     def save_parameters(self, values: Mapping[str, Any]) -> Dict[str, Any]:
-        """Store parameter edits, then push them to HAL so they take effect immediately."""
+        """Store parameter edits, then push them to HAL so they take effect immediately.
+
+        Every edit is checked against its bounds first, and the whole save is refused if one
+        is out of range: these land on live setpoints, and a half-applied set of parameters is
+        harder to reason about than a rejected one.
+        """
         merged = dict(self._parameters)
-        merged.update(values)
+        merged.update(check_parameters(self._files, values, self._parameters))
         write_parameters(self._files.prefs_path, merged)
         self._parameters = read_parameters(
             self._files.prefs_path, default_parameters(self._files)

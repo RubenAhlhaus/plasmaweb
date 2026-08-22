@@ -21,6 +21,7 @@ from backend.application.context import AppContext
 from backend.contracts.messages import CommandEnvelope, build_error, build_ok
 from backend.plasma.hal_bridge import PinWriteRejected
 from backend.plasma.materials import MaterialError
+from backend.plasma.parameters import ParameterRejected
 
 logger = logging.getLogger(__name__)
 
@@ -382,6 +383,11 @@ async def handle_plasma_save_parameters(
         return _invalid(command, 'plasma.save_parameters params: {"values": object}')
     try:
         values = ctx.plasma_config.save_parameters(params.values)
+    except ParameterRejected as exc:
+        # Its own code, with the offending key in `path` so the UI can mark that one field.
+        return DispatchResult(
+            ack=build_error(command.commandId, exc.code, exc.message, path=exc.key)
+        )
     except (TypeError, ValueError) as exc:
         return DispatchResult(ack=build_error(command.commandId, "invalid_value", str(exc)))
     except OSError as exc:
