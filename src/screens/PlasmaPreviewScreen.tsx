@@ -122,6 +122,20 @@ export function PlasmaPreviewScreen() {
         </div>
       )}
 
+      {toolpath?.notes?.warnings?.length ? (
+        <ul className="space-y-1" data-e2e="plasma-preview-notes">
+          {toolpath.notes.warnings.map((warning) => (
+            <li
+              key={`${warning.code}-${warning.directive}`}
+              className="rounded-md border border-amber-400/40 bg-amber-950/20 px-3 py-1.5 text-sm text-amber-200"
+              data-e2e={`plasma-preview-note-${warning.directive}`}
+            >
+              {warning.message}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
       <div className="min-h-0 flex-1 rounded-md border border-white/10 bg-slate-950/40">
         {toolpath ? (
           <ToolpathCanvas

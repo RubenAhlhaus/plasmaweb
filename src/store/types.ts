@@ -665,6 +665,14 @@ export interface PlasmaToolpath {
   /** True when the program was larger than the point budget and the tail is missing. */
   truncated: boolean;
   units: 'mm' | 'inch';
+  /**
+   * What the program asks the machine for that the toolpath cannot show — tube cutting, kept
+   * Z motion, hole velocity — and anything wrong with the asking.
+   */
+  notes?: {
+    directives: Record<string, number>;
+    warnings: Array<{ code: string; directive: string; message: string }>;
+  };
 }
 
 /** Payload of `plasma.pins.snapshot` and of the `plasma.get_snapshot` result. */

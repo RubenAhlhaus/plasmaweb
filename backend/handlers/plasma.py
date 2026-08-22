@@ -512,7 +512,33 @@ async def handle_plasma_toolpath(
     if scratch:
         # Do not hand back a path that no longer exists.
         preview["path"] = ""
+
+    # What the program asks the machine for, which the toolpath cannot show: tube cutting,
+    # kept Z motion, hole velocity. Read from the same text the interpreter just parsed.
+    preview["notes"] = _program_notes(ctx, params.gcode, path if not scratch else None)
     return DispatchResult(ack=build_ok(command.commandId, preview))
+
+
+def _program_notes(
+    ctx: AppContext, gcode: Optional[str], path: Optional[str]
+) -> Dict[str, Any]:
+    """Magic directives in a program, checked against what this machine can do."""
+    from backend.plasma.program_notes import read_program_notes
+
+    text = gcode
+    if text is None and path:
+        try:
+            with open(path, "r", errors="replace") as handle:
+                text = handle.read()
+        except OSError:
+            return {"directives": {}, "warnings": []}
+    if not text:
+        return {"directives": {}, "warnings": []}
+
+    capabilities = None
+    if ctx.plasma is not None:
+        capabilities = ctx.plasma.snapshot_payload().get("capabilities")
+    return read_program_notes(text, capabilities)
 
 
 async def handle_plasma_run_from_line(

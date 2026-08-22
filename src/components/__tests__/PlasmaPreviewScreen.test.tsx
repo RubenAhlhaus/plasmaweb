@@ -92,6 +92,35 @@ describe('PlasmaPreviewScreen', () => {
     expect(findE2e('plasma-preview-truncated')).toBeNull();
   });
 
+  it('tells the operator what the program asks for that the drawing cannot show', () => {
+    useAppStore.getState().setPlasmaToolpath(
+      toolpath({
+        notes: {
+          directives: { tubeCut: 1 },
+          warnings: [
+            {
+              code: 'feature_unavailable',
+              directive: 'tubeCut',
+              message: 'this program asks for tube cutting, which this LinuxCNC cannot do',
+            },
+          ],
+        },
+      }),
+    );
+
+    render(<PlasmaPreviewScreen />);
+
+    expect(e2e('plasma-preview-note-tubeCut').textContent).toContain('tube cutting');
+  });
+
+  it('a program with nothing special to say gets no notice', () => {
+    useAppStore.getState().setPlasmaToolpath(toolpath());
+
+    render(<PlasmaPreviewScreen />);
+
+    expect(findE2e('plasma-preview-notes')).toBeNull();
+  });
+
   it('warns when the program was too large to preview fully', () => {
     useAppStore.getState().setPlasmaToolpath(toolpath({ truncated: true }));
 
