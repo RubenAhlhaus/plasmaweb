@@ -341,3 +341,73 @@ def write_conversational_settings(path: str, values: Mapping[str, Any]) -> None:
             continue
         parser.set(CONVERSATIONAL_SECTION, key, str(setting.kind(float(value))))
     write_config(path, parser)
+
+
+OFFSET_PROBING_SECTION = "OFFSET_PROBING"
+
+
+class OffsetProbeSetting(NamedTuple):
+    """One ``[OFFSET_PROBING]`` key and the ``plasmac.*`` setpoint it feeds."""
+
+    key: str
+    pin: str
+    default: float
+
+
+#: A machine whose probe is not under the torch has to move by this much before probing, and
+#: wait for the probe to deploy (``plasmac.comp:838``). Zero on both axes means "no offset
+#: probe", which is the common case and what upstream hides the offset feed rate for.
+OFFSET_PROBING_SETTINGS: Tuple[OffsetProbeSetting, ...] = (
+    OffsetProbeSetting("X axis", "offset-probe-x", 0.0),
+    OffsetProbeSetting("Y axis", "offset-probe-y", 0.0),
+    OffsetProbeSetting("Delay", "offset-probe-delay", 0.0),
+)
+
+_OFFSET_PROBING_BY_KEY: Dict[str, OffsetProbeSetting] = {
+    setting.key: setting for setting in OFFSET_PROBING_SETTINGS
+}
+
+
+def read_offset_probing(path: str) -> Dict[str, float]:
+    """``[OFFSET_PROBING]`` from the prefs, zeros where the file is silent."""
+    parser = read_config(path)
+    values: Dict[str, float] = {}
+    for setting in OFFSET_PROBING_SETTINGS:
+        value = setting.default
+        if parser.has_option(OFFSET_PROBING_SECTION, setting.key):
+            raw = parser.get(OFFSET_PROBING_SECTION, setting.key)
+            try:
+                value = float(raw)
+            except (TypeError, ValueError):
+                logger.warning(
+                    "plasma: %s: [%s] %s is not a number (%r); using %s",
+                    path,
+                    OFFSET_PROBING_SECTION,
+                    setting.key,
+                    raw,
+                    value,
+                )
+        values[setting.key] = value
+    return values
+
+
+def write_offset_probing(path: str, values: Mapping[str, Any]) -> None:
+    parser = read_config(path)
+    if not parser.has_section(OFFSET_PROBING_SECTION):
+        parser.add_section(OFFSET_PROBING_SECTION)
+    for key, value in values.items():
+        if key not in _OFFSET_PROBING_BY_KEY:
+            logger.warning("plasma: refusing to write unknown offset probing key %r", key)
+            continue
+        parser.set(OFFSET_PROBING_SECTION, key, str(float(value)))
+    write_config(path, parser)
+
+
+def offset_probing_pin_values(values: Mapping[str, Any]) -> Dict[str, float]:
+    """``{plasmac pin: value}`` for the offset probe, ready for the bridge."""
+    pins: Dict[str, float] = {}
+    for key, value in values.items():
+        setting = _OFFSET_PROBING_BY_KEY.get(key)
+        if setting is not None:
+            pins[setting.pin] = float(value)
+    return pins

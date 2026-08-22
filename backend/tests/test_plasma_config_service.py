@@ -428,3 +428,16 @@ def test_conversational_settings_are_read_and_saved(service) -> None:
     # And they are what the next generated shape will use.
     assert config.conversational_defaults()["leadinLength"] == 6.0
     assert config.conversational_defaults()["smallHoleSpeed"] == 55
+
+
+def test_offset_probing_is_applied_to_its_pins(service) -> None:
+    """A probe that is not under the torch has to be told where it is."""
+    config, bridge, runtime = service
+    config.save_offset_probing({"X axis": 25.0, "Y axis": -10.0, "Delay": 0.4})
+    flush(bridge)
+
+    values = written(runtime)
+    assert values["plasmac.offset-probe-x"] == "25.0"
+    assert values["plasmac.offset-probe-y"] == "-10.0"
+    assert values["plasmac.offset-probe-delay"] == "0.4"
+    assert config.parameters_payload()["offsetProbing"]["X axis"] == 25.0

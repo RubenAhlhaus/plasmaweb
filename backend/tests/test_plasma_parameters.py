@@ -247,3 +247,42 @@ def test_an_unknown_conversational_setting_is_refused(files, caplog) -> None:
 
     assert "Sparkle" not in Path(files.prefs_path).read_text()
     assert "Sparkle" in caplog.text
+
+
+# ---- [OFFSET_PROBING] ---------------------------------------------------------------
+
+
+def test_offset_probing_defaults_to_no_offset(files) -> None:
+    from backend.plasma.parameters import read_offset_probing
+
+    values = read_offset_probing(files.prefs_path)
+
+    assert values == {"X axis": 0.0, "Y axis": 0.0, "Delay": 0.0}
+
+
+def test_offset_probing_round_trips_and_maps_onto_its_pins(files) -> None:
+    from backend.plasma.parameters import (
+        offset_probing_pin_values,
+        read_offset_probing,
+        write_offset_probing,
+    )
+
+    write_offset_probing(files.prefs_path, {"X axis": 25.0, "Y axis": -10.0, "Delay": 0.5})
+    values = read_offset_probing(files.prefs_path)
+
+    assert values == {"X axis": 25.0, "Y axis": -10.0, "Delay": 0.5}
+    assert offset_probing_pin_values(values) == {
+        "offset-probe-x": 25.0,
+        "offset-probe-y": -10.0,
+        "offset-probe-delay": 0.5,
+    }
+
+
+def test_an_unknown_offset_probing_key_is_refused(files, caplog) -> None:
+    from backend.plasma.parameters import write_offset_probing
+
+    with caplog.at_level("WARNING"):
+        write_offset_probing(files.prefs_path, {"Z axis": 5.0})
+
+    assert "Z axis" not in Path(files.prefs_path).read_text()
+    assert "Z axis" in caplog.text

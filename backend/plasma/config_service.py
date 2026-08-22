@@ -44,6 +44,9 @@ from backend.plasma.materials import (
 )
 from backend.plasma.parameters import (
     default_parameters,
+    offset_probing_pin_values,
+    read_offset_probing,
+    write_offset_probing,
     read_conversational_settings,
     write_conversational_settings,
     enable_for_pin,
@@ -93,6 +96,7 @@ class PlasmaConfigService:
         self._materials: Dict[int, Material] = {}
         self._parameters: Dict[str, Any] = {}
         self._enables: Dict[str, bool] = {}
+        self._offset_probing: Dict[str, float] = {}
         self._selected: Optional[int] = None
         self._default: Optional[int] = None
 
@@ -176,6 +180,7 @@ class PlasmaConfigService:
             self._files.prefs_path, default_parameters(self._files)
         )
         self._enables = read_enables(self._files.prefs_path)
+        self._offset_probing = read_offset_probing(self._files.prefs_path)
         self._materials = {
             material.number: material
             for material in read_materials(self._files.materials_path, self._files.units_per_mm)
@@ -234,6 +239,7 @@ class PlasmaConfigService:
         return {
             "values": dict(self._parameters),
             "enables": dict(self._enables),
+            "offsetProbing": dict(self._offset_probing),
             "defaults": default_parameters(self._files),
             "unitsPerMm": self._files.units_per_mm,
             "path": self._files.prefs_path,
@@ -248,6 +254,19 @@ class PlasmaConfigService:
         the first pierce dead, and a ``Pid P Gain`` of 0 freezes the THC.
         """
         return self._write_plasmac(parameter_pin_values(self._parameters))
+
+    def apply_offset_probing(self) -> Tuple[str, ...]:
+        """Push ``[OFFSET_PROBING]`` onto its pins: where the probe is, and how long it takes."""
+        return self._write_plasmac(offset_probing_pin_values(self._offset_probing))
+
+    def save_offset_probing(self, values: Mapping[str, Any]) -> Dict[str, float]:
+        """Store the offset probe settings and put them on the pins straight away."""
+        merged = dict(self._offset_probing)
+        merged.update(values)
+        write_offset_probing(self._files.prefs_path, merged)
+        self._offset_probing = read_offset_probing(self._files.prefs_path)
+        self.apply_offset_probing()
+        return dict(self._offset_probing)
 
     def apply_enables(self) -> Tuple[str, ...]:
         """Restore the remembered toggles. Without ``THC enable`` the torch height never moves."""
@@ -364,6 +383,7 @@ class PlasmaConfigService:
         self.load()
         self.apply_parameters()
         self.apply_enables()
+        self.apply_offset_probing()
         self.apply_selected_material()
 
     # ---- the material change protocol ----------------------------------------------

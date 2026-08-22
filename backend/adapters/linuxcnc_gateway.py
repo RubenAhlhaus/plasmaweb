@@ -8,7 +8,7 @@ import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from collections.abc import Collection, Mapping
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, MutableMapping, Optional
+from typing import Any, Callable, Dict, MutableMapping, Optional, Tuple
 
 try:
     import linuxcnc  # type: ignore
@@ -1158,6 +1158,28 @@ class LinuxCncGateway:
     def resolve_ini_path(self) -> Optional[str]:
         """Active LinuxCNC INI path from stat or environment (public API)."""
         return self._resolve_ini_path()
+
+    def machine_position(self) -> Optional[Tuple[float, float, float]]:
+        """XYZ in *machine* coordinates (``stat.actual_position``), or ``None`` without a stat.
+
+        Machine coordinates on purpose: the callers that want this — a single cut, a probe at an
+        offset — put ``G53`` in front of the move, so the number has to be the one the machine
+        measures rather than one a work offset has shifted.
+        """
+        if self._stat is None:
+            return None
+        with self._stat_lock:
+            try:
+                self._stat.poll()
+                position = getattr(self._stat, "actual_position", None)
+            except Exception:
+                return None
+        if not position or len(position) < 3:
+            return None
+        try:
+            return (float(position[0]), float(position[1]), float(position[2]))
+        except (TypeError, ValueError):
+            return None
 
     def current_program_path(self) -> Optional[str]:
         """The program LinuxCNC has loaded (``stat.file``), or ``None`` when there is none."""

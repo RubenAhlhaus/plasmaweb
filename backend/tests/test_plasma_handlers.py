@@ -26,9 +26,11 @@ from backend.handlers.plasma import (
     handle_plasma_reload_config,
     handle_plasma_run_from_line,
     handle_plasma_save_material,
+    handle_plasma_save_offset_probing,
     handle_plasma_save_parameters,
     handle_plasma_select_material,
     handle_plasma_set_default_material,
+    handle_plasma_single_cut,
     handle_plasma_set_enable,
     handle_plasma_set_param,
     handle_plasma_thc_enable,
@@ -1042,3 +1044,110 @@ def test_a_wild_recovery_offset_is_refused(tmp_path) -> None:
 
     assert result.ack.ok is False
     assert result.ack.error.code == "invalid_params"
+
+
+# ---- single cut and offset probing ---------------------------------------------------
+
+
+class PositionedGateway(FakeGateway):
+    """A gateway that also knows where the machine is."""
+
+    def __init__(self, position=(120.0, 60.0, 95.0), **kwargs) -> None:
+        super().__init__(None, **kwargs)
+        self.position = position
+
+    def machine_position(self):
+        return self.position
+
+
+def test_single_cut_writes_the_cut_from_the_current_position(tmp_path) -> None:
+    programs = tmp_path / "nc_files"
+    programs.mkdir()
+    ctx, _runtime, _bridge = build_config_ctx(tmp_path)
+    ctx = AppContext(
+        manager=ctx.manager,
+        gateway=PositionedGateway(prefixes=(str(programs),)),
+        plasma=ctx.plasma,
+        plasma_config=ctx.plasma_config,
+    )
+    ctx.plasma_config.select_material(3)
+
+    result = run(
+        handle_plasma_single_cut, command("single_cut", {"xLength": 100.0, "yLength": 0.0}), ctx
+    )
+
+    assert result.ack.ok is True
+    saved = programs / "single_cut.ngc"
+    text = saved.read_text()
+    assert "G53 G0 X120.000000 Y60.000000" in text
+    assert "G53 G1 X220.000000 Y60.000000" in text
+    assert "M190 P3" in text
+    assert ctx.gateway.opened == [str(saved)]
+
+
+def test_single_cut_remembers_the_lengths(tmp_path) -> None:
+    ctx, _runtime, _bridge = build_config_ctx(tmp_path)
+    ctx = AppContext(
+        manager=ctx.manager,
+        gateway=PositionedGateway(),
+        plasma=ctx.plasma,
+        plasma_config=ctx.plasma_config,
+    )
+
+    run(
+        handle_plasma_single_cut,
+        command("single_cut", {"xLength": 75.0, "yLength": -5.0, "load": False}),
+        ctx,
+    )
+
+    from backend.plasma.single_cut import read_lengths
+
+    assert read_lengths(ctx.plasma_config.files.prefs_path) == {
+        "X length": 75.0,
+        "Y length": -5.0,
+    }
+
+
+def test_single_cut_without_a_position_says_so(tmp_path) -> None:
+    ctx, _runtime, _bridge = build_config_ctx(tmp_path)
+    gateway = PositionedGateway()
+    gateway.position = None
+    ctx = AppContext(
+        manager=ctx.manager, gateway=gateway, plasma=ctx.plasma, plasma_config=ctx.plasma_config
+    )
+
+    result = run(handle_plasma_single_cut, command("single_cut", {"xLength": 10.0}), ctx)
+
+    assert result.ack.ok is False
+    assert result.ack.error.code == "no_position"
+
+
+def test_single_cut_refuses_a_cut_of_no_length(tmp_path) -> None:
+    ctx, _runtime, _bridge = build_config_ctx(tmp_path)
+    ctx = AppContext(
+        manager=ctx.manager,
+        gateway=PositionedGateway(),
+        plasma=ctx.plasma,
+        plasma_config=ctx.plasma_config,
+    )
+
+    result = run(handle_plasma_single_cut, command("single_cut", {"xLength": 0, "yLength": 0}), ctx)
+
+    assert result.ack.ok is False
+    assert result.ack.error.code == "invalid_params"
+
+
+def test_saving_the_offset_probe_puts_it_on_the_pins(tmp_path) -> None:
+    ctx, runtime, bridge = build_config_ctx(tmp_path)
+
+    result = run(
+        handle_plasma_save_offset_probing,
+        command("save_offset_probing", {"values": {"X axis": 30.0, "Delay": 0.25}}),
+        ctx,
+    )
+
+    assert result.ack.ok is True
+    assert result.ack.result["offsetProbing"]["X axis"] == 30.0
+    written = dict(applied(bridge, runtime))
+    assert written["plasmac.offset-probe-x"] == "30.0"
+    assert written["plasmac.offset-probe-delay"] == "0.25"

@@ -119,6 +119,7 @@ def create_plasma_config(bridge: HalBridge) -> Optional[PlasmaConfigService]:
         service.load()
         service.apply_parameters()
         service.apply_enables()
+        service.apply_offset_probing()
         service.apply_selected_material()
     except Exception:
         logger.exception("plasma: could not apply the machine's materials and parameters")

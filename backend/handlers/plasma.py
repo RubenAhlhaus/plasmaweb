@@ -1042,3 +1042,128 @@ async def handle_plasma_cut_recovery(
         return _rejected(command, exc)
 
     return _invalid(command, 'plasma.cut_recovery action: "move", "offset" or "cancel"')
+
+
+class PlasmaSingleCutParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    xLength: float = 0.0
+    yLength: float = 0.0
+    #: Load the generated cut, which is what QtPlasmaC's CUT button does. Off for a dry check.
+    load: bool = True
+
+
+class PlasmaOffsetProbingParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    values: dict
+
+
+async def handle_plasma_single_cut(
+    command: CommandEnvelope, ctx: AppContext
+) -> DispatchResult:
+    """One straight cut from where the torch is standing — QtPlasmaC's SINGLE CUT."""
+    import os
+
+    from backend.plasma.single_cut import (
+        OUTPUT_NAME,
+        SingleCutError,
+        build_single_cut,
+        write_lengths,
+    )
+
+    try:
+        params = PlasmaSingleCutParams.model_validate(command.params)
+    except ValidationError:
+        return _invalid(
+            command, 'plasma.single_cut params: {"xLength": number, "yLength": number}'
+        )
+
+    position = ctx.gateway.machine_position()
+    if position is None:
+        return DispatchResult(
+            ack=build_error(
+                command.commandId, "no_position", "The machine position is not available."
+            )
+        )
+
+    material = (0, "Default")
+    if ctx.plasma_config is not None:
+        material = ctx.plasma_config.selected_material
+
+    try:
+        gcode = build_single_cut(
+            (position[0], position[1]), params.xLength, params.yLength, material
+        )
+    except SingleCutError as exc:
+        return DispatchResult(ack=build_error(command.commandId, exc.code, exc.message))
+
+    # Remembered for next time, as upstream does — a single cut is usually repeated.
+    if ctx.plasma_config is not None:
+        try:
+            write_lengths(
+                ctx.plasma_config.files.prefs_path, params.xLength, params.yLength
+            )
+        except OSError:
+            logger.warning("plasma: could not remember the single cut lengths", exc_info=True)
+
+    result: Dict[str, Any] = {
+        "gcode": gcode,
+        "start": [position[0], position[1]],
+        "xLength": params.xLength,
+        "yLength": params.yLength,
+    }
+    if not params.load:
+        return DispatchResult(ack=build_ok(command.commandId, result))
+
+    directory = None
+    for prefix in ctx.gateway.get_program_prefix_directories():
+        if os.path.isdir(prefix) and os.access(prefix, os.W_OK):
+            directory = prefix
+            break
+    if directory is None:
+        return DispatchResult(
+            ack=build_error(
+                command.commandId,
+                "no_program_directory",
+                "No writable [DISPLAY] PROGRAM_PREFIX directory to save the cut into.",
+            )
+        )
+
+    path = os.path.join(directory, OUTPUT_NAME)
+    try:
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(gcode)
+    except OSError as exc:
+        return DispatchResult(ack=build_error(command.commandId, "write_failed", str(exc)))
+
+    opened = ctx.gateway.program_open(path)
+    if not opened.ok:
+        return DispatchResult(
+            ack=build_error(
+                command.commandId,
+                opened.error_code or "open_failed",
+                opened.error_message or "Could not load the single cut.",
+            )
+        )
+    result["path"] = path
+    result["loaded"] = True
+    return DispatchResult(ack=build_ok(command.commandId, result))
+
+
+async def handle_plasma_save_offset_probing(
+    command: CommandEnvelope, ctx: AppContext
+) -> DispatchResult:
+    """Where the offset probe sits relative to the torch, and how long it takes to deploy."""
+    if ctx.plasma_config is None:
+        return _no_config(command)
+    try:
+        params = PlasmaOffsetProbingParams.model_validate(command.params)
+    except ValidationError:
+        return _invalid(command, 'plasma.save_offset_probing params: {"values": object}')
+    try:
+        values = ctx.plasma_config.save_offset_probing(params.values)
+    except (TypeError, ValueError) as exc:
+        return DispatchResult(ack=build_error(command.commandId, "invalid_value", str(exc)))
+    except OSError as exc:
+        return DispatchResult(ack=build_error(command.commandId, "write_failed", str(exc)))
+    await _broadcast_config(ctx, materials=False, parameters=True)
+    return DispatchResult(ack=build_ok(command.commandId, {"offsetProbing": values}))
