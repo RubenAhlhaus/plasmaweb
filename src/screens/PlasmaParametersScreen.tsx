@@ -344,6 +344,16 @@ export function PlasmaParametersScreen() {
           <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {t('parameters.group.gui')}
           </h2>
+          <label className="mb-2 flex items-center gap-3 text-sm">
+            <input
+              type="checkbox"
+              className="h-5 w-5 accent-emerald-400"
+              data-e2e="plasma-gui-tool-tips"
+              checked={parameters.guiOptions?.toolTips !== false}
+              onChange={(event) => commands.saveGuiOption('toolTips', event.target.checked)}
+            />
+            <span>{t('parameters.gui.toolTips')}</span>
+          </label>
           <label className="flex items-center gap-3 text-sm">
             <input
               type="checkbox"

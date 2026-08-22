@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
 import { usePlasmaCommands } from '@/hooks/usePlasmaCommands';
+import { usePlasmaTooltips } from '@/hooks/usePlasmaTooltips';
 import { usePlasmacFlag, usePlasmacNumber } from '@/hooks/usePlasmaPins';
 import { useAppStore } from '@/store';
 
@@ -38,6 +39,7 @@ const DIRECTIONS: Array<{ key: string; x: number; y: number; label: string }> = 
 export function CutRecoveryPad({ paused }: { paused: boolean }) {
   const { t } = useTranslation('plasma');
   const commands = usePlasmaCommands();
+  const tip = usePlasmaTooltips();
   const recovering = usePlasmacFlag('cut-recovering');
   const laserState = usePlasmacNumber('laser-recovery-state');
   // Zero on both axes is how QtPlasmaC records "no laser fitted", so there is nothing to
@@ -71,7 +73,7 @@ export function CutRecoveryPad({ paused }: { paused: boolean }) {
               data-e2e="plasma-cut-recovery-cancel"
               disabled={disabled}
               onClick={() => commands.cutRecovery({ action: 'cancel' })}
-              title={t('cutRecovery.cancel')}
+              title={tip('cutRecCancel') ?? t('cutRecovery.cancel')}
             >
               ⊘
             </button>
@@ -82,6 +84,11 @@ export function CutRecoveryPad({ paused }: { paused: boolean }) {
               className={padButtonClass}
               data-e2e={`plasma-cut-recovery-${key}`}
               disabled={disabled}
+              // Upstream words each arrow by the axes it moves, not by a compass point.
+              title={tip('cutRecMove')?.replace(
+                '{{direction}}',
+                `${x > 0 ? 'X+' : x < 0 ? 'X-' : ''} ${y > 0 ? 'Y+' : y < 0 ? 'Y-' : ''}`.trim(),
+              )}
               onClick={() => commands.cutRecovery({ action: 'offset', x, y })}
             >
               {label}
@@ -95,6 +102,7 @@ export function CutRecoveryPad({ paused }: { paused: boolean }) {
           type="button"
           className={`${padButtonClass} flex-1`}
           data-e2e="plasma-cut-recovery-rev"
+          title={tip('cutRecRev')}
           disabled={disabled}
           onPointerDown={() => commands.cutRecovery({ action: 'move', direction: -1 })}
           onPointerUp={() => commands.cutRecovery({ action: 'move', direction: 0 })}
@@ -106,6 +114,7 @@ export function CutRecoveryPad({ paused }: { paused: boolean }) {
           type="button"
           className={`${padButtonClass} flex-1`}
           data-e2e="plasma-cut-recovery-fwd"
+          title={tip('cutRecFwd')}
           disabled={disabled}
           onPointerDown={() => commands.cutRecovery({ action: 'move', direction: 1 })}
           onPointerUp={() => commands.cutRecovery({ action: 'move', direction: 0 })}
@@ -123,7 +132,7 @@ export function CutRecoveryPad({ paused }: { paused: boolean }) {
           data-active={Boolean(laserState)}
           disabled={disabled}
           onClick={() => commands.cutRecovery({ action: 'laser' })}
-          title={t('cutRecovery.laserHint')}
+          title={tip('laser') ?? t('cutRecovery.laserHint')}
         >
           {t('cutRecovery.laser')}
         </button>

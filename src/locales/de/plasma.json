@@ -126,7 +126,8 @@
     },
     "gui": {
       "keyboardShortcuts": "Tastenkürzel",
-      "keyboardShortcutsHint": "Standardmäßig aus: sie verfahren den Brenner und brechen Programme ab."
+      "keyboardShortcutsHint": "Standardmäßig aus: sie verfahren den Brenner und brechen Programme ab.",
+      "toolTips": "Tooltips"
     },
     "capabilities": {
       "all": "Dieses LinuxCNC unterstützt alle Funktionen dieses Bildschirms.",
@@ -349,5 +350,28 @@
     "mode": "Schneidmodus",
     "arcTime": "Lichtbogenzeit",
     "failed": "Die Powermax konnte nicht verbunden werden."
+  },
+  "tips": {
+    "torchEnable": "Schaltet die Nutzung des Brenners um",
+    "thcEnable": "Schaltet die Brennerhöhenregelung um",
+    "autoVolts": "Schaltet die automatische Spannung für die THC um",
+    "cornerLock": "Schaltet den Geschwindigkeits-Anti-Dive um",
+    "voidLock": "Schaltet den Lochsprung-Anti-Dive um",
+    "ohmicProbe": "Schaltet die ohmsche Abtastung um",
+    "mesh": "Schaltet den Gitterschnitt-Modus um",
+    "ignoreArcOk": "Schaltet um, ob ein Arc-OK-Signal vor der XY-Bewegung nötig ist",
+    "arcVoltage": "Zeigt die aktuelle Lichtbogenspannung",
+    "arcOk": "Zeigt den Status des Arc-OK-Signals",
+    "heightReset": "Setzt die THC-Korrekturspannung auf null zurück",
+    "heightLower": "Senkt die Zielspannung der THC-Korrektur",
+    "heightRaise": "Hebt die Zielspannung der THC-Korrektur",
+    "cutRecFwd": "Fährt den Brenner entlang des aktuellen Bahnsegments vorwärts",
+    "cutRecRev": "Fährt den Brenner entlang des aktuellen Bahnsegments rückwärts",
+    "cutRecCancel": "Bricht die Schnittwiederaufnahme ab",
+    "cutRecMove": "Bewegt den Brenner in Richtung {{direction}}",
+    "laser": "Laser zum Setzen von Nullpunkt/Drehung verwenden",
+    "material": "Zeigt das geladene Material\nZum Wechseln anklicken",
+    "probeTest": "Testet die Abtastung ohne zu schneiden",
+    "ohmicTest": "Testet den ohmschen Tastkreis"
   }
 }

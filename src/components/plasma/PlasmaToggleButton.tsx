@@ -6,6 +6,8 @@ export interface PlasmaToggleButtonProps {
   active: boolean;
   onToggle: (next: boolean) => void;
   disabled?: boolean;
+  /** Hover text, in QtPlasmaC's own wording. Omitted when the machine has tips switched off. */
+  title?: string;
   className?: string;
   'data-e2e'?: string;
 }
@@ -22,6 +24,7 @@ export function PlasmaToggleButton({
   active,
   onToggle,
   disabled = false,
+  title,
   className,
   ...rest
 }: PlasmaToggleButtonProps) {
@@ -31,6 +34,7 @@ export function PlasmaToggleButton({
       role="switch"
       aria-checked={active}
       aria-label={label}
+      title={title}
       disabled={disabled}
       onClick={() => onToggle(!active)}
       data-e2e={rest['data-e2e']}

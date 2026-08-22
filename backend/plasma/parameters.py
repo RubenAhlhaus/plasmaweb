@@ -711,6 +711,8 @@ class GuiOption(NamedTuple):
 #: left on a bench near a running table must not be able to do either by accident.
 GUI_OPTIONS: Tuple[GuiOption, ...] = (
     GuiOption("Use keyboard shortcuts", "keyboardShortcuts", False),
+    # On by default, as upstream has it: a plasma screen has a lot of three-letter buttons.
+    GuiOption("Tool tips", "toolTips", True),
     GuiOption("Use soft keyboard", "softKeyboard", False),
     GuiOption("Flash error", "flashError", False),
 )

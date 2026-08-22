@@ -6,6 +6,7 @@ import { DirectionalControl } from '@/components/DirectionalControl';
 import { IncrementSelector } from '@/components/IncrementSelector';
 import { CutRecoveryPad } from '@/components/plasma/CutRecoveryPad';
 import { usePlasmaScreenFormat } from '@/hooks/usePlasmaScreenFormat';
+import { usePlasmaTooltips } from '@/hooks/usePlasmaTooltips';
 import type { PlasmaScreenFormat } from '@/lib/plasmaScreenFormat';
 import { PowerMaxPanel } from '@/components/plasma/PowerMaxPanel';
 import { SheetAlignControl } from '@/components/plasma/SheetAlignControl';
@@ -100,6 +101,8 @@ export function PlasmaMainScreen() {
   }
 
   const format = usePlasmaScreenFormat();
+  // QtPlasmaC's own wording, and its own switch for whether to show it at all.
+  const tip = usePlasmaTooltips();
 
   // min-h + leading-tight rather than a fixed height: "Cycle start" and "Torch pulse" wrap
   // to two lines in German and in narrow kiosk widths.
@@ -194,36 +197,42 @@ export function PlasmaMainScreen() {
             label={t('toggle.torchEnable')}
             active={torchEnabled}
             onToggle={(next) => commands.torchEnable(next)}
+            title={tip('torchEnable')}
             data-e2e="plasma-toggle-torch"
           />
           <PlasmaToggleButton
             label={t('toggle.thcEnable')}
             active={thcEnabled}
             onToggle={(next) => commands.thcEnable(next)}
+            title={tip('thcEnable')}
             data-e2e="plasma-toggle-thc"
           />
           <PlasmaToggleButton
             label={t('toggle.autoVolts')}
             active={autoVolts}
             onToggle={(next) => commands.setEnable('autoVolts', next)}
+            title={tip('autoVolts')}
             data-e2e="plasma-toggle-auto-volts"
           />
           <PlasmaToggleButton
             label={t('toggle.cornerLock')}
             active={cornerlockEnable}
             onToggle={(next) => commands.setEnable('cornerlock', next)}
+            title={tip('cornerLock')}
             data-e2e="plasma-toggle-cornerlock"
           />
           <PlasmaToggleButton
             label={t('toggle.voidLock')}
             active={voidlockEnable}
             onToggle={(next) => commands.setEnable('voidlock', next)}
+            title={tip('voidLock')}
             data-e2e="plasma-toggle-voidlock"
           />
           <PlasmaToggleButton
             label={t('toggle.mesh')}
             active={meshEnable}
             onToggle={(next) => commands.setEnable('mesh', next)}
+            title={tip('mesh')}
             data-e2e="plasma-toggle-mesh"
           />
         </div>

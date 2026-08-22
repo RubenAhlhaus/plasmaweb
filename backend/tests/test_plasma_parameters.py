@@ -315,7 +315,7 @@ def test_an_unknown_peripheral_section_is_refused(tmp_path) -> None:
         read_peripheral_offset(str(path), "TORCH_OFFSET")
 
 
-def test_gui_options_default_to_off_and_round_trip(tmp_path) -> None:
+def test_gui_options_carry_upstreams_own_defaults_and_round_trip(tmp_path) -> None:
     """`Use keyboard shortcuts` is off by default because the shortcuts jog a torch."""
     from backend.plasma.parameters import read_gui_options, write_gui_option
 
@@ -324,6 +324,8 @@ def test_gui_options_default_to_off_and_round_trip(tmp_path) -> None:
 
     assert read_gui_options(str(path)) == {
         "keyboardShortcuts": False,
+        # Tooltips are the one that defaults *on*, as upstream has it.
+        "toolTips": True,
         "softKeyboard": False,
         "flashError": False,
     }
@@ -353,3 +355,14 @@ def test_an_unknown_gui_option_is_refused(tmp_path) -> None:
     path.write_text("")
     with _pytest.raises(KeyError):
         write_gui_option(str(path), "makeItFaster", True)
+
+
+def test_tooltips_are_on_by_default_because_a_plasma_screen_is_full_of_abbreviations(
+    tmp_path,
+) -> None:
+    from backend.plasma.parameters import read_gui_options
+
+    path = tmp_path / "machine.prefs"
+    path.write_text("")
+
+    assert read_gui_options(str(path))["toolTips"] is True

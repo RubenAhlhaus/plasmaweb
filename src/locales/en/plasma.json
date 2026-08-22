@@ -126,7 +126,8 @@
     },
     "gui": {
       "keyboardShortcuts": "Keyboard shortcuts",
-      "keyboardShortcutsHint": "Off by default: these jog the torch and abort programs."
+      "keyboardShortcutsHint": "Off by default: these jog the torch and abort programs.",
+      "toolTips": "Tooltips"
     },
     "capabilities": {
       "all": "This LinuxCNC supports every feature this screen offers.",
@@ -349,5 +350,28 @@
     "mode": "Cut mode",
     "arcTime": "Arc on time",
     "failed": "The Powermax could not be connected."
+  },
+  "tips": {
+    "torchEnable": "Toggles the use of the torch",
+    "thcEnable": "Toggles the use of torch height control",
+    "autoVolts": "Toggles the use of automatic voltage for THC",
+    "cornerLock": "Toggles the use of velocity anti-dive",
+    "voidLock": "Toggles the use of void anti-dive",
+    "ohmicProbe": "Toggles the use of ohmic probing",
+    "mesh": "Toggles the use of mesh mode cutting",
+    "ignoreArcOk": "Toggles the need for an Arc OK signal before XY motion begins",
+    "arcVoltage": "Shows the current arc voltage",
+    "arcOk": "Shows the Arc OK signal status",
+    "heightReset": "Click to reset the THC override voltage to zero",
+    "heightLower": "Lowers the target voltage for THC override",
+    "heightRaise": "Raises the target voltage for THC override",
+    "cutRecFwd": "Moves the torch forward along current motion segment",
+    "cutRecRev": "Moves the torch reverse along current motion segment",
+    "cutRecCancel": "Cancels cut recovery",
+    "cutRecMove": "Moves the torch in the {{direction}} direction",
+    "laser": "Use laser to set origin/rotation",
+    "material": "Shows the currently loaded material\nClick to change material",
+    "probeTest": "Tests the probe without cutting",
+    "ohmicTest": "Tests the ohmic probe circuit"
   }
 }
