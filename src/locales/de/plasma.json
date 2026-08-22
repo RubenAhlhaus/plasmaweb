@@ -271,5 +271,10 @@
     "cut": "Schnitt laden",
     "hint": "Schneidet ab der aktuellen Brennerposition.",
     "loaded": "Geladen — Cycle Start zum Schneiden."
+  },
+  "userButtons": {
+    "title": "Maschinentasten",
+    "none": "Keine Benutzertasten konfiguriert.",
+    "unsupported": "{{reason}}"
   }
 }

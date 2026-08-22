@@ -271,5 +271,10 @@
     "cut": "Load cut",
     "hint": "Cuts from where the torch is now.",
     "loaded": "Loaded — press cycle start to cut."
+  },
+  "userButtons": {
+    "title": "Machine buttons",
+    "none": "No user buttons configured.",
+    "unsupported": "{{reason}}"
   }
 }

@@ -68,6 +68,9 @@ export function usePlasmaCommands() {
       torchPulse: (action: TorchPulseAction, seconds?: number) =>
         send('torch_pulse', seconds === undefined ? { action } : { action, seconds }),
       probeTest: (seconds: number) => send('probe_test', { seconds }),
+      userButtons: () => sendForResult('get_user_buttons'),
+      userButton: (number: number, pressed = true) =>
+        sendForResult('user_button', { number, pressed }),
       singleCut: (xLength: number, yLength: number) =>
         send('single_cut', { xLength, yLength }),
       saveOffsetProbing: (values: Record<string, number>) =>
