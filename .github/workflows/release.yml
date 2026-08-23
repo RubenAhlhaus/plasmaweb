@@ -26,13 +26,13 @@ jobs:
       - name: Create checksums
         run: |
           cd dist-release
-          sha256sum lcncgui-*-linux.tar.gz > checksums.txt
+          sha256sum plasmaweb-*-linux.tar.gz > checksums.txt
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           files: |
-            dist-release/lcncgui-*-linux.tar.gz
+            dist-release/plasmaweb-*-linux.tar.gz
             dist-release/checksums.txt
           generate_release_notes: true
           prerelease: ${{ startsWith(github.ref_name, 'v0.') || contains(github.ref_name, '-') }}

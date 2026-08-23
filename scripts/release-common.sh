@@ -3,7 +3,7 @@
 
 release_name() {
   local version="${1:?version required}"
-  echo "lcncgui-${version}-linux"
+  echo "plasmaweb-${version}-linux"
 }
 
 copy_release_tree() {
@@ -27,7 +27,7 @@ write_production_config() {
   local dest_dist="${1:?dest_dist required}"
   local template="${2:?template required}"
   mkdir -p "$dest_dist"
-  cp "$template" "${dest_dist}/lcncgui-config.json"
+  cp "$template" "${dest_dist}/plasmaweb-config.json"
 }
 
 write_version_file() {

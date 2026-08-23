@@ -2,7 +2,7 @@
 # Build a distributable release tarball (run on a dev machine with Node.js).
 #
 # Usage: ./scripts/build-release.sh [version]
-# Output: dist-release/lcncgui-<version>-linux.tar.gz
+# Output: dist-release/plasmaweb-<version>-linux.tar.gz
 
 set -euo pipefail
 
@@ -21,7 +21,7 @@ RELEASE_NAME="$(release_name "$VERSION")"
 STAGING="${ROOT}/dist-release/staging/${RELEASE_NAME}"
 OUT_DIR="${ROOT}/dist-release"
 TARBALL="${OUT_DIR}/${RELEASE_NAME}.tar.gz"
-PRODUCTION_CONFIG="${ROOT}/resources/lcncgui-config.production.json"
+PRODUCTION_CONFIG="${ROOT}/resources/plasmaweb-config.production.json"
 
 echo "Building ${RELEASE_NAME}..."
 
@@ -45,8 +45,8 @@ mkdir -p "$STAGING"
 copy_release_tree "$ROOT" "$STAGING"
 write_version_file "$STAGING" "$VERSION"
 
-chmod +x "${STAGING}/bin/lcncgui" "${STAGING}/bin/lcncgui-shutdown" \
-  "${STAGING}/install.sh" "${STAGING}/uninstall.sh"
+chmod +x "${STAGING}/bin/plasmaweb" "${STAGING}/bin/plasmaweb-shutdown" \
+  "${STAGING}/bin/plasmacweb" "${STAGING}/install.sh" "${STAGING}/uninstall.sh"
 
 mkdir -p "$OUT_DIR"
 tar -czf "$TARBALL" -C "${ROOT}/dist-release/staging" "$RELEASE_NAME"
