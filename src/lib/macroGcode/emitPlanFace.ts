@@ -24,7 +24,7 @@ import type { Tool } from '@/types/tools';
  * #11 feedZ (mm/min)
  * #12 reserved (0) — future Bahnmuster / toolpath pattern (not in GUI yet)
  * #13 coolant: >0.5 → M8 in subroutine (optional; main may still set M3)
- * #14 tool diameter (mm) when the selected tool has `diameter` in lcncgui; else 0
+ * #14 tool diameter (mm) when the selected tool has `diameter` in plasmaweb; else 0
  *     (subroutine falls back to #9/0.45 for effective tool diameter)
  */
 export const PLAN_FACE_SUB_O_NAME = MACRO_SUBROUTINE_O_NAME[PLAN_FRAESEN_MACRO_ID];

@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from './store';
-import { useLcncguiConfigLoader } from './hooks/useLcncguiConfigLoader';
+import { usePlasmawebConfigLoader } from './hooks/usePlasmawebConfigLoader';
 import { useBackendWebSocket } from './hooks/useBackendWebSocket';
 import { HeaderBar } from './components/HeaderBar';
 import { RightSidebar } from './components/RightSidebar';
@@ -40,7 +40,7 @@ import {
   SIDEBAR_INDEX_TOOLS,
 } from './constants/sidebarNav';
 import { ScreenLoadingFallback } from './components/ScreenLoadingFallback';
-import { installLcncguiE2eBridge } from './lib/lcncguiE2eBridge';
+import { installPlasmawebE2eBridge } from './lib/plasmawebE2eBridge';
 
 const MacrosScreen = lazy(() =>
   import('./screens/MacrosScreen').then((m) => ({ default: m.MacrosScreen })),
@@ -90,7 +90,7 @@ function AppContent() {
   useLiveProgramLineHighlight();
 
   useEffect(() => {
-    installLcncguiE2eBridge();
+    installPlasmawebE2eBridge();
   }, []);
 
   // On a plasma machine the MAIN screen is the landing screen, the same way QtPlasmaC opens
@@ -168,7 +168,7 @@ function AppContent() {
 
 function App() {
   const { t } = useTranslation('common');
-  const { state, errorMessage } = useLcncguiConfigLoader();
+  const { state, errorMessage } = usePlasmawebConfigLoader();
 
   if (state === 'loading') {
     return (

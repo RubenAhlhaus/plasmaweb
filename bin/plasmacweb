@@ -6,19 +6,19 @@
 #   [DISPLAY]
 #   DISPLAY = plasmacweb
 #
-# Thin wrapper over bin/lcncgui. The upstream launcher is vendored unchanged so
-# it stays diffable against lcncgui; this script only supplies the install-root
-# default and the name LinuxCNC calls. All LCNCGUI_* environment variables
-# documented in `bin/lcncgui --help` apply here too.
+# Thin wrapper over bin/plasmaweb, which is the launcher this project ships; this
+# script only supplies the install-root default and the name LinuxCNC calls. All
+# PLASMAWEB_* environment variables documented in `bin/plasmaweb --help` apply here
+# too, as do the older LCNCGUI_* names they fall back to.
 #
-# HAL ordering: bin/lcncgui starts the backend first and loads [HAL] POSTGUI_HALFILE
+# HAL ordering: bin/plasmaweb starts the backend first and loads [HAL] POSTGUI_HALFILE
 # once HTTP answers, because QtPlasmaC configs net against `qtplasmac.*` pins that
 # backend/plasma/hal_bridge.py exports and marks ready during import.
 
 set -euo pipefail
 
 self="$(readlink -f "${BASH_SOURCE[0]}")"
-: "${LCNCGUI_ROOT:="$(readlink -f "$(dirname "$self")/..")"}"
-export LCNCGUI_ROOT
+: "${PLASMAWEB_ROOT:="$(readlink -f "$(dirname "$self")/..")"}"
+export PLASMAWEB_ROOT
 
-exec "${LCNCGUI_ROOT}/bin/lcncgui" "$@"
+exec "${PLASMAWEB_ROOT}/bin/plasmaweb" "$@"

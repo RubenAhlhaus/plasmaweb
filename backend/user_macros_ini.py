@@ -11,7 +11,7 @@ from backend.program_prefix_ini import program_prefix_directories_from_ini
 
 # LinuxCNC named O-word: letter, then letters/digits/underscore.
 _O_NAME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
-# Built-in lcncgui queue subroutines shipped with the install.
+# Built-in plasmaweb queue subroutines shipped with the install.
 _LCNCGUI_PREFIX = "lcncgui_"
 
 

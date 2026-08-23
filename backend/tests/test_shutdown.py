@@ -20,7 +20,7 @@ from backend.shutdown import (
 
 def test_shutdown_marker_path_under_data_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
-    assert shutdown_marker_path() == tmp_path / "lcncgui" / "shutdown-requested"
+    assert shutdown_marker_path() == tmp_path / "plasmaweb" / "shutdown-requested"
 
 
 def test_mark_shutdown_requested_creates_marker(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -32,7 +32,7 @@ def test_mark_shutdown_requested_creates_marker(tmp_path: Path, monkeypatch: pyt
 
 
 def test_shutdown_helper_path_from_lcncgui_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    helper = tmp_path / "bin" / "lcncgui-shutdown"
+    helper = tmp_path / "bin" / "plasmaweb-shutdown"
     helper.parent.mkdir(parents=True)
     helper.write_text("", encoding="utf-8")
     helper.chmod(0o755)
@@ -44,7 +44,7 @@ def test_can_schedule_system_shutdown_uses_helper_dry_run(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    helper = tmp_path / "bin" / "lcncgui-shutdown"
+    helper = tmp_path / "bin" / "plasmaweb-shutdown"
     helper.parent.mkdir(parents=True)
     helper.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
     helper.chmod(0o755)

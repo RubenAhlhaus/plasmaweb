@@ -7,7 +7,11 @@ import shlex
 import tempfile
 from pathlib import Path
 
-AUTOSTART_DESKTOP_FILENAME = "linuxcnc-lcncgui.desktop"
+AUTOSTART_DESKTOP_FILENAME = "linuxcnc-plasmaweb.desktop"
+
+#: What this file was called before the project had its own name. Removed when autostart is
+#: turned off or re-applied, so a machine does not end up launching LinuxCNC twice.
+LEGACY_AUTOSTART_DESKTOP_FILENAME = "linuxcnc-lcncgui.desktop"
 LINUXCNC_COMMAND = "linuxcnc"
 
 
@@ -16,17 +20,33 @@ class AutostartSetupError(OSError):
 
 
 class AutostartEnvDisabledError(AutostartSetupError):
-    """Raised when ``LCNCGUI_AUTOSTART`` disables applying autostart."""
+    """Raised when ``PLASMAWEB_AUTOSTART`` disables applying autostart."""
+
+
+def _autostart_dir() -> Path:
+    config_home = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
+    return config_home / "autostart"
 
 
 def autostart_desktop_path() -> Path:
-    config_home = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
-    return config_home / "autostart" / AUTOSTART_DESKTOP_FILENAME
+    return _autostart_dir() / AUTOSTART_DESKTOP_FILENAME
+
+
+def legacy_autostart_desktop_path() -> Path:
+    return _autostart_dir() / LEGACY_AUTOSTART_DESKTOP_FILENAME
 
 
 def is_autostart_env_disabled() -> bool:
-    """Return True when ``LCNCGUI_AUTOSTART=0`` disables applying autostart."""
-    raw = os.environ.get("LCNCGUI_AUTOSTART", "").strip().lower()
+    """Return True when ``PLASMAWEB_AUTOSTART=0`` disables applying autostart.
+
+    The pre-rename spelling is still honoured: a machine that disabled autostart through its
+    environment must stay disabled.
+    """
+    raw = ""
+    for name in ("PLASMAWEB_AUTOSTART", "LCNCGUI_AUTOSTART"):
+        raw = os.environ.get(name, "").strip().lower()
+        if raw:
+            break
     return raw in {"0", "false", "no", "off"}
 
 
@@ -37,7 +57,7 @@ def build_desktop_entry(ini_path: str) -> str:
         "[Desktop Entry]",
         "Type=Application",
         "Version=1.0",
-        "Name=LinuxCNC (lcncgui)",
+        "Name=LinuxCNC (plasmaweb)",
         "Comment=Start LinuxCNC with the configured INI at graphical session login",
         f"Exec={exec_line}",
         "Terminal=false",
@@ -49,7 +69,8 @@ def build_desktop_entry(ini_path: str) -> str:
 
 
 def autostart_is_installed() -> bool:
-    return autostart_desktop_path().is_file()
+    """Either name counts: a machine set up before the rename is still set to autostart."""
+    return autostart_desktop_path().is_file() or legacy_autostart_desktop_path().is_file()
 
 
 def resolve_ini_path_for_autostart(ini_path: str) -> str:
@@ -64,7 +85,7 @@ def install_autostart(ini_path: str) -> None:
     """Write the XDG autostart desktop entry for the given INI path."""
     if is_autostart_env_disabled():
         raise AutostartEnvDisabledError(
-            "Autostart is disabled by LCNCGUI_AUTOSTART environment variable"
+            "Autostart is disabled by PLASMAWEB_AUTOSTART environment variable"
         )
 
     resolved = resolve_ini_path_for_autostart(ini_path)
@@ -87,6 +108,8 @@ def install_autostart(ini_path: str) -> None:
         assert tmp_path is not None
         os.replace(tmp_path, desktop_path)
         tmp_path = None
+        # One entry, not two: leaving the old one behind would start LinuxCNC twice.
+        _remove_legacy_autostart()
     except OSError as exc:
         if tmp_path is not None:
             try:
@@ -97,8 +120,19 @@ def install_autostart(ini_path: str) -> None:
         raise AutostartSetupError(str(exc)) from exc
 
 
+def _remove_legacy_autostart() -> None:
+    legacy = legacy_autostart_desktop_path()
+    if legacy.is_file():
+        try:
+            legacy.unlink()
+        except OSError:
+            # Not worth failing an install over; the worst case is a stale entry.
+            pass
+
+
 def remove_autostart() -> None:
-    """Remove the XDG autostart desktop entry when present."""
+    """Remove the XDG autostart desktop entry when present, under either name."""
+    _remove_legacy_autostart()
     desktop_path = autostart_desktop_path()
     if not desktop_path.is_file():
         return

@@ -276,7 +276,7 @@ def test_serialize_tool_table_merges_sidecar() -> None:
 def test_serialize_tool_table_comment_disk_overrides_stat_truncated_before_pipe() -> None:
     """
     stat.tool_table often carries only the human prefix before `|`; the file has the full
-    `|LCNCGUI|` JSON suffix (lcncgui metadata).
+    `|LCNCGUI|` JSON suffix (plasmaweb metadata).
     """
     from backend.adapters.linuxcnc_gateway import _serialize_tool_table
 

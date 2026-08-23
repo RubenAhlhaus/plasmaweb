@@ -2,7 +2,7 @@
 
 ## Description
 
-Three virtual sidebar softkeys at the **bottom** of the column are user-configurable via **HAL**. They are labeled **14**, **15**, and **16**. On click (or hotkey), lcncgui sends a short **pulse** on a HAL output pin; the operator wires that to machine logic (lubrication, mist, relays, etc.). Optionally, an **active feedback** input pin drives the green button highlight while the function is on.
+Three virtual sidebar softkeys at the **bottom** of the column are user-configurable via **HAL**. They are labeled **14**, **15**, and **16**. On click (or hotkey), plasmaweb sends a short **pulse** on a HAL output pin; the operator wires that to machine logic (lubrication, mist, relays, etc.). Optionally, an **active feedback** input pin drives the green button highlight while the function is on.
 
 Reference HAL snippet: [`resources/linuxcnc-config/lcncgui-softkeys.hal`](../../resources/linuxcnc-config/lcncgui-softkeys.hal).
 
@@ -17,7 +17,7 @@ Per softkey **14** / **15** / **16**:
 
 (Slots 15 and 16: `lcncgui-sk-15.out` / `lcncgui-sk-15-fb.in`, `lcncgui-sk-16.out` / `lcncgui-sk-16-fb.in`.)
 
-lcncgui polls the debounced feedback outputs internally; you only wire **`…-fb.in`**.
+plasmaweb polls the debounced feedback outputs internally; you only wire **`…-fb.in`**.
 
 ## UI Interaction
 
@@ -74,7 +74,7 @@ export LCNCGUI_HAL_SOFTKEY_14_FB_PIN='mycomp.lube-active'
 ## HAL wiring example
 
 ```hal
-source /opt/lcncgui/resources/linuxcnc-config/lcncgui-softkeys.hal
+source /opt/plasmaweb/resources/linuxcnc-config/lcncgui-softkeys.hal
 
 net lube-pulse  lcncgui-sk-14.out => mycomp.lube-trigger
 net lube-active mycomp.lube-on     => lcncgui-sk-14-fb.in

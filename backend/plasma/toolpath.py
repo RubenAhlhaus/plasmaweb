@@ -299,7 +299,7 @@ def parse_toolpath(
     canon_class = _segment_canon_class()
     unitcode, initcode = _init_codes(ini_path)
 
-    directory = tempfile.mkdtemp(prefix="lcncgui-preview-")
+    directory = tempfile.mkdtemp(prefix="plasmaweb-preview-")
     previous_ini = os.environ.get("INI_FILE_NAME")
     try:
         # The interpreter reads [RS274NGC] FEATURES from the INI named in the environment, and

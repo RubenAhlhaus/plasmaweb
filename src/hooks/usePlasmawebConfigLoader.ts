@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react';
 import {
-  applyLcncguiConfigToStore,
-  fetchLcncguiConfig,
+  applyPlasmawebConfigToStore,
+  fetchPlasmawebConfig,
   isAbortError,
-} from '@/lib/loadLcncguiConfig';
+} from '@/lib/loadPlasmawebConfig';
 import { fetchUserPreferences } from '@/lib/userPreferencesApi';
 import { useAppStore } from '@/store';
 
 export type LcncguiConfigLoaderState = 'loading' | 'ready' | 'error';
 
-export function useLcncguiConfigLoader(): {
+export function usePlasmawebConfigLoader(): {
   state: LcncguiConfigLoaderState;
   errorMessage: string | null;
 } {
@@ -21,7 +21,7 @@ export function useLcncguiConfigLoader(): {
     void (async () => {
       try {
         const [configResult, userPrefsResult] = await Promise.all([
-          fetchLcncguiConfig(ac.signal),
+          fetchPlasmawebConfig(ac.signal),
           fetchUserPreferences(ac.signal),
         ]);
         if (ac.signal.aborted) return;
@@ -32,7 +32,7 @@ export function useLcncguiConfigLoader(): {
         }
         const userKioskMode =
           userPrefsResult.ok ? (userPrefsResult.preferences.kioskMode ?? null) : null;
-        applyLcncguiConfigToStore(configResult.config, userKioskMode);
+        applyPlasmawebConfigToStore(configResult.config, userKioskMode);
         if (userPrefsResult.ok) {
           const {
             runLinuxCncAtStartup,

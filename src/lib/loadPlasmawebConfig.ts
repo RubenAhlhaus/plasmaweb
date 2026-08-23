@@ -3,10 +3,19 @@ import { clampCoordinateUiFlushMs, DEFAULT_COORDINATE_UI_FLUSH_MS } from '@/lib/
 import { readStoredShowVirtualSidebar } from '@/lib/uiPreferencesStorage';
 import { useAppStore } from '@/store';
 
-export const LCNCGUI_CONFIG_JSON = 'lcncgui-config.json';
+export const PLASMAWEB_CONFIG_JSON = 'plasmaweb-config.json';
 
-/** Shape of `public/lcncgui-config.json` (and the committed example file). */
-export type LcncguiConfigFile = {
+/**
+ * What this file used to be called, still read when the new name is not there.
+ *
+ * The name is written by `install.sh` next to the shipped UI, so a machine installed before
+ * the rename has the old one on disk. Dropping it would take that machine's UI down for a
+ * name change, which is not a trade worth making.
+ */
+export const LEGACY_CONFIG_JSON = 'lcncgui-config.json';
+
+/** Shape of `public/plasmaweb-config.json` (and the committed example file). */
+export type PlasmawebConfigFile = {
   schemaVersion?: number;
   websocketUrl?: unknown;
   ui?: {
@@ -21,7 +30,7 @@ export type LcncguiConfigFile = {
   };
 };
 
-export type ParsedLcncguiConfig = {
+export type ParsedPlasmawebConfig = {
   schemaVersion: number;
   websocketUrl: string;
   ui: {
@@ -68,12 +77,12 @@ function resolveWebsocketUrl(raw: string): string | null {
 /**
  * Validates and normalizes config JSON. Returns an error message on failure.
  */
-export function parseLcncguiConfigJson(raw: unknown): { ok: true; config: ParsedLcncguiConfig } | { ok: false; error: string } {
+export function parsePlasmawebConfigJson(raw: unknown): { ok: true; config: ParsedPlasmawebConfig } | { ok: false; error: string } {
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
     return { ok: false, error: i18n.t('configErrors.notObject', { ns: 'settings' }) };
   }
 
-  const o = raw as LcncguiConfigFile;
+  const o = raw as PlasmawebConfigFile;
 
   if (!isNonEmptyString(o.websocketUrl)) {
     return { ok: false, error: i18n.t('configErrors.websocketMissing', { ns: 'settings' }) };
@@ -118,40 +127,44 @@ export function parseLcncguiConfigJson(raw: unknown): { ok: true; config: Parsed
   };
 }
 
-export function configJsonUrl(): string {
+export function configJsonUrl(name: string = PLASMAWEB_CONFIG_JSON): string {
   const base = import.meta.env.BASE_URL;
   const normalized = base.endsWith('/') ? base : `${base}/`;
-  return `${normalized}${LCNCGUI_CONFIG_JSON}`;
+  return `${normalized}${name}`;
 }
 
 /**
  * Fetches and parses `lcncgui-config.json` from the app origin (Vite dev, preview, or packaged renderer).
  * If `signal` is aborted, throws the same abort error as `fetch` (for StrictMode cleanup).
  */
-export async function fetchLcncguiConfig(
+export async function fetchPlasmawebConfig(
   signal?: AbortSignal,
-): Promise<{ ok: true; config: ParsedLcncguiConfig } | { ok: false; error: string }> {
-  let response: Response;
-  try {
-    response = await fetch(configJsonUrl(), { cache: 'no-store', signal });
-  } catch (e) {
-    if (isAbortError(e)) throw e;
-    const msg = e instanceof Error ? e.message : String(e);
-    return {
-      ok: false,
-      error: i18n.t('configErrors.fetchFailed', { ns: 'settings', message: msg }),
-    };
+): Promise<{ ok: true; config: ParsedPlasmawebConfig } | { ok: false; error: string }> {
+  // The new name first, the old one after: a machine installed before the rename still has
+  // lcncgui-config.json next to its UI, and a rename must not take that machine down.
+  let response: Response | null = null;
+  let lastError: string | null = null;
+  for (const name of [PLASMAWEB_CONFIG_JSON, LEGACY_CONFIG_JSON]) {
+    try {
+      const attempt = await fetch(configJsonUrl(name), { cache: 'no-store', signal });
+      if (attempt.ok) {
+        response = attempt;
+        break;
+      }
+      lastError = i18n.t('configErrors.httpNotOk', {
+        ns: 'settings',
+        status: attempt.status,
+        url: configJsonUrl(name),
+      });
+    } catch (e) {
+      if (isAbortError(e)) throw e;
+      const msg = e instanceof Error ? e.message : String(e);
+      lastError = i18n.t('configErrors.fetchFailed', { ns: 'settings', message: msg });
+    }
   }
 
-  if (!response.ok) {
-    return {
-      ok: false,
-      error: i18n.t('configErrors.httpNotOk', {
-        ns: 'settings',
-        status: response.status,
-        url: configJsonUrl(),
-      }),
-    };
+  if (!response) {
+    return { ok: false, error: lastError ?? '' };
   }
 
   let raw: unknown;
@@ -162,12 +175,12 @@ export async function fetchLcncguiConfig(
     return { ok: false, error: i18n.t('configErrors.invalidJson', { ns: 'settings' }) };
   }
 
-  return parseLcncguiConfigJson(raw);
+  return parsePlasmawebConfigJson(raw);
 }
 
 /** Writes parsed config into the store (WebSocket URL + UI defaults from file). */
-export function applyLcncguiConfigToStore(
-  config: ParsedLcncguiConfig,
+export function applyPlasmawebConfigToStore(
+  config: ParsedPlasmawebConfig,
   userKioskPreference: boolean | null = null,
 ): void {
   const {

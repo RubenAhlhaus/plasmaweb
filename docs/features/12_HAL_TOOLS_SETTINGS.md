@@ -1,7 +1,7 @@
 # 12_HAL_TOOLS_SETTINGS
 
 ## Description
-From **Settings**, the operator can launch standard LinuxCNC HAL helper programs on the machine running the lcncgui backend — the same tools available on the gmoccapy settings page (ClassicLadder, HAL Scope, HAL Status, HAL Meter, HAL Calibration, HAL Show).
+From **Settings**, the operator can launch standard LinuxCNC HAL helper programs on the machine running the plasmaweb backend — the same tools available on the gmoccapy settings page (ClassicLadder, HAL Scope, HAL Status, HAL Meter, HAL Calibration, HAL Show).
 
 Tool IDs are defined once in [`resources/hal-tool-ids.json`](../../resources/hal-tool-ids.json) and shared by backend and frontend.
 
@@ -13,7 +13,7 @@ Tool IDs are defined once in [`resources/hal-tool-ids.json`](../../resources/hal
 Button order matches gmoccapy settings (bottom button list in settings mode): ClassicLadder, HAL Scope, HAL Status, linuxcnctop, HAL Meter, HAL Calibration, HAL Show.
 
 ## Preconditions
-- lcncgui backend is reachable (`POST /api/hal-tools/launch`).
+- plasmaweb backend is reachable (`POST /api/hal-tools/launch`).
 - Programs run on the **LinuxCNC machine** (not in the browser); GUI tools need a working display session on that host (`DISPLAY` or `WAYLAND_DISPLAY`, same as gmoccapy).
 - **HAL Calibration** requires a resolvable LinuxCNC INI path (`stat.ini_filename` or `INI_FILE_NAME` / `LINUXCNC_INI` / `INI_FILE`).
 - **ClassicLadder** requires the `classicladder_rt` HAL component to be loaded.

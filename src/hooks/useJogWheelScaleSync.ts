@@ -4,7 +4,7 @@ import { useAppStore } from '@/store';
 
 /**
  * Keeps HAL axis.*.jog-scale in sync with IncrementSelector (MPG / jogwheel).
- * Replaces gmoccapy’s jog-increment pin when DISPLAY=lcncgui.
+ * Replaces gmoccapy’s jog-increment pin when DISPLAY=plasmaweb.
  * Skips re-sending the same scale (e.g. reconnect with unchanged selection).
  */
 export function useJogWheelScaleSync(): void {

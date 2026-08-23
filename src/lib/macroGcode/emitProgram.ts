@@ -338,7 +338,7 @@ export function generateMacroQueueProgram(
     return { ok: false, errors: [msg] };
   }
   const lines: string[] = [
-    '( lcncgui - generated from macro queue )',
+    '( plasmaweb - generated from macro queue )',
     '( Subroutines in SUBROUTINE_PATH: lcncgui_drill.ngc expects 11 call args; lcncgui_helix_bore.ngc; lcncgui_plan_face.ngc expects 14 call args )',
     ...formatMacroQueueSetupGcodeLines(setup),
     '',

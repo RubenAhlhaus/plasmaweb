@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { parseLcncguiConfigJson } from '../loadLcncguiConfig';
+import { parsePlasmawebConfigJson } from '../loadPlasmawebConfig';
 
-describe('parseLcncguiConfigJson', () => {
+describe('parsePlasmawebConfigJson', () => {
   it('accepts minimal valid config with defaults for ui', () => {
-    const r = parseLcncguiConfigJson({ websocketUrl: 'ws://127.0.0.1:8765/ws' });
+    const r = parsePlasmawebConfigJson({ websocketUrl: 'ws://127.0.0.1:8765/ws' });
     expect(r).toEqual({
       ok: true,
       config: {
@@ -23,13 +23,13 @@ describe('parseLcncguiConfigJson', () => {
   });
 
   it('trims websocketUrl and accepts wss', () => {
-    const r = parseLcncguiConfigJson({ websocketUrl: '  wss://example.com/ws  ' });
+    const r = parsePlasmawebConfigJson({ websocketUrl: '  wss://example.com/ws  ' });
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.config.websocketUrl).toBe('wss://example.com/ws');
   });
 
   it('merges partial ui booleans with defaults', () => {
-    const r = parseLcncguiConfigJson({
+    const r = parsePlasmawebConfigJson({
       websocketUrl: 'ws://h/ws',
       ui: { showVirtualSidebar: false, debugLoggingEnabled: true },
     });
@@ -43,19 +43,19 @@ describe('parseLcncguiConfigJson', () => {
   });
 
   it('rejects non-object root', () => {
-    expect(parseLcncguiConfigJson(null).ok).toBe(false);
-    expect(parseLcncguiConfigJson([]).ok).toBe(false);
-    expect(parseLcncguiConfigJson('x').ok).toBe(false);
+    expect(parsePlasmawebConfigJson(null).ok).toBe(false);
+    expect(parsePlasmawebConfigJson([]).ok).toBe(false);
+    expect(parsePlasmawebConfigJson('x').ok).toBe(false);
   });
 
   it('rejects missing or empty websocketUrl', () => {
-    expect(parseLcncguiConfigJson({}).ok).toBe(false);
-    expect(parseLcncguiConfigJson({ websocketUrl: '' }).ok).toBe(false);
-    expect(parseLcncguiConfigJson({ websocketUrl: '   ' }).ok).toBe(false);
+    expect(parsePlasmawebConfigJson({}).ok).toBe(false);
+    expect(parsePlasmawebConfigJson({ websocketUrl: '' }).ok).toBe(false);
+    expect(parsePlasmawebConfigJson({ websocketUrl: '   ' }).ok).toBe(false);
   });
 
   it('resolves websocketUrl auto from window.location', () => {
-    const r = parseLcncguiConfigJson({ websocketUrl: 'auto' });
+    const r = parsePlasmawebConfigJson({ websocketUrl: 'auto' });
     expect(r.ok).toBe(true);
     if (r.ok) {
       expect(r.config.websocketUrl).toMatch(/^wss?:\/\/.+\/ws$/);
@@ -63,19 +63,19 @@ describe('parseLcncguiConfigJson', () => {
   });
 
   it('rejects websocketUrl without ws scheme', () => {
-    expect(parseLcncguiConfigJson({ websocketUrl: 'http://x/ws' }).ok).toBe(false);
-    expect(parseLcncguiConfigJson({ websocketUrl: 'ftp://x/ws' }).ok).toBe(false);
+    expect(parsePlasmawebConfigJson({ websocketUrl: 'http://x/ws' }).ok).toBe(false);
+    expect(parsePlasmawebConfigJson({ websocketUrl: 'ftp://x/ws' }).ok).toBe(false);
   });
 
   it('clamps coordinateUiFlushMs to allowed range', () => {
-    const low = parseLcncguiConfigJson({
+    const low = parsePlasmawebConfigJson({
       websocketUrl: 'ws://x/ws',
       ui: { coordinateUiFlushMs: 1 },
     });
     expect(low.ok).toBe(true);
     if (low.ok) expect(low.config.ui.coordinateUiFlushMs).toBe(16);
 
-    const high = parseLcncguiConfigJson({
+    const high = parsePlasmawebConfigJson({
       websocketUrl: 'ws://x/ws',
       ui: { coordinateUiFlushMs: 9999 },
     });
@@ -84,7 +84,7 @@ describe('parseLcncguiConfigJson', () => {
   });
 
   it('ignores non-boolean ui fields and uses defaults', () => {
-    const r = parseLcncguiConfigJson({
+    const r = parsePlasmawebConfigJson({
       websocketUrl: 'ws://x/ws',
       ui: { showVirtualSidebar: 'yes' as unknown as boolean },
     });
@@ -93,7 +93,7 @@ describe('parseLcncguiConfigJson', () => {
   });
 
   it('accepts explicit kioskMode false', () => {
-    const r = parseLcncguiConfigJson({
+    const r = parsePlasmawebConfigJson({
       websocketUrl: 'ws://x/ws',
       ui: { kioskMode: false },
     });

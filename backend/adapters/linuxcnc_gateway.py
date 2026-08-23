@@ -355,7 +355,7 @@ _TOOL_TABLE_SEQUENCE_FIELDS = (
 # Mill-style lines: T<tool> P<pocket> … ; comment (see LinuxCNC tool table format docs).
 _RE_TOOL_TABLE_TP_LINE_START = re.compile(r"^\s*T\s*(\d+)\s+P\s*(\d+)\b", re.I)
 
-# lcncgui stores JSON after this marker in the `;` comment suffix (see docs/features/05_TOOL_TABLE.md).
+# plasmaweb stores JSON after this marker in the `;` comment suffix (see docs/features/05_TOOL_TABLE.md).
 # LinuxCNC's stat.tool_table comment often contains only the text *before* the first `|`, so we must
 # merge from the on-disk line when the file still has the full `|LCNCGUI|` payload.
 _LCNC_GUI_COMMENT_DELIM = "|LCNCGUI|"
@@ -526,7 +526,7 @@ def _atomic_write_text_file(path: str, content: str) -> None:
     directory = os.path.dirname(os.path.abspath(path))
     if not directory:
         directory = "."
-    fd, tmp_path = tempfile.mkstemp(prefix=".lcncgui-tooltbl-", dir=directory, text=True)
+    fd, tmp_path = tempfile.mkstemp(prefix=".plasmaweb-tooltbl-", dir=directory, text=True)
     try:
         with os.fdopen(fd, "w", encoding="utf-8", newline="") as tmp:
             tmp.write(content)
@@ -696,7 +696,7 @@ def _apply_tool_table_row_append_to_disk(
 def _parse_tool_table_maps(path: str) -> tuple[dict[int, int], dict[int, str]]:
     """
     From the on-disk tool table: tool number -> pocket, and tool number -> comment
-    text after `;` (includes lcncgui `|LCNCGUI|` JSON). stat.tool_table often omits
+    text after `;` (includes plasmaweb `|LCNCGUI|` JSON). stat.tool_table often omits
     comment entirely (14-tuple API). Later lines with the same T win.
     """
     pockets: dict[int, int] = {}
@@ -873,7 +873,7 @@ def _enrich_tool_table_comments_from_disk_map(
 
     LinuxCNC often omits the comment entirely (tuple API), exposes only the substring before the
     first ``|``, or returns a truncated buffer that still contains ``|LCNCGUI|`` but not valid
-    JSON. The on-disk line is authoritative for the full lcncgui suffix: whenever the file
+    JSON. The on-disk line is authoritative for the full plasmaweb suffix: whenever the file
     comment contains ``|LCNCGUI|``, it replaces the stat value for that tool number.
     """
     if not comment_by_tool:
@@ -2302,7 +2302,7 @@ class LinuxCncGateway:
 
     def get_tool_description_for_number(self, toolno: int) -> str:
         """
-        Best-effort Beschreibung für eine Werkzeugnummer: zuerst Anzeigename aus der lcncgui-Sidecar,
+        Best-effort Beschreibung für eine Werkzeugnummer: zuerst Anzeigename aus der plasmaweb-Sidecar,
         dann wie bei ``_serialize_tool_table`` (Datei-Kommentar inkl. ``|LCNCGUI|``, sonst stat).
         """
         try:
@@ -2547,7 +2547,7 @@ class LinuxCncGateway:
                         ok=False,
                         error_code="tool_already_exists",
                         error_message=(
-                            f"lcncgui sidecar already has a non-empty entry for T{new_toolno}; "
+                            f"plasmaweb sidecar already has a non-empty entry for T{new_toolno}; "
                             "remove or merge it before renaming."
                         ),
                     )

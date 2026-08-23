@@ -19,7 +19,7 @@ ASSET_CACHE_CONTROL = "public, max-age=31536000, immutable"
 def test_mount_frontend_dist_serves_index(tmp_path: Path) -> None:
     dist = tmp_path / "dist"
     dist.mkdir()
-    (dist / "index.html").write_text("<html><body>lcncgui</body></html>", encoding="utf-8")
+    (dist / "index.html").write_text("<html><body>plasmaweb</body></html>", encoding="utf-8")
 
     probe = FastAPI()
     assert mount_frontend_dist(probe, dist) is True
@@ -27,7 +27,7 @@ def test_mount_frontend_dist_serves_index(tmp_path: Path) -> None:
     client = TestClient(probe)
     response = client.get("/")
     assert response.status_code == 200
-    assert "lcncgui" in response.text
+    assert "plasmaweb" in response.text
     assert response.headers["cache-control"] == HTML_CACHE_CONTROL
     assert response.headers.get("pragma") == "no-cache"
 
@@ -71,7 +71,7 @@ def test_hashed_assets_are_immutable_cached(tmp_path: Path) -> None:
 
 def test_assets_segment_only_relative_to_dist_root(tmp_path: Path) -> None:
     """Install paths containing an unrelated 'assets' dir must not force immutable cache."""
-    install_root = tmp_path / "assets" / "lcncgui"
+    install_root = tmp_path / "assets" / "plasmaweb"
     dist = install_root / "dist"
     dist.mkdir(parents=True)
     (dist / "index.html").write_text("<html><body>ok</body></html>", encoding="utf-8")

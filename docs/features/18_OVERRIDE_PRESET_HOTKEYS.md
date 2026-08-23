@@ -24,8 +24,8 @@ LinuxCNC begrenzt Feed-/Spindle-Override auf ca. **1–200 %** (`factor` 0.01–
 Spindle Stellung 0 setzt explizit Faktor **0.01** (~1 %), ohne Pause-Logik.
 
 Shortcuts liegen in browser-**`localStorage`**:
-- `lcncgui.feedOverrideHotkeys`
-- `lcncgui.spindleOverrideHotkeys`
+- `plasmaweb.feedOverrideHotkeys`
+- `plasmaweb.spindleOverrideHotkeys`
 
 Form: `{ [position: "0"…"15"]: { key, ctrl?, alt?, shift?, meta? } }`.
 

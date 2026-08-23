@@ -2,7 +2,7 @@
 
 ## Description
 
-The user can choose whether lcncgui starts in **fullscreen (kiosk)** or as a **normal window with title-bar buttons** (minimize, maximize, close). The choice is persisted on disk and read by the LinuxCNC `[DISPLAY]` launcher (`bin/lcncgui`) on the next start.
+The user can choose whether plasmaweb starts in **fullscreen (kiosk)** or as a **normal window with title-bar buttons** (minimize, maximize, close). The choice is persisted on disk and read by the LinuxCNC `[DISPLAY]` launcher (`bin/plasmaweb`) on the next start.
 
 ## UI Interaction
 
@@ -10,23 +10,23 @@ The user can choose whether lcncgui starts in **fullscreen (kiosk)** or as a **n
 - Options:
   - **Fullscreen (kiosk)**
   - **Window with title bar**
-- A help line below explains that the setting applies after restarting LinuxCNC or lcncgui.
+- A help line below explains that the setting applies after restarting LinuxCNC or plasmaweb.
 
 ## Preconditions
 
-- Backend running and reachable at `/api/user-preferences` when saving from the Settings UI (installed `DISPLAY = lcncgui`, or dev: Vite preview/dev with backend on port 8765).
-- For the launcher to honor the setting, no `LCNCGUI_KIOSK` override may be set in the environment (when set, it wins over file and config).
+- Backend running and reachable at `/api/user-preferences` when saving from the Settings UI (installed `DISPLAY = plasmaweb`, or dev: Vite preview/dev with backend on port 8765).
+- For the launcher to honor the setting, no `PLASMAWEB_KIOSK` override may be set in the environment (when set, it wins over file and config).
 
 ## Event order
 
 1. User opens Settings and selects a window mode.
 2. Frontend calls `PUT /api/user-preferences` with `{ "kioskMode": true | false }`.
-3. Backend writes `~/.local/share/lcncgui/user-preferences.json` (override: `LCNCGUI_USER_PREFERENCES`).
+3. Backend writes `~/.local/share/plasmaweb/user-preferences.json` (override: `PLASMAWEB_USER_PREFERENCES`).
 4. On success, the Zustand store field `kioskMode` is updated so the UI reflects the saved value.
-5. On the **next** lcncgui start, `bin/lcncgui` resolves launch mode:
-   - `LCNCGUI_KIOSK` if set (`1` / `0`)
+5. On the **next** plasmaweb start, `bin/plasmaweb` resolves launch mode:
+   - `PLASMAWEB_KIOSK` if set (`1` / `0`)
    - else `kioskMode` in user preferences file (legacy key `kiosk` still read)
-   - else `ui.kioskMode` in `dist/lcncgui-config.json`
+   - else `ui.kioskMode` in `dist/plasmaweb-config.json`
    - else default **kiosk**
 6. Chromium/Firefox is started with `--kiosk` / `-kiosk` or `--new-window` / `-new-window` accordingly.
 
@@ -43,7 +43,7 @@ The user can choose whether lcncgui starts in **fullscreen (kiosk)** or as a **n
 Saving fails with toast; Vite dev/preview proxies `/api` to port 8765 when the backend is up.
 
 **Legacy preferences file with `"kiosk": false`**  
-Still read on launch and via GET API (in-memory normalization to `kioskMode`); the on-disk file is rewritten to `"kioskMode"` on the next **PUT** from Settings or when **`bin/lcncgui`** starts (`migrate_user_preferences_file` in `backend/launcher_prefs.py`). GET alone does not write the file.
+Still read on launch and via GET API (in-memory normalization to `kioskMode`); the on-disk file is rewritten to `"kioskMode"` on the next **PUT** from Settings or when **`bin/plasmaweb`** starts (`migrate_user_preferences_file` in `backend/launcher_prefs.py`). GET alone does not write the file.
 
 **Stale file with both `"kioskMode"` and legacy `"kiosk"`**  
 GET/launch resolve `kioskMode`; legacy key is removed on the next PUT or launcher migration.

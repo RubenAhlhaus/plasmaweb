@@ -39,7 +39,7 @@ ERROR_CHANNEL_POLL_INTERVAL_S: float = 0.15
 TOOLCHANGE_HAL_POLL_INTERVAL_S: float = float(
     os.environ.get("LCNCGUI_TOOLCHANGE_POLL_S", "0.15")
 )
-# Standard aus: Ohne explizites Einschalten pollt lcncgui nicht iocontrol — sonst
+# Standard aus: Ohne explizites Einschalten pollt plasmaweb nicht iocontrol — sonst
 # zeigt die UI bei M6/Simulation u. U. den Dialog, obwohl kein HAL-Setup + Ack da ist.
 TOOLCHANGE_HAL_ENABLED: bool = os.environ.get(
     "LCNCGUI_TOOLCHANGE_HAL_ENABLED", "0"
@@ -64,14 +64,14 @@ TOOLCHANGE_HALCMD_TIMEOUT_S: float = float(
 # Virtual sidebar custom HAL softkeys (user labels 14, 15, 16).
 # Trigger pins (lcncgui-internal) and feedback pins (user-visible) — see lcncgui-softkeys.hal.
 
-# lcncgui-internal oneshot trigger inputs (do not wire in HAL)
+# plasmaweb-internal oneshot trigger inputs (do not wire in HAL)
 HAL_SOFTKEY_TRIGGER_PINS: dict[int, str] = {
     14: os.environ.get("LCNCGUI_HAL_SOFTKEY_14_PIN", "lcncgui-sk-14.in").strip(),
     15: os.environ.get("LCNCGUI_HAL_SOFTKEY_15_PIN", "lcncgui-sk-15.in").strip(),
     16: os.environ.get("LCNCGUI_HAL_SOFTKEY_16_PIN", "lcncgui-sk-16.in").strip(),
 }
 
-# Active-state feedback (lcncgui polls via halcmd getp for green button highlight)
+# Active-state feedback (plasmaweb polls via halcmd getp for green button highlight)
 HAL_SOFTKEY_FEEDBACK_PINS: dict[int, str] = {
     14: os.environ.get(
         "LCNCGUI_HAL_SOFTKEY_14_FB_PIN", "lcncgui-sk-14-fb.out"

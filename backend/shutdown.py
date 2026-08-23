@@ -22,7 +22,7 @@ _SHUTDOWN_POWER_OFF_RETRY_INTERVAL_S = 0.25
 
 def shutdown_marker_path() -> Path:
     data_home = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share"))
-    return data_home / "lcncgui" / "shutdown-requested"
+    return data_home / "plasmaweb" / "shutdown-requested"
 
 
 def mark_shutdown_requested() -> None:
@@ -35,7 +35,7 @@ def shutdown_helper_path() -> Path | None:
     root = os.environ.get("LCNCGUI_ROOT")
     if not root:
         return None
-    helper = Path(root) / "bin" / "lcncgui-shutdown"
+    helper = Path(root) / "bin" / "plasmaweb-shutdown"
     if helper.is_file() and os.access(helper, os.X_OK):
         return helper
     return None
@@ -137,10 +137,10 @@ async def prepare_linuxcnc_for_system_shutdown(gateway: LinuxCncGateway) -> None
 
 def request_system_shutdown_after_linuxcnc_exit() -> bool:
     """
-    Mark shutdown for ``bin/lcncgui``.
+    Mark shutdown for ``bin/plasmaweb``.
 
     Poweroff is deferred until after the LinuxCNC DISPLAY process exits (see
-    ``maybe_shutdown_system`` in ``bin/lcncgui``).
+    ``maybe_shutdown_system`` in ``bin/plasmaweb``).
     """
     mark_shutdown_requested()
     logger.info("System shutdown requested after LinuxCNC exit (marker written)")

@@ -23,7 +23,7 @@ import type { CoordinateAxisKey } from '@/api/coordinateSystems';
 import { usePendingWsCommandResult } from '@/hooks/usePendingWsCommandResult';
 import { useToolMachineUiProfile } from '@/hooks/useToolMachineUiProfile';
 import { useTouchNumericModalEscapeStack } from '@/hooks/useTouchNumericModalEscapeStack';
-import { parseLcncGuiMeta } from '@/lib/lcncGuiToolComment';
+import { parsePlasmawebMeta } from '@/lib/plasmawebToolComment';
 import { dialogFooterTouchButtonClass } from '@/lib/dialogFormSubmit';
 import { toolFormInputClass, toolFormTouchSelectTriggerClass } from '@/lib/toolFormTouchClasses';
 import { cn } from '@/lib/utils';
@@ -210,7 +210,7 @@ export function ToolEditDialog({
     lastHydratedToolIdRef.current = tool.id;
 
     const raw = tool.rawTableComment ?? '';
-    const meta = parseLcncGuiMeta(raw);
+    const meta = parsePlasmawebMeta(raw);
     setMetaName(meta?.name ?? tool.name);
     setMetaType(meta?.type ?? tool.type ?? '');
     setMetaMaterial(normalizeToolMaterial(meta?.material ?? tool.material ?? ''));

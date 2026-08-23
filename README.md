@@ -3,7 +3,7 @@
 A browser-based replacement for the **QtPlasmaC** screen — plasma cutter control for
 LinuxCNC in a touch-friendly web UI, with a Python backend on the machine.
 
-**Status: milestone M0 (foundation).** The lcncgui application skeleton is vendored and
+**Status: milestone M0 (foundation).** The plasmaweb application skeleton is vendored and
 boots against a QtPlasmaC config; no plasma-specific code exists yet. See
 [`BUILD_PLAN.md`](BUILD_PLAN.md) for the full plan and milestones, and
 [`plan.md`](plan.md) for the original brief.
@@ -24,7 +24,7 @@ boots against a QtPlasmaC config; no plasma-specific code exists yet. See
   never HAL calls from the event loop.
 - **Reuse over reimplementation.** Conversational geometry, run-from-line and the G-code
   interpreter come from LinuxCNC's own pure-Python modules. Jog, DRO, MDI, program
-  running and the tool table come from lcncgui.
+  running and the tool table come from plasmaweb.
 
 See [`UPSTREAM.md`](UPSTREAM.md) for exactly what is vendored, what is reused at
 runtime, and the rules for both.
@@ -32,10 +32,10 @@ runtime, and the rules for both.
 ## Layout
 
 ```
-backend/            FastAPI + WebSocket backend (vendored from lcncgui)
+backend/            FastAPI + WebSocket backend (vendored from plasmaweb)
   plasma/           plasma domain logic                       (M1+)
   adapters/         LinuxCNC + HAL access
-src/                React + TypeScript frontend (vendored from lcncgui)
+src/                React + TypeScript frontend (vendored from plasmaweb)
   screens/plasma/   MAIN / PARAMETERS / SETTINGS / STATISTICS /
                     CONVERSATIONAL / MATERIAL                 (M1+)
 bin/plasmacweb      LinuxCNC [DISPLAY] launcher

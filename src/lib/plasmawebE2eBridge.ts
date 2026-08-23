@@ -31,7 +31,7 @@ declare global {
   }
 }
 
-export function installLcncguiE2eBridge(): void {
+export function installPlasmawebE2eBridge(): void {
   if (typeof window === 'undefined') return;
   window.__LCNCGUI_E2E__ = {
     resetMacroQueue: () => {

@@ -41,7 +41,7 @@ def parse_toolpath_text(gcode: str, ini_path: Optional[str]) -> Any:
 
     from backend.plasma.toolpath import parse_toolpath
 
-    handle, path = tempfile.mkstemp(prefix="lcncgui-preview-", suffix=".ngc")
+    handle, path = tempfile.mkstemp(prefix="plasmaweb-preview-", suffix=".ngc")
     try:
         with os.fdopen(handle, "w", encoding="utf-8") as sink:
             sink.write(gcode)
@@ -484,7 +484,7 @@ async def handle_plasma_toolpath(
     if params.gcode is not None:
         # The interpreter parses files, so unsaved text gets one — which is also how the
         # conversational screen previews a shape before anyone decides to keep it.
-        handle, scratch = tempfile.mkstemp(prefix="lcncgui-preview-", suffix=".ngc")
+        handle, scratch = tempfile.mkstemp(prefix="plasmaweb-preview-", suffix=".ngc")
         with os.fdopen(handle, "w", encoding="utf-8") as sink:
             sink.write(params.gcode)
         path: Optional[str] = scratch

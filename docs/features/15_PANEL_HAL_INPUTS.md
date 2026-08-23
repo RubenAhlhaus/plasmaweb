@@ -9,13 +9,13 @@ Reference HAL snippets:
 - Panel only: [`resources/linuxcnc-config/lcncgui-panel.hal`](../../resources/linuxcnc-config/lcncgui-panel.hal)
 - Panel + softkeys: [`resources/linuxcnc-config/lcncgui-panel-and-softkeys.hal`](../../resources/linuxcnc-config/lcncgui-panel-and-softkeys.hal) (single `loadrt dbounce`)
 
-Without loading a panel HAL file, lcncgui behaves as before (GUI + hotkeys only). Panel HAL polling is **disabled by default**; enable after sourcing the HAL file (see [Preconditions](#preconditions)).
+Without loading a panel HAL file, plasmaweb behaves as before (GUI + hotkeys only). Panel HAL polling is **disabled by default**; enable after sourcing the HAL file (see [Preconditions](#preconditions)).
 
 ## HAL pins (user-facing)
 
 ### Trigger inputs
 
-Wire physical buttons **to** the debounced `*.in` pins (lcncgui polls the matching `*.out`):
+Wire physical buttons **to** the debounced `*.in` pins (plasmaweb polls the matching `*.out`):
 
 | HAL trigger pin (`.in`) | Sidebar action |
 |-------------------------|----------------|
@@ -40,7 +40,7 @@ Wire physical buttons **to** the debounced `*.in` pins (lcncgui polls the matchi
 
 ### Status outputs (optional LEDs)
 
-lcncgui updates these `constant.value` parameters (~1 s); wire `*.out` to panel LEDs:
+plasmaweb updates these `constant.value` parameters (~1 s); wire `*.out` to panel LEDs:
 
 | HAL status pin (`.out`) | Meaning while TRUE |
 |-------------------------|-------------------|
@@ -51,7 +51,7 @@ lcncgui updates these `constant.value` parameters (~1 s); wire `*.out` to panel 
 
 ## UI Interaction
 
-- **Physical panel button** → HAL `*.in` → lcncgui backend poller → action (same as sidebar).
+- **Physical panel button** → HAL `*.in` → plasmaweb backend poller → action (same as sidebar).
 - **GUI connected (normal case):** all panel triggers broadcast `panel.sidebar.trigger`; frontend runs `dispatchVirtualSidebarButton(id, 'hal')` — identical to sidebar/hotkey (including cycle start with `pendingAutoRunStartLine`).
 - **No GUI client:** machine/program actions run in the backend only; dialog buttons (2, 5–7) are ignored.
 - **Homing / coordinate dialogs (buttons 2, 5–7):** require GUI WebSocket (via `panel.sidebar.trigger` as above).
@@ -61,7 +61,7 @@ lcncgui updates these `constant.value` parameters (~1 s); wire `*.out` to panel 
 
 - LinuxCNC running with `lcncgui-panel.hal` sourced from a **HALFILE** (panel only), **or** `lcncgui-panel-and-softkeys.hal` when you also need softkey pulse/feedback pins. Do **not** load these via `POSTGUI_HALFILE`.
 - Do **not** source `lcncgui-panel.hal` and `lcncgui-softkeys.hal` together — both call `loadrt dbounce`, and LinuxCNC allows only one `loadrt` per component. Use the combined snippet instead.
-- Panel polling enabled: `export LCNCGUI_PANEL_HAL_ENABLED=1` (default is **off**, like tool-change HAL).
+- Panel polling enabled: `export PLASMAWEB_PANEL_HAL_ENABLED=1` (default is **off**, like tool-change HAL).
 - `halcmd` available in the LinuxCNC session.
 - For **machine/program actions:** LinuxCNC gateway reachable (works without GUI).
 - For **dialog actions (2, 5–7):** GUI WebSocket connected.
@@ -112,19 +112,19 @@ Panel HAL triggers do not return `command_result` to the user. Failed LinuxCNC c
 Disable panel polling (default):
 
 ```bash
-export LCNCGUI_PANEL_HAL_ENABLED=0
+export PLASMAWEB_PANEL_HAL_ENABLED=0
 ```
 
 Enable after loading `lcncgui-panel.hal`:
 
 ```bash
-export LCNCGUI_PANEL_HAL_ENABLED=1
+export PLASMAWEB_PANEL_HAL_ENABLED=1
 ```
 
 Override a trigger pin (advanced):
 
 ```bash
-export LCNCGUI_PANEL_HAL_ESTOP_PIN='my-panel.estop-out'
+export PLASMAWEB_PANEL_HAL_ESTOP_PIN='my-panel.estop-out'
 ```
 
 ## HAL wiring example
@@ -132,13 +132,13 @@ export LCNCGUI_PANEL_HAL_ESTOP_PIN='my-panel.estop-out'
 Panel only:
 
 ```hal
-source /opt/lcncgui/resources/linuxcnc-config/lcncgui-panel.hal
+source /opt/plasmaweb/resources/linuxcnc-config/lcncgui-panel.hal
 ```
 
 Panel **and** softkeys 14–16 (required for panel softkey trigger pins that pulse `lcncgui-sk-*.out`):
 
 ```hal
-source /opt/lcncgui/resources/linuxcnc-config/lcncgui-panel-and-softkeys.hal
+source /opt/plasmaweb/resources/linuxcnc-config/lcncgui-panel-and-softkeys.hal
 ```
 
 Do **not** source `lcncgui-panel.hal` and `lcncgui-softkeys.hal` in the same config.

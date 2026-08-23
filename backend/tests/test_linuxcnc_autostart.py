@@ -88,9 +88,9 @@ def test_install_autostart_respects_env_disable(
 ) -> None:
     ini = tmp_path / "machine.ini"
     ini.write_text("[DISPLAY]\n", encoding="utf-8")
-    monkeypatch.setenv("LCNCGUI_AUTOSTART", "0")
+    monkeypatch.setenv("PLASMAWEB_AUTOSTART", "0")
 
-    with pytest.raises(AutostartEnvDisabledError, match="LCNCGUI_AUTOSTART"):
+    with pytest.raises(AutostartEnvDisabledError, match="PLASMAWEB_AUTOSTART"):
         install_autostart(str(ini))
     assert not autostart_is_installed()
 
@@ -101,3 +101,39 @@ def test_autostart_desktop_path_uses_xdg_config_home(
 ) -> None:
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
     assert autostart_desktop_path() == tmp_path / "cfg" / "autostart" / AUTOSTART_DESKTOP_FILENAME
+
+
+def test_the_pre_rename_autostart_entry_still_counts(monkeypatch, tmp_path) -> None:
+    """A machine set up before the rename is still set to autostart, and must read as such."""
+    from backend import linuxcnc_autostart
+
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    autostart = tmp_path / "autostart"
+    autostart.mkdir(parents=True)
+    (autostart / "linuxcnc-lcncgui.desktop").write_text("[Desktop Entry]\n")
+
+    assert linuxcnc_autostart.autostart_is_installed() is True
+
+
+def test_turning_autostart_off_removes_both_entries(monkeypatch, tmp_path) -> None:
+    """Leaving the old one behind would start LinuxCNC twice."""
+    from backend import linuxcnc_autostart
+
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    autostart = tmp_path / "autostart"
+    autostart.mkdir(parents=True)
+    (autostart / "linuxcnc-lcncgui.desktop").write_text("[Desktop Entry]\n")
+    (autostart / "linuxcnc-plasmaweb.desktop").write_text("[Desktop Entry]\n")
+
+    linuxcnc_autostart.remove_autostart()
+
+    assert list(autostart.iterdir()) == []
+
+
+def test_the_older_env_variable_still_disables_autostart(monkeypatch) -> None:
+    from backend import linuxcnc_autostart
+
+    monkeypatch.delenv("PLASMAWEB_AUTOSTART", raising=False)
+    monkeypatch.setenv("LCNCGUI_AUTOSTART", "0")
+
+    assert linuxcnc_autostart.is_autostart_env_disabled() is True

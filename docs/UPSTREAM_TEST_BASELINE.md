@@ -1,6 +1,6 @@
 # Upstream test baseline
 
-Captured at the vendoring commit (lcncgui `v1.0.0-4-g57032ba`) so that new failures are
+Captured at the vendoring commit (plasmaweb `v1.0.0-4-g57032ba`) so that new failures are
 distinguishable from inherited ones. **Diff against this list — do not treat a failure
 here as new.**
 
@@ -40,11 +40,11 @@ npx tsc --noEmit -p tsconfig.json 2>&1 | grep '^src/'   # must be empty
 
 `./venv/bin/python -m pytest backend/tests -q` → **5 failed, 253 passed, 1 skipped**
 
-The identical five fail in the pristine `reference/lcncgui` tree run with the same
+The identical five fail in the pristine `reference/plasmaweb` tree run with the same
 interpreter, so they are inherited, not caused by vendoring:
 
 ```bash
-cd reference/lcncgui && ../../venv/bin/python -m pytest backend/tests -q
+cd reference/plasmaweb && ../../venv/bin/python -m pytest backend/tests -q
 # -> same 5 failures
 ```
 
@@ -57,7 +57,7 @@ cd reference/lcncgui && ../../venv/bin/python -m pytest backend/tests -q
 | `test_user_macros_ini.py::test_list_user_macros_preserves_ini_order` | ” |
 
 None of the five touches code this project builds on (`user_macros_ini` and
-`program_file_paths` serve lcncgui's macro screen; `frontend_static` is an integration
+`program_file_paths` serve plasmaweb's macro screen; `frontend_static` is an integration
 smoke test).
 
 ## Re-baseline on the target VM

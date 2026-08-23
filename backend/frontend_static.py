@@ -41,7 +41,12 @@ class FrontendStaticFiles(StaticFiles):
         path = Path(full_path)
         name = path.name
 
-        if name == "index.html" or name.endswith(".html") or name == "lcncgui-config.json":
+        # Both names: a machine installed before the rename still serves the old one.
+        if (
+            name == "index.html"
+            or name.endswith(".html")
+            or name in ("plasmaweb-config.json", "lcncgui-config.json")
+        ):
             response.headers["Cache-Control"] = HTML_CACHE_CONTROL
             response.headers["Pragma"] = "no-cache"
             return
@@ -65,7 +70,7 @@ def mount_frontend_dist(app: FastAPI, dist_dir: Path) -> bool:
     Register this **after** API/WebSocket routes so ``/ws`` keeps working.
     Returns True when the mount was added.
 
-    Cache policy: ``index.html`` and ``lcncgui-config.json`` are never cached
+    Cache policy: ``index.html`` and the config json (either name) are never cached
     by the browser; content-hashed files under ``assets/`` are immutable.
     """
     index_html = dist_dir / "index.html"

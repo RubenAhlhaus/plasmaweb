@@ -313,7 +313,7 @@ def generate(
 
     call = {name: values[name] for name in expected if name in values}
 
-    directory = tempfile.mkdtemp(prefix="lcncgui-conv-")
+    directory = tempfile.mkdtemp(prefix="plasmaweb-conv-")
     try:
         paths = {name: os.path.join(directory, f"{name}.ngc") for name in ("tmp", "ngc", "bkp")}
         with open(paths["bkp"], "w", encoding="utf-8") as handle:
@@ -409,7 +409,7 @@ def generate_line(
     post = postamble if postamble is not None else amble
     shim = ConvShim()
 
-    directory = tempfile.mkdtemp(prefix="lcncgui-conv-")
+    directory = tempfile.mkdtemp(prefix="plasmaweb-conv-")
     paths = {name: os.path.join(directory, f"{name}.ngc") for name in ("tmp", "ngc", "bkp")}
     try:
         with open(paths["bkp"], "w", encoding="utf-8") as handle:
@@ -556,7 +556,7 @@ def generate_block(
             "missing_parameters", f"block needs {', '.join(sorted(missing))}"
         )
 
-    directory = tempfile.mkdtemp(prefix="lcncgui-block-")
+    directory = tempfile.mkdtemp(prefix="plasmaweb-block-")
     path = os.path.join(directory, "block.ngc")
     scratch = os.path.join(directory, "block-tmp.ngc")
     try:

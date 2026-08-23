@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Install lcncgui on a LinuxCNC controller (no Node.js required on the target).
+# Install plasmaweb on a LinuxCNC controller (no Node.js required on the target).
 #
 # Usage:
-#   sudo ./install.sh                 # install to /opt/lcncgui
-#   ./install.sh --user               # install to ~/.local/share/lcncgui
+#   sudo ./install.sh                 # install to /opt/plasmaweb
+#   ./install.sh --user               # install to ~/.local/share/plasmaweb
 #   ./install.sh --prefix /path/to/dir
 #   ./install.sh --recreate-venv      # rebuild Python venv (e.g. after Python upgrade)
 
@@ -13,7 +13,7 @@ SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/release-common.sh
 source "${SOURCE_DIR}/scripts/release-common.sh"
 
-PREFIX="/opt/lcncgui"
+PREFIX="/opt/plasmaweb"
 USER_INSTALL=0
 RECREATE_VENV=0
 SETUP_SHUTDOWN_ONLY=0
@@ -25,18 +25,18 @@ usage() {
   cat <<'EOF'
 Usage: install.sh [--prefix DIR] [--user] [--recreate-venv] [--setup-shutdown [USER]] [--help]
 
-Copies the release tree to PREFIX, creates a Python venv, and links lcncgui
+Copies the release tree to PREFIX, creates a Python venv, and links plasmaweb
 onto PATH when appropriate.
 
 Requires: python3 with the linuxcnc module, python3-venv, curl (or Python urllib)
 
 Options:
-  --prefix DIR       Install root (default: /opt/lcncgui, or ~/.local/share/lcncgui with --user)
+  --prefix DIR       Install root (default: /opt/plasmaweb, or ~/.local/share/plasmaweb with --user)
   --user             Install for the current user (symlink in ~/.local/bin)
   --recreate-venv    Delete and recreate PREFIX/venv before pip install
   --setup-shutdown [USER]
-                     Allow USER to shut down the PC from the lcncgui exit dialog
-                     (passwordless sudo for PREFIX/bin/lcncgui-shutdown only).
+                     Allow USER to shut down the PC from the plasmaweb exit dialog
+                     (passwordless sudo for PREFIX/bin/plasmaweb-shutdown only).
                      Default USER: SUDO_USER or the current user with --user.
                      A full install with sudo also runs this automatically.
   --help             Show this help
@@ -77,16 +77,16 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ "$USER_INSTALL" -eq 1 && "$PREFIX" == "/opt/lcncgui" ]]; then
-  PREFIX="${HOME}/.local/share/lcncgui"
+if [[ "$USER_INSTALL" -eq 1 && "$PREFIX" == "/opt/plasmaweb" ]]; then
+  PREFIX="${HOME}/.local/share/plasmaweb"
   BIN_DIR="${HOME}/.local/bin"
 fi
 
-if [[ -z "$BIN_DIR" && "$PREFIX" == "/opt/lcncgui" ]]; then
+if [[ -z "$BIN_DIR" && "$PREFIX" == "/opt/plasmaweb" ]]; then
   BIN_DIR="/usr/local/bin"
 fi
 
-if [[ -z "$BIN_DIR" && "$PREFIX" != "/opt/lcncgui" ]]; then
+if [[ -z "$BIN_DIR" && "$PREFIX" != "/opt/plasmaweb" ]]; then
   LINK_GLOBAL=0
 fi
 
@@ -110,7 +110,7 @@ install_shutdown_permissions() {
   local strict="${1:-0}"
   local target_user helper sudoers_file line
   target_user="$(resolve_linuxcnc_user)"
-  helper="$(readlink -f "${PREFIX}/bin/lcncgui-shutdown" 2>/dev/null || true)"
+  helper="$(readlink -f "${PREFIX}/bin/plasmaweb-shutdown" 2>/dev/null || true)"
 
   if [[ "$(id -u)" -ne 0 ]]; then
     if [[ -n "$target_user" ]]; then
@@ -134,7 +134,7 @@ install_shutdown_permissions() {
   fi
 
   if [[ ! -x "$helper" ]]; then
-    echo "error: missing executable ${PREFIX}/bin/lcncgui-shutdown — run ./install.sh first to install lcncgui" >&2
+    echo "error: missing executable ${PREFIX}/bin/plasmaweb-shutdown — run ./install.sh first to install plasmaweb" >&2
     exit 1
   fi
 
@@ -143,7 +143,7 @@ install_shutdown_permissions() {
     exit 1
   fi
 
-  sudoers_file="/etc/sudoers.d/lcncgui-shutdown-${target_user}"
+  sudoers_file="/etc/sudoers.d/plasmaweb-shutdown-${target_user}"
   line="${target_user} ALL=(root) NOPASSWD: ${helper} --as-root, ${helper} --dry-run, ${helper} --as-root --dry-run"
 
   if ! printf '%s\n' "$line" | visudo -cf - >/dev/null 2>&1; then
@@ -177,8 +177,8 @@ if [[ ! -f "${SOURCE_DIR}/dist/index.html" ]]; then
 fi
 
 find_python() {
-  if [[ -n "${LCNCGUI_PYTHON:-}" ]] && "$LCNCGUI_PYTHON" -c "import linuxcnc" 2>/dev/null; then
-    echo "$LCNCGUI_PYTHON"
+  if [[ -n "${PLASMAWEB_PYTHON:-}" ]] && "$PLASMAWEB_PYTHON" -c "import linuxcnc" 2>/dev/null; then
+    echo "$PLASMAWEB_PYTHON"
     return
   fi
   local py
@@ -193,17 +193,17 @@ find_python() {
 }
 
 PYTHON="$(find_python)"
-PRODUCTION_CONFIG="${SOURCE_DIR}/resources/lcncgui-config.production.json"
+PRODUCTION_CONFIG="${SOURCE_DIR}/resources/plasmaweb-config.production.json"
 
 if [[ ! -f "$PRODUCTION_CONFIG" ]]; then
   echo "error: missing ${PRODUCTION_CONFIG}" >&2
   exit 1
 fi
 
-echo "Installing lcncgui to: $PREFIX"
+echo "Installing plasmaweb to: $PREFIX"
 echo "Using Python: $PYTHON ($("$PYTHON" --version 2>&1))"
 
-if [[ "$USER_INSTALL" -eq 0 && "$PREFIX" == "/opt/lcncgui" ]]; then
+if [[ "$USER_INSTALL" -eq 0 && "$PREFIX" == "/opt/plasmaweb" ]]; then
   if [[ "$(id -u)" -ne 0 ]]; then
     echo "error: system install to $PREFIX requires root (sudo ./install.sh) or use --user" >&2
     exit 1
@@ -237,12 +237,16 @@ fi
 echo "Installing Python dependencies into venv..."
 "${VENV}/bin/pip" install -r "${PREFIX}/backend/requirements-runtime.txt"
 
-chmod +x "${PREFIX}/bin/lcncgui" "${PREFIX}/bin/lcncgui-shutdown"
+chmod +x "${PREFIX}/bin/plasmaweb" "${PREFIX}/bin/plasmaweb-shutdown"
 
 if [[ "$LINK_GLOBAL" -eq 1 && -n "$BIN_DIR" ]]; then
   mkdir -p "$BIN_DIR"
-  ln -sf "${PREFIX}/bin/lcncgui" "${BIN_DIR}/lcncgui"
-  echo "Linked: ${BIN_DIR}/lcncgui -> ${PREFIX}/bin/lcncgui"
+  ln -sf "${PREFIX}/bin/plasmaweb" "${BIN_DIR}/plasmaweb"
+  echo "Linked: ${BIN_DIR}/plasmaweb -> ${PREFIX}/bin/plasmaweb"
+  # A machine whose INI still says DISPLAY = lcncgui keeps starting: the old name is a link
+  # to the new launcher rather than a second copy of it.
+  ln -sf "${PREFIX}/bin/plasmaweb" "${BIN_DIR}/lcncgui"
+  echo "Linked: ${BIN_DIR}/lcncgui -> ${PREFIX}/bin/plasmaweb (for INIs that still say DISPLAY = lcncgui)"
 else
   echo "No global symlink created. Add to PATH: ${PREFIX}/bin"
 fi
@@ -256,12 +260,12 @@ fi
 
 cat <<EOF
 
-lcncgui installed${VERSION_LINE}.
+plasmaweb installed${VERSION_LINE}.
 
 Add to your machine INI:
 
   [DISPLAY]
-  DISPLAY = lcncgui
+  DISPLAY = plasmaweb
 
 Optional macro subroutines (see resources/linuxcnc-subroutines/README.md):
 

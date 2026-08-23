@@ -1,4 +1,4 @@
-import { parseLcncGuiMeta, splitLcncGuiComment } from '@/lib/lcncGuiToolComment';
+import { parsePlasmawebMeta, splitPlasmawebComment } from '@/lib/plasmawebToolComment';
 import type { LinuxCncToolTableRow } from '@/store/types';
 import {
   ALL_TOOL_TYPES,
@@ -118,8 +118,8 @@ export function mapLinuxCncToolRowToTool(row: LinuxCncToolTableRow): Tool | null
           flutesLength: num(o.flutesLength),
         };
       })()
-    : parseLcncGuiMeta(rawComment);
-  const { humanPrefix } = splitLcncGuiComment(rawComment);
+    : parsePlasmawebMeta(rawComment);
+  const { humanPrefix } = splitPlasmawebComment(rawComment);
 
   const name =
     meta?.name != null && String(meta.name).trim() !== ''

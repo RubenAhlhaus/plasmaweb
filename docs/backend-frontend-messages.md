@@ -20,7 +20,7 @@ All messages are JSON objects with a `type` field. `protocolVersion` is currentl
 Endpoint (backend side):
 - `ws://.../ws` (path and port see `WEBSOCKET_PATH` / `PORT` in `backend/config.py`)
 
-**Frontend:** The concrete WebSocket URL the GUI connects to does not come from source code but from `lcncgui-config.json` (loaded from the same origin as the web app). Short flow and fields: [`docs/frontend-web-start.md`](frontend-web-start.md).
+**Frontend:** The concrete WebSocket URL the GUI connects to does not come from source code but from `plasmaweb-config.json` (loaded from the same origin as the web app). Short flow and fields: [`docs/frontend-web-start.md`](frontend-web-start.md).
 
 **Note (outgoing, frontend → backend):** `useSendCommand()` (`src/api/backendCommands.ts`) returns a **stably referenced** send function (`useCallback` with a fixed dependency list): on each actual send the WebSocket instance is read via `useAppStore.getState().backendWebSocket` so listeners and effects do not work with a stale socket reference. Effects that depend only on `sendCommand` (e.g. file browser with `program.list`) therefore do not re-fire on every render. Very large `command` payloads (especially `program.write` with long `content`) can also hit **proxy/WebSocket frame limits**; see [`docs/commands-events.md`](commands-events.md) → `program.write` → transport.
 
@@ -338,7 +338,7 @@ Error:
     - `payload_too_large`: **`program.read`** / **`program.write`** — file or UTF-8 content over configured limit
     - `tool_table_not_configured`: `tool.update_tool_table_row` / `tool.delete_tool_table_row` / `tool.add_tool_table_row` — LinuxCNC INI not resolvable or no readable `[EMCIO] TOOL_TABLE` path
     - `tool_line_not_found`: `tool.update_tool_table_row` / `tool.delete_tool_table_row` — no line in usual `T… P…` format for the tool number, or line not processable
-    - `tool_already_exists`: **`tool.add_tool_table_row`** — a line for this `toolno` already exists in the TOOL_TABLE file. **`tool.update_tool_table_row`** — rename (`new_toolno`): target `T` already taken in `.tbl`, **or** in the lcncgui sidecar a **non-empty** entry already exists under the target number (meta/presets)
+    - `tool_already_exists`: **`tool.add_tool_table_row`** — a line for this `toolno` already exists in the TOOL_TABLE file. **`tool.update_tool_table_row`** — rename (`new_toolno`): target `T` already taken in `.tbl`, **or** in the plasmaweb sidecar a **non-empty** entry already exists under the target number (meta/presets)
     - `no_tool_in_spindle`: `tool.touch_off` — no tool in spindle (`stat.tool_in_spindle` ≤ 0)
     - `cutter_comp_active`: `tool.touch_off` — radius compensation G41/G42 active (touch-off rejected)
     - `command_in_progress`: command channel busy (`wait_complete` still running)
@@ -346,7 +346,7 @@ Error:
     - `linuxcnc_command_failed` / `linuxcnc_unexpected_status`: LinuxCNC reports failure or unexpected return code after `wait_complete` (including for `program.auto` only for **`pause`/`resume`** and for the optional mode switch before **`run`**; not for **`run`** itself via this gateway wait phase)
   - Handler `app.exit`:
     - `shutdown_unavailable`: `shutdown: true` requested but system poweroff is not configured (`sudo ./install.sh --setup-shutdown` on the controller)
-    - With `shutdown: true` and `ok: true`: the handler runs **before** the ACK (abort motion, machine off, shutdown marker). The frontend uses a longer WebSocket timeout (~40 s) than for a plain exit (~8 s). System poweroff runs only after `bin/lcncgui` exits and LinuxCNC has shut down; failures are logged to `~/.local/share/lcncgui/shutdown.log`.
+    - With `shutdown: true` and `ok: true`: the handler runs **before** the ACK (abort motion, machine off, shutdown marker). The frontend uses a longer WebSocket timeout (~40 s) than for a plain exit (~8 s). System poweroff runs only after `bin/plasmaweb` exits and LinuxCNC has shut down; failures are logged to `~/.local/share/plasmaweb/shutdown.log`.
   - Handler `machine.set_task_state` (after snapshot check with short verification window):
     - `estop_reset_rejected`: `ESTOP_RESET` (`status` 2) was requested, the handler polls status briefly several times (currently up to ~250 ms), and the snapshot still shows `task_state` = `STATE_ESTOP` (1) — typically when hardware E-stop / release applies or LinuxCNC did not accept the reset. Then `ok: false`, **no** `machine_event` of this kind.
 - `error.message` (string): short English fallback for logs and non-i18n clients

@@ -4,7 +4,7 @@ Why a thread and not asyncio: the ``hal`` module is a blocking C extension and L
 own timing is unforgiving. Reads and writes happen in this thread only; the event loop sees
 nothing but immutable snapshot dicts handed over through a callback.
 
-Startup order is load-bearing (see ``bin/lcncgui`` and BUILD_PLAN.md):
+Startup order is load-bearing (see ``bin/plasmaweb`` and BUILD_PLAN.md):
 
 1. :meth:`HalBridge.create_component` — export ``qtplasmac`` and its 91 pins
 2. :meth:`HalBridge.ready` — ``comp.ready()``; only now may ``net qtplasmac.*`` lines run

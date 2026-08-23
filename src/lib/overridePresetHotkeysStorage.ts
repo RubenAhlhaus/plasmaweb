@@ -6,8 +6,8 @@ import {
 } from '@/lib/overridePresetHotkeys';
 import type { VirtualSidebarHotkey } from '@/lib/virtualSidebarHotkeys';
 
-export const FEED_OVERRIDE_HOTKEYS_STORAGE_KEY = 'lcncgui.feedOverrideHotkeys';
-export const SPINDLE_OVERRIDE_HOTKEYS_STORAGE_KEY = 'lcncgui.spindleOverrideHotkeys';
+export const FEED_OVERRIDE_HOTKEYS_STORAGE_KEY = 'plasmaweb.feedOverrideHotkeys';
+export const SPINDLE_OVERRIDE_HOTKEYS_STORAGE_KEY = 'plasmaweb.spindleOverrideHotkeys';
 
 function storageKeyForKind(kind: OverridePresetKind): string {
   return kind === 'feed'

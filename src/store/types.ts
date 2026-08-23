@@ -261,7 +261,7 @@ export interface LinuxCncToolTableRow {
   backangle?: number;
   orientation?: number;
   comment?: string;
-  /** lcncgui sidecar: library meta per T (source of truth alongside .tbl). */
+  /** plasmaweb sidecar: library meta per T (source of truth alongside .tbl). */
   lcncgui_meta?: Record<string, unknown>;
   lcncgui_presets?: unknown[];
 }

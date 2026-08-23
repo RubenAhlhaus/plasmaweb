@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/card';
 import { TouchSelectField } from '@/components/ui/TouchSelectField';
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
-import { LCNCGUI_CONFIG_JSON } from '@/lib/loadLcncguiConfig';
+import { PLASMAWEB_CONFIG_JSON } from '@/lib/loadPlasmawebConfig';
 import type { HotkeyConflict, OverridePresetKind } from '@/lib/overridePresetHotkeys';
 import {
   OVERRIDE_PRESET_POSITIONS,
@@ -211,7 +211,7 @@ export function SettingsScreen() {
             </SettingsRow>
             <p className="text-[11px] text-muted-foreground/80 pl-1 pr-4">
               {t('settings:connection.help', {
-                configFile: LCNCGUI_CONFIG_JSON,
+                configFile: PLASMAWEB_CONFIG_JSON,
                 public: 'public/',
                 docLink: 'docs/frontend-web-start.md',
               })}
@@ -515,7 +515,7 @@ export function SettingsScreen() {
                     className="inline-flex items-center justify-center h-8 px-3 rounded-md border border-border/60 bg-background/60 text-[11px] font-mono text-foreground hover:bg-muted/70 transition-colors"
                     onClick={() => {
                       const fullState = useAppStore.getState();
-                      console.groupCollapsed('[lcncgui] state snapshot (settings)');
+                      console.groupCollapsed('[plasmaweb] state snapshot (settings)');
                       console.log('AppStore state snapshot:', fullState);
                       console.groupEnd();
                     }}

@@ -1,7 +1,7 @@
-/** Delimiter before JSON metadata in LinuxCNC tool table `comment` fields (lcncgui extension). */
+/** Delimiter before JSON metadata in LinuxCNC tool table `comment` fields (plasmaweb extension). */
 export const LCNC_GUI_COMMENT_DELIM = '|LCNCGUI|';
 
-type LcncGuiCommentSplit = {
+type PlasmawebCommentSplit = {
   /** Text before the delimiter (optional human / CAM note). */
   humanPrefix: string;
   /** Raw JSON string after the delimiter, or null if absent. */
@@ -9,9 +9,9 @@ type LcncGuiCommentSplit = {
 };
 
 /**
- * Split raw tool-table comment into optional human prefix and lcncgui JSON payload.
+ * Split raw tool-table comment into optional human prefix and plasmaweb JSON payload.
  */
-export function splitLcncGuiComment(raw: string | undefined): LcncGuiCommentSplit {
+export function splitPlasmawebComment(raw: string | undefined): PlasmawebCommentSplit {
   if (raw == null || raw === '') {
     return { humanPrefix: '', metaJson: null };
   }
@@ -24,7 +24,7 @@ export function splitLcncGuiComment(raw: string | undefined): LcncGuiCommentSpli
   return { humanPrefix, metaJson: rest || null };
 }
 
-type LcncGuiToolMeta = {
+type PlasmawebToolMeta = {
   name?: string;
   type?: string;
   material?: string;
@@ -33,22 +33,22 @@ type LcncGuiToolMeta = {
    * any plain text before `|LCNCGUI|` in the raw table comment (`linuxCncToolTable.ts`).
    */
   comment?: string;
-  /** Number of flutes (end mills etc.), lcncgui extension in tool table comment. */
+  /** Number of flutes (end mills etc.), plasmaweb extension in tool table comment. */
   numberOfFlutes?: number;
-  /** Flute length in mm, lcncgui extension. */
+  /** Flute length in mm, plasmaweb extension. */
   flutesLength?: number;
 };
 
 /**
  * Parse JSON object after `|LCNCGUI|` if present and valid.
  */
-export function parseLcncGuiMeta(raw: string | undefined): LcncGuiToolMeta | null {
-  const { metaJson } = splitLcncGuiComment(raw);
+export function parsePlasmawebMeta(raw: string | undefined): PlasmawebToolMeta | null {
+  const { metaJson } = splitPlasmawebComment(raw);
   if (!metaJson) return null;
   try {
     const o = JSON.parse(metaJson) as unknown;
     if (o === null || typeof o !== 'object' || Array.isArray(o)) return null;
-    return o as LcncGuiToolMeta;
+    return o as PlasmawebToolMeta;
   } catch {
     return null;
   }
@@ -59,7 +59,7 @@ export function parseLcncGuiMeta(raw: string | undefined): LcncGuiToolMeta | nul
  * object with only non-empty meta fields (name, type, material, comment, numberOfFlutes, flutesLength).
  * Empty meta → empty string.
  */
-export function buildToolTableCommentSuffix(meta: LcncGuiToolMeta): string {
+export function buildToolTableCommentSuffix(meta: PlasmawebToolMeta): string {
   const o: Record<string, string | number> = {};
   if (meta.name != null && String(meta.name).trim() !== '') o.name = String(meta.name).trim();
   if (meta.type != null && String(meta.type).trim() !== '') o.type = String(meta.type).trim();

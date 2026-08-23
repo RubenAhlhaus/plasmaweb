@@ -71,9 +71,9 @@ python3 -m venv --system-site-packages /home/ruben/plasma-web-interface/venv
 /home/ruben/plasma-web-interface/venv/bin/pip install fastapi "uvicorn[standard]" pydantic
 ln -sf /home/ruben/plasma-web-interface/bin/plasmacweb /usr/local/bin/plasmacweb
 
-# the UI reads /lcncgui-config.json from the served root; install.sh normally does this
-cp /home/ruben/plasma-web-interface/resources/lcncgui-config.production.json \
-   /home/ruben/plasma-web-interface/dist/lcncgui-config.json
+# the UI reads /plasmaweb-config.json from the served root; install.sh normally does this
+cp /home/ruben/plasma-web-interface/resources/plasmaweb-config.production.json \
+   /home/ruben/plasma-web-interface/dist/plasmaweb-config.json
 
 # sim config: the sample configs ship with the linuxcnc doc package
 cp -r /usr/share/doc/linuxcnc/examples/sample-configs/sim/qtplasmac \
@@ -96,10 +96,10 @@ sudo -u ruben -H DISPLAY=:0 XAUTHORITY=/home/ruben/.Xauthority \
      > /tmp/lcnc.log 2>&1 &
 ```
 
-`bin/lcncgui` then serves the UI on `127.0.0.1:8765` and opens `firefox-esr -kiosk` on the
+`bin/plasmaweb` then serves the UI on `127.0.0.1:8765` and opens `firefox-esr -kiosk` on the
 VM desktop. Startup failures land in `/tmp/linuxcnc.debug.*` (a `wish` error window also
 appears on the VM display and blocks the run until dismissed). Without
-`dist/lcncgui-config.json` the page renders *"Configuration not found (HTTP 404)"* instead
+`dist/plasmaweb-config.json` the page renders *"Configuration not found (HTTP 404)"* instead
 of the UI.
 
 Screenshots of the guest desktop, useful as evidence when the host cannot reach the VM:
@@ -132,8 +132,8 @@ for id in $(ipcs -s | awk '/^0x/ {print $2}'); do ipcrm -s $id; done
 ```
 
 A second failure mode looks different and is easier to miss: **the backend survives the kill**
-and holds port 8765, so LinuxCNC starts, `bin/lcncgui` finds the port busy, and the whole
-session exits with `lcncgui: port 8765 is already in use`. `pkill -f uvicorn` does not always
+and holds port 8765, so LinuxCNC starts, `bin/plasmaweb` finds the port busy, and the whole
+session exits with `plasmaweb: port 8765 is already in use`. `pkill -f uvicorn` does not always
 land it (a wedged process ignores the default signal) — use `fuser -k -9 8765/tcp`.
 
 When waiting for the backend after a restart, **bound the wait**: an unbounded
@@ -233,7 +233,7 @@ setsid nohup /tmp/startlcnc.sh > /tmp/lcnc.log 2>&1 < /dev/null &
 **A stray kiosk browser used to take the machine down with it.** LinuxCNC shuts down as soon
 as its `[DISPLAY]` program exits, and `firefox-esr` hands the URL to an already-running
 instance and returns immediately — so every start died seconds in, with nothing in the logs
-after the config summary. `bin/lcncgui` now keeps serving while the backend lives, but a pile
+after the config summary. `bin/plasmaweb` now keeps serving while the backend lives, but a pile
 of stray `firefox-esr` processes is still worth clearing (`pkill -x firefox-esr`).
 
 To see where a start actually stops, trace past the launcher's own output redirect:

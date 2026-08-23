@@ -1,7 +1,7 @@
 """Build the plasma HAL stack at import time, or decide there is nothing to build.
 
 Timing is the whole point of this module. The ``qtplasmac`` component has to exist and be
-``ready()`` before ``[HAL] POSTGUI_HALFILE`` runs, and ``bin/lcncgui`` runs those halfiles
+``ready()`` before ``[HAL] POSTGUI_HALFILE`` runs, and ``bin/plasmaweb`` runs those halfiles
 once HTTP answers — so the component is created while ``backend.main`` is being imported,
 not in the lifespan handler.
 

@@ -133,8 +133,8 @@ from contextlib import asynccontextmanager
 # - `python -m backend.main` (repo root)
 # - `python main.py` (inside `backend/`)
 #
-# When started from `backend/`, `sys.path[0]` points to `/.../lcncgui/backend`,
-# so `from backend...` would incorrectly look for `/.../lcncgui/backend/backend/...`.
+# When started from `backend/`, `sys.path[0]` points to `/.../plasmaweb/backend`,
+# so `from backend...` would incorrectly look for `/.../plasmaweb/backend/backend/...`.
 BACKEND_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BACKEND_DIR.parent
 if str(PROJECT_ROOT) not in sys.path:

@@ -1,5 +1,5 @@
 /** localStorage key for UI language (`en` | `de`). */
-export const LOCALE_STORAGE_KEY = 'lcncgui.locale';
+export const LOCALE_STORAGE_KEY = 'plasmaweb.locale';
 
 const SUPPORTED_LOCALES = ['en', 'de'] as const;
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];

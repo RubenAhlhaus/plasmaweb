@@ -15,16 +15,16 @@ The user can enable **Run LinuxCNC at startup** so that LinuxCNC (with the curre
 - Backend running and reachable when saving from the Settings UI.
 - To **enable** autostart, LinuxCNC must be running with a resolvable INI path (from `linuxcnc.stat().ini_filename` or typical LinuxCNC environment variables). Otherwise the API returns `ini_path_unavailable`.
 - A graphical desktop session must be available at login (autologin is recommended on dedicated CNC machines).
-- The LinuxCNC user must be able to write `~/.config/autostart/linuxcnc-lcncgui.desktop`.
-- `LCNCGUI_AUTOSTART=0` on the backend host must **not** be set when enabling autostart (otherwise the API returns `autostart_env_disabled`).
+- The LinuxCNC user must be able to write `~/.config/autostart/linuxcnc-plasmaweb.desktop`.
+- `PLASMAWEB_AUTOSTART=0` on the backend host must **not** be set when enabling autostart (otherwise the API returns `autostart_env_disabled`).
 
 ## Event order
 
 1. User toggles **Run LinuxCNC at startup** in Settings.
 2. Frontend calls `PUT /api/user-preferences/linuxcnc-autostart` with `{ "runLinuxCncAtStartup": true | false }`.
 3. Backend resolves the active INI path when enabling (via `LinuxCncGateway.resolve_ini_path()`).
-4. Backend installs or removes `~/.config/autostart/linuxcnc-lcncgui.desktop` (override: `XDG_CONFIG_HOME`) **before** writing preferences.
-5. Backend writes `~/.local/share/lcncgui/user-preferences.json` (override: `LCNCGUI_USER_PREFERENCES`) with `runLinuxCncAtStartup` and normalized absolute `linuxCncIniPath`.
+4. Backend installs or removes `~/.config/autostart/linuxcnc-plasmaweb.desktop` (override: `XDG_CONFIG_HOME`) **before** writing preferences.
+5. Backend writes `~/.local/share/plasmaweb/user-preferences.json` (override: `PLASMAWEB_USER_PREFERENCES`) with `runLinuxCncAtStartup` and normalized absolute `linuxCncIniPath`.
 6. On success, the Zustand store fields `runLinuxCncAtStartup` and `linuxCncIniPath` are updated.
 7. On the **next graphical login**, the desktop environment starts `linuxcnc <ini>` from the autostart entry.
 
@@ -47,7 +47,7 @@ The stored INI path is updated when autostart is toggled on again. Disabling and
 **Autologin not configured**  
 Autostart still runs after manual graphical login; it does not start LinuxCNC before login.
 
-**`LCNCGUI_AUTOSTART=0` in the environment**  
+**`PLASMAWEB_AUTOSTART=0` in the environment**  
 Enabling autostart fails with `autostart_env_disabled`; preferences are not written.
 
 **Autostart apply fails (permissions, missing INI file)**  
@@ -61,7 +61,7 @@ Saving fails with a network error toast; load failure shows the bootstrap hint.
 | Code | HTTP | Meaning |
 |------|------|---------|
 | `ini_path_unavailable` | 422 | Active INI path could not be resolved when enabling |
-| `autostart_env_disabled` | 503 | `LCNCGUI_AUTOSTART` disables applying autostart on the backend host |
+| `autostart_env_disabled` | 503 | `PLASMAWEB_AUTOSTART` disables applying autostart on the backend host |
 | `autostart_setup_failed` | 503 | Could not write or remove the autostart desktop entry |
 | (plain string) | 503 | User preferences file could not be written |
 

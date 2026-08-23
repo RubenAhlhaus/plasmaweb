@@ -1,6 +1,6 @@
 # Publishing releases
 
-This guide is for **maintainers** who ship lcncgui to LinuxCNC controllers via [GitHub Releases](https://github.com/salomom/lcncgui/releases).
+This guide is for **maintainers** who ship plasmaweb to LinuxCNC controllers via [GitHub Releases](https://github.com/salomom/plasmaweb/releases).
 
 End users install from the published tarball — see [`docs/installation.md`](installation.md).
 
@@ -11,7 +11,7 @@ End users install from the published tarball — see [`docs/installation.md`](in
 | Merge changes to `master` | Maintainer | Stable source on the default branch |
 | Bump version + update changelog | Maintainer | `package.json` and `CHANGELOG.md` reflect the release |
 | Push git tag `v<version>` | Maintainer | Triggers GitHub Actions |
-| CI runs `build-release.sh` | GitHub Actions | Builds `lcncgui-<version>-linux.tar.gz` |
+| CI runs `build-release.sh` | GitHub Actions | Builds `plasmaweb-<version>-linux.tar.gz` |
 | CI creates GitHub Release | GitHub Actions | Tarball + `checksums.txt` attached for download |
 
 The release archive is **not CPU-specific** (e.g. building on ARM is fine for x86_64 targets). What matters on the controller is Linux + LinuxCNC + Python.
@@ -22,7 +22,7 @@ The release archive is **not CPU-specific** (e.g. building on ARM is fine for x8
 - Keep these in sync:
   - `package.json` → `"version"`
   - Git tag → `v1.2.0` (always prefix with `v`)
-  - Tarball name → `lcncgui-1.2.0-linux.tar.gz` (no `v` in the filename)
+  - Tarball name → `plasmaweb-1.2.0-linux.tar.gz` (no `v` in the filename)
   - `CHANGELOG.md` section heading → `## [1.2.0] - YYYY-MM-DD`
 
 The CI workflow strips the `v` from the tag and passes the bare version to `./scripts/build-release.sh`.
@@ -69,15 +69,15 @@ git push origin master v1.0.0
 
 ### 4. Verify the GitHub Release
 
-1. Open [Actions](https://github.com/salomom/lcncgui/actions) — the **Release** workflow should succeed.
-2. Open [Releases](https://github.com/salomom/lcncgui/releases) — confirm assets:
-   - `lcncgui-<version>-linux.tar.gz`
+1. Open [Actions](https://github.com/salomom/plasmaweb/actions) — the **Release** workflow should succeed.
+2. Open [Releases](https://github.com/salomom/plasmaweb/releases) — confirm assets:
+   - `plasmaweb-<version>-linux.tar.gz`
    - `checksums.txt`
 3. Optionally smoke-test on a controller:
 
    ```bash
-   tar xzf lcncgui-<version>-linux.tar.gz
-   cd lcncgui-<version>-linux
+   tar xzf plasmaweb-<version>-linux.tar.gz
+   cd plasmaweb-<version>-linux
    sha256sum -c ../checksums.txt   # if checksums.txt is alongside the tarball
    sudo ./install.sh
    ```
@@ -102,15 +102,15 @@ Useful to test the tarball before tagging, or to build offline:
 ./scripts/build-release.sh 1.2.0        # explicit version
 ```
 
-Output: `dist-release/lcncgui-<version>-linux.tar.gz` and a staging tree under `dist-release/staging/`.
+Output: `dist-release/plasmaweb-<version>-linux.tar.gz` and a staging tree under `dist-release/staging/`.
 
-Requirements on the build machine: Node.js/npm, `rsync`, and `resources/lcncgui-config.production.json`.
+Requirements on the build machine: Node.js/npm, `rsync`, and `resources/plasmaweb-config.production.json`.
 
 Install from the staging tree or extracted tarball:
 
 ```bash
-tar xzf dist-release/lcncgui-1.2.0-linux.tar.gz
-cd lcncgui-1.2.0-linux
+tar xzf dist-release/plasmaweb-1.2.0-linux.tar.gz
+cd plasmaweb-1.2.0-linux
 sudo ./install.sh
 ```
 

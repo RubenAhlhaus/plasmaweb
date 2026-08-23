@@ -14,7 +14,7 @@ The header **power icon** opens an exit dialog with two actions: close the UI on
 ## Preconditions
 
 - WebSocket connection to the backend (`connectionStatus === "connected"`).
-- For system shutdown: `sudo ./install.sh --setup-shutdown` must have been run on the controller (passwordless `lcncgui-shutdown` for the LinuxCNC user). Otherwise the backend returns `shutdown_unavailable`.
+- For system shutdown: `sudo ./install.sh --setup-shutdown` must have been run on the controller (passwordless `plasmaweb-shutdown` for the LinuxCNC user). Otherwise the backend returns `shutdown_unavailable`.
 
 ## Event order
 
@@ -25,17 +25,17 @@ The header **power icon** opens an exit dialog with two actions: close the UI on
 3. Backend returns `command_result` with `ok: true`.
 4. Frontend closes the browser tab.
 5. WebSocket handler stops the backend (uvicorn exit / SIGINT).
-6. `bin/lcncgui` exits → LinuxCNC shuts down normally.
+6. `bin/plasmaweb` exits → LinuxCNC shuts down normally.
 
 ### Close window and shut down
 
 1. User confirms **Close window and shut down**.
 2. Frontend sends `app.exit` with `{ "shutdown": true }` (WebSocket timeout ~40 s).
-3. Backend checks `lcncgui-shutdown --dry-run`; on failure → `shutdown_unavailable`.
+3. Backend checks `plasmaweb-shutdown --dry-run`; on failure → `shutdown_unavailable`.
 4. Backend **before ACK**: abort motion (`abort_program`, up to 10 s), machine off (`set_power(false)` with retries), wait up to 3 s for `STATE_OFF`, write shutdown marker file.
 5. Backend returns `ok: true`.
 6. Frontend closes the browser; WebSocket handler stops the backend.
-7. `bin/lcncgui` sees the marker, starts a detached job that waits for the LinuxCNC parent process (max. 60 s), removes the marker, runs `lcncgui-shutdown`.
+7. `bin/plasmaweb` sees the marker, starts a detached job that waits for the LinuxCNC parent process (max. 60 s), removes the marker, runs `plasmaweb-shutdown`.
 8. System powers off.
 
 ## User Feedback
@@ -43,15 +43,15 @@ The header **power icon** opens an exit dialog with two actions: close the UI on
 - Exit dialog shows while the command is in progress (`exitInProgress`).
 - On failure: error toast (`shutdown_unavailable`, timeout, or generic exit error).
 - If the tab cannot be closed (e.g. dev mode): info toast after ~300 ms.
-- Shutdown/poweroff failures on the controller: see `~/.local/share/lcncgui/shutdown.log`.
+- Shutdown/poweroff failures on the controller: see `~/.local/share/plasmaweb/shutdown.log`.
 
 ## Edge Cases
 
 - **Machine already off**: abort and power-off are skipped; marker is still written and shutdown proceeds.
 - **Abort or power-off fails**: logged as warning; shutdown still continues (best effort).
-- **lcncgui not started by LinuxCNC** (manual dev run): parent is not detected as LinuxCNC → immediate poweroff attempt (no wait for parent).
+- **plasmaweb not started by LinuxCNC** (manual dev run): parent is not detected as LinuxCNC → immediate poweroff attempt (no wait for parent).
 - **LinuxCNC parent does not exit within 60 s**: poweroff proceeds anyway (logged).
-- **Stale shutdown marker** (crash before `maybe_shutdown_system`): marker remains; next normal lcncgui exit may trigger poweroff — user should remove `~/.local/share/lcncgui/shutdown-requested` if that happens.
+- **Stale shutdown marker** (crash before `maybe_shutdown_system`): marker remains; next normal plasmaweb exit may trigger poweroff — user should remove `~/.local/share/plasmaweb/shutdown-requested` if that happens.
 
 ## Errors
 

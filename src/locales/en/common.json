@@ -61,6 +61,6 @@
   "configLoader": {
     "loading": "Loading configuration…",
     "errorTitle": "Configuration error",
-    "errorHelp": "Expected the file lcncgui-config.json at the same origin as this page (Vite dev: under public/ in the repo; built or packaged app: same filename next to the shipped UI). Template in the repo: public/lcncgui-config.example.json. Reload the page after changes. See docs/frontend-web-start.md."
+    "errorHelp": "Expected the file plasmaweb-config.json at the same origin as this page (Vite dev: under public/ in the repo; built or packaged app: same filename next to the shipped UI). Template in the repo: public/plasmaweb-config.example.json. Reload the page after changes. See docs/frontend-web-start.md."
   }
 }

@@ -21,7 +21,7 @@ The **Coordinate systems & offsets** dialog lists G54–G59.3 with per-system of
   - For axis set-to-value the client sends `motion.set_axis_coordinate` with `{ axis, value }`; the backend issues `G10 L20 P0` style MDI for the active coordinate context.
   - **Escape:** The main dialog’s `DialogContent` uses `onEscapeKeyDown` returning `false` while an offset or axis **sub-dialog** is open, so **Escape closes the touch-numeric sub-dialog first**, then the main coordinate dialog (see `handleMainDialogEscapeKey` in `CoordinateSystemsDialog`).
 - Virtual sidebar buttons **X**, **Y**, **Z** open the corresponding **Set axis** sub-dialog directly (via `ui.coordinates.openAxisDialog`).
-- When the machine moves (jog, program, manual), values update from the backend status stream and high-rate `motion.coordinates.changed` events. The frontend **batches** coordinate store writes (default **66 ms**, ~15 UI updates per second, configurable via `ui.coordinateUiFlushMs` in `lcncgui-config.json`) and skips no-op updates within display precision (3 decimals).
+- When the machine moves (jog, program, manual), values update from the backend status stream and high-rate `motion.coordinates.changed` events. The frontend **batches** coordinate store writes (default **66 ms**, ~15 UI updates per second, configurable via `ui.coordinateUiFlushMs` in `plasmaweb-config.json`) and skips no-op updates within display precision (3 decimals).
 
 ## Preconditions
 - WebSocket connected (`connectionStatus === "connected"`) so status updates arrive.

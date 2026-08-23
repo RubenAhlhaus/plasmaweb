@@ -61,6 +61,6 @@
   "configLoader": {
     "loading": "Konfiguration wird geladen…",
     "errorTitle": "Konfiguration fehlerhaft",
-    "errorHelp": "Erwartet wird die Datei lcncgui-config.json unter derselben Origin wie diese Seite (Vite-Dev: im Repo unter public/; gebaute oder packagierte App: gleicher Dateiname neben der ausgelieferten UI). Vorlage im Repo: public/lcncgui-config.example.json. Nach Änderungen die Seite neu laden. Details: docs/frontend-web-start.md."
+    "errorHelp": "Erwartet wird die Datei plasmaweb-config.json unter derselben Origin wie diese Seite (Vite-Dev: im Repo unter public/; gebaute oder packagierte App: gleicher Dateiname neben der ausgelieferten UI). Vorlage im Repo: public/plasmaweb-config.example.json. Nach Änderungen die Seite neu laden. Details: docs/frontend-web-start.md."
   }
 }

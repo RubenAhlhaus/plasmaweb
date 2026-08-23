@@ -1,5 +1,5 @@
 """
-lcncgui tool library sidecar: meta + presets per LinuxCNC tool number (T).
+plasmaweb tool library sidecar: meta + presets per LinuxCNC tool number (T).
 
 Stored next to [EMCIO] TOOL_TABLE as ``<basename>.lcncgui-tools.json``.
 LinuxCNC reads only the .tbl file; this module is the source of truth for UI metadata.
@@ -205,7 +205,7 @@ def save_tool_sidecar_atomic(tool_table_path: str, doc: Mapping[str, Any]) -> No
         sort_keys=True,
     ) + "\n"
     fd, tmp_path = tempfile.mkstemp(
-        prefix=".lcncgui-tools-",
+        prefix=".plasmaweb-tools-",
         suffix=".json",
         dir=directory,
         text=True,
@@ -229,7 +229,7 @@ def upsert_tool_entry_in_tools_mut(
     meta: Any = MISSING,
     presets: Any = MISSING,
 ) -> None:
-    """Merge lcncgui fields for ``toolno`` into an in-memory ``tools`` map (no I/O)."""
+    """Merge plasmaweb fields for ``toolno`` into an in-memory ``tools`` map (no I/O)."""
     key = str(int(toolno))
     entry: dict[str, Any]
     if key in tools_mut and isinstance(tools_mut[key], dict):
@@ -257,7 +257,7 @@ def upsert_tool_in_sidecar(
     meta: Any = MISSING,
     presets: Any = MISSING,
 ) -> None:
-    """Merge lcncgui fields for ``toolno``; ``MISSING`` means leave that part unchanged."""
+    """Merge plasmaweb fields for ``toolno``; ``MISSING`` means leave that part unchanged."""
     doc = load_tool_sidecar(tool_table_path)
     tools: MutableMapping[str, Any] = doc["tools"]
     upsert_tool_entry_in_tools_mut(tools, toolno, meta=meta, presets=presets)

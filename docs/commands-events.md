@@ -47,7 +47,7 @@ Comparison with **gmoccapy** ([`gmoccapy.py`](https://github.com/LinuxCNC/linuxc
 
 Terminates the **backend process** (FastAPI/Uvicorn) after a successful `command_result` (`ok: true`). The frontend typically sends this command before closing the browser tab; the WebSocket handler in `backend/api/ws.py` then triggers a controlled backend shutdown (`uvicorn.Server.should_exit` or fallback `SIGINT`).
 
-Without `shutdown`, the handler does not use the LinuxCNC gateway. When `shutdown` is `true`, the handler checks that system poweroff is available (`bin/lcncgui-shutdown --dry-run`); if not, returns `error.code` = **`shutdown_unavailable`**. On success, the handler aborts motion (`machine.abort`), switches the machine off (`machine.power` / `STATE_OFF`), writes a shutdown marker, and returns `ok: true`. The frontend closes the browser; `bin/lcncgui` exits so LinuxCNC shuts down; a background job in `bin/lcncgui` then runs `lcncgui-shutdown` (system poweroff). The WebSocket handler only stops the backend process after the ACK.
+Without `shutdown`, the handler does not use the LinuxCNC gateway. When `shutdown` is `true`, the handler checks that system poweroff is available (`bin/plasmaweb-shutdown --dry-run`); if not, returns `error.code` = **`shutdown_unavailable`**. On success, the handler aborts motion (`machine.abort`), switches the machine off (`machine.power` / `STATE_OFF`), writes a shutdown marker, and returns `ok: true`. The frontend closes the browser; `bin/plasmaweb` exits so LinuxCNC shuts down; a background job in `bin/plasmaweb` then runs `plasmaweb-shutdown` (system poweroff). The WebSocket handler only stops the backend process after the ACK.
 
 | Parameter | Type | Values |
 |-----------|-----|--------|
@@ -69,7 +69,7 @@ Pulse a **virtual sidebar HAL softkey** (labels **14**, **15**, **16**). The bac
 
 #### `hal.set_jog_wheel_scale`
 
-Set HAL **`axis.x/y/z.jog-scale`** (or pins from env `LCNCGUI_JOG_WHEEL_SCALE_PINS`) to the selected jog increment so an MPG / jogwheel moves by the same step as `IncrementSelector`. The frontend calls this whenever `selectedJogIncrement` changes while connected (`useJogWheelScaleSync`). See [`docs/features/01_JOG_HOME_SCREEN.md`](features/01_JOG_HOME_SCREEN.md).
+Set HAL **`axis.x/y/z.jog-scale`** (or pins from env `PLASMAWEB_JOG_WHEEL_SCALE_PINS`) to the selected jog increment so an MPG / jogwheel moves by the same step as `IncrementSelector`. The frontend calls this whenever `selectedJogIncrement` changes while connected (`useJogWheelScaleSync`). See [`docs/features/01_JOG_HOME_SCREEN.md`](features/01_JOG_HOME_SCREEN.md).
 
 **Backend:** `handle_hal_set_jog_wheel_scale` in [`backend/handlers/hal.py`](../backend/handlers/hal.py), gateway `set_jog_wheel_scale`. **No** `machine_event` is sent.
 
@@ -121,7 +121,7 @@ Aborts running motion / interpreter. Matches the Python API [`linuxcnc.command.a
 
 #### `machine.tool_change_ack`
 
-Acknowledges a **manual tool change** via HAL, analogous to gmoccapy (`toolchange-changed`). The backend runs the shell line configured in **`LCNCGUI_TOOLCHANGE_ACK_CMD`** (typically `halcmd setp …` or a short script). If the variable is unset, the command returns `ok: false` with code `tool_change_ack_not_configured`.
+Acknowledges a **manual tool change** via HAL, analogous to gmoccapy (`toolchange-changed`). The backend runs the shell line configured in **`PLASMAWEB_TOOLCHANGE_ACK_CMD`** (typically `halcmd setp …` or a short script). If the variable is unset, the command returns `ok: false` with code `tool_change_ack_not_configured`.
 
 **Security:** The line is executed with shell interpretation — use only trusted, fixed configuration (see [`docs/features/05_TOOL_TABLE.md`](features/05_TOOL_TABLE.md)).
 
@@ -133,7 +133,7 @@ Acknowledges a **manual tool change** via HAL, analogous to gmoccapy (`toolchang
 
 #### `machine.tool_change_abort`
 
-Like `machine.abort`, aborts the task and optionally runs **`LCNCGUI_TOOLCHANGE_ABORT_EXTRA_CMD`** (HAL cleanup). Order: first `linuxcnc.command.abort()` + `wait_complete`, then the shell line (if set). Same security note as **`LCNCGUI_TOOLCHANGE_ACK_CMD`** (trusted shell lines only).
+Like `machine.abort`, aborts the task and optionally runs **`PLASMAWEB_TOOLCHANGE_ABORT_EXTRA_CMD`** (HAL cleanup). Order: first `linuxcnc.command.abort()` + `wait_complete`, then the shell line (if set). Same security note as **`PLASMAWEB_TOOLCHANGE_ACK_CMD`** (trusted shell lines only).
 
 **Backend:** `handle_machine_tool_change_abort` in [`backend/handlers/machine.py`](backend/handlers/machine.py), gateway `LinuxCncGateway.tool_change_abort_with_optional_shell`.
 
@@ -167,7 +167,7 @@ Spindle direction/speed (`command.spindle`); gmoccapy uses this for forward/reve
 | `speed` | number | optional, programmed RPM (LinuxCNC applies spindle override on top) |
 | `spindle` | number | optional, spindle index (default `0`) |
 
-**Note on `speed`:** If `speed` is omitted or not positive, the gateway uses the **programmed S speed** from the interpreter (`stat.settings[2]`) when present; otherwise an internal default (see `LinuxCncGateway.set_spindle`). That value is passed to `command.spindle` **as-is**; LinuxCNC multiplies by the current spindle override (`speed-out = commanded × override`). The gateway must **not** pre-divide by override (that inverted the factor). The lcncgui **virtual sidebar** sends forward/reverse **without** `speed` so that e.g. after MDI `S…` that speed is preserved.
+**Note on `speed`:** If `speed` is omitted or not positive, the gateway uses the **programmed S speed** from the interpreter (`stat.settings[2]`) when present; otherwise an internal default (see `LinuxCncGateway.set_spindle`). That value is passed to `command.spindle` **as-is**; LinuxCNC multiplies by the current spindle override (`speed-out = commanded × override`). The gateway must **not** pre-divide by override (that inverted the factor). The plasmaweb **virtual sidebar** sends forward/reverse **without** `speed` so that e.g. after MDI `S…` that speed is preserved.
 
 #### `machine.feed_override`
 
@@ -351,7 +351,7 @@ Execute one MDI line (`command.mdi`); macros (`O<name> call`) run through it lik
 - If `program.mdi` is triggered in `MODE_MANUAL` and no jog is active, the backend first switches to `MODE_MDI` and then sends the MDI line.
 - If `program.mdi` is triggered in `MODE_MDI`, the MDI line is sent directly.
 
-**Frontend (lcncgui):** Before sending, `useMdiPreconditions` (`src/hooks/useMdiPreconditions.ts`) also checks **task mode** from status: MDI is only offered in the UI when **`MODE_MANUAL`** or **`MODE_MDI`** is set — in **program/auto mode** (`MODE_AUTO`), **Apply** preset, spindle/feed **set**, and MDI **Send**/submit stay disabled. The Home **MDI console input** stays focusable (so focus is not dropped when the interpreter is briefly busy after a line); only sending is gated, with precondition tooltip / `aria-describedby` and an info toast if **Enter** is pressed while blocked. While **`task_mode`** is still **missing** in the snapshot but the machine is already **ON**, the same logic briefly locks MDI (**task mode unknown**) until status is complete.
+**Frontend (plasmaweb):** Before sending, `useMdiPreconditions` (`src/hooks/useMdiPreconditions.ts`) also checks **task mode** from status: MDI is only offered in the UI when **`MODE_MANUAL`** or **`MODE_MDI`** is set — in **program/auto mode** (`MODE_AUTO`), **Apply** preset, spindle/feed **set**, and MDI **Send**/submit stay disabled. The Home **MDI console input** stays focusable (so focus is not dropped when the interpreter is briefly busy after a line); only sending is gated, with precondition tooltip / `aria-describedby` and an info toast if **Enter** is pressed while blocked. While **`task_mode`** is still **missing** in the snapshot but the machine is already **ON**, the same logic briefly locks MDI (**task mode unknown**) until status is complete.
 
 **Automatic revert (MDI / AUTO → manual):**
 
@@ -489,7 +489,7 @@ Preconditions (backend): machine `STATE_ON`, `stat.enabled`, interpreter `INTERP
 
 Implementation: `handle_program_load_tool_table` in `backend/handlers/program.py` (thread pool), gateway `LinuxCncGateway.load_tool_table`.
 
-UI, data flow, and lcncgui comment convention: [`docs/features/05_TOOL_TABLE.md`](features/05_TOOL_TABLE.md).
+UI, data flow, and plasmaweb comment convention: [`docs/features/05_TOOL_TABLE.md`](features/05_TOOL_TABLE.md).
 
 ### `tool`
 
@@ -572,7 +572,7 @@ Every command gets a `command_result`; machine state changes also appear in the 
 
 ## Not exposed as WebSocket commands (gmoccapy, intentionally omitted)
 
-- **HAL panel pins** (`h-button`, `v-button`, analog jog): gmoccapy-specific; lcncgui exposes **three configurable HAL softkeys** (labels **14–16**) via `hal.softkey_pulse` and MPG scale via `hal.set_jog_wheel_scale` — see [`13_VIRTUAL_SIDEBAR_HAL_SOFTKEYS.md`](features/13_VIRTUAL_SIDEBAR_HAL_SOFTKEYS.md) / [`01_JOG_HOME_SCREEN.md`](features/01_JOG_HOME_SCREEN.md).
-- **Manual tool-change dialog** via HAL (`iocontrol` etc.): only active with **`LCNCGUI_TOOLCHANGE_HAL_ENABLED`**, otherwise the backend does not send `machine.tool_change.requested`. UI: `machine.tool_change_ack` / `machine.tool_change_abort`. Setup: [`docs/features/05_TOOL_TABLE.md`](features/05_TOOL_TABLE.md) → section “Manual tool change (HAL) …”.
+- **HAL panel pins** (`h-button`, `v-button`, analog jog): gmoccapy-specific; plasmaweb exposes **three configurable HAL softkeys** (labels **14–16**) via `hal.softkey_pulse` and MPG scale via `hal.set_jog_wheel_scale` — see [`13_VIRTUAL_SIDEBAR_HAL_SOFTKEYS.md`](features/13_VIRTUAL_SIDEBAR_HAL_SOFTKEYS.md) / [`01_JOG_HOME_SCREEN.md`](features/01_JOG_HOME_SCREEN.md).
+- **Manual tool-change dialog** via HAL (`iocontrol` etc.): only active with **`PLASMAWEB_TOOLCHANGE_HAL_ENABLED`**, otherwise the backend does not send `machine.tool_change.requested`. UI: `machine.tool_change_ack` / `machine.tool_change_abort`. Setup: [`docs/features/05_TOOL_TABLE.md`](features/05_TOOL_TABLE.md) → section “Manual tool change (HAL) …”.
 - **Embedded processes / user tabs** (`Gtk.Socket`, external panels): not part of the web frontend.
 - **Error channel / operator text**: covered via status stream or existing events, no separate `command`.

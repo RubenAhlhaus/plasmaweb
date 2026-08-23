@@ -2,7 +2,7 @@
 
 ## Description
 
-Each virtual sidebar softkey (slots 1–16) can be assigned a **keyboard shortcut** in **Settings → Virtual sidebar hotkeys**. Shortcuts are stored in browser **`localStorage`** under **`lcncgui.virtualSidebarHotkeys`** and trigger the **same actions** as clicking the corresponding softkey. They work **globally**: with the sidebar hidden, while **dialogs are open**, and on the **Settings screen** itself (unless focus is in a text field or a shortcut is being captured).
+Each virtual sidebar softkey (slots 1–16) can be assigned a **keyboard shortcut** in **Settings → Virtual sidebar hotkeys**. Shortcuts are stored in browser **`localStorage`** under **`plasmaweb.virtualSidebarHotkeys`** and trigger the **same actions** as clicking the corresponding softkey. They work **globally**: with the sidebar hidden, while **dialogs are open**, and on the **Settings screen** itself (unless focus is in a text field or a shortcut is being captured).
 
 Implementation: shared action dispatch in [`dispatchVirtualSidebarButton`](../../src/lib/dispatchVirtualSidebarButton.ts) (via [`useVirtualSidebarActions`](../../src/hooks/useVirtualSidebarActions.ts)); global listener [`useGlobalHotkeyListener`](../../src/hooks/useGlobalHotkeyListener.ts) in `App.tsx` (also handles feed/spindle override presets — see [`18_OVERRIDE_PRESET_HOTKEYS.md`](18_OVERRIDE_PRESET_HOTKEYS.md)). Event-bus actions publish with `source: 'hotkey'` (see [`docs/frontend-eventbus-overview.md`](../frontend-eventbus-overview.md)).
 

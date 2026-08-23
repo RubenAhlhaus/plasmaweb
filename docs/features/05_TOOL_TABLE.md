@@ -51,7 +51,7 @@ Numeric tool data that LinuxCNC controls (**offsets, diameter, pocket**) always 
 
 ### Manual tool change (HAL) and confirmation dialog
 
-**State:** Only when **`LCNCGUI_TOOLCHANGE_HAL_ENABLED=1`** (or similar) is set does the backend poll via `halcmd getp` typically **`iocontrol.0.tool-change`** and **`iocontrol.0.tool-prep-number`**. **Without that** (default) there is **no** HAL tool-change dialog — regardless of what iocontrol reports. On a rising edge the backend sends WebSocket **`machine_event`** `machine.tool_change.requested` with `tool_number` and `description`. **Description** uses the same logic as the tool list: first **display name from sidecar** (`meta.name`), else comment from `stat.tool_table`, else on-disk **`[EMCIO] TOOL_TABLE`** comment suffix (after `;`). The web UI shows a modal dialog; **OK** sends `machine.tool_change_ack`, **Cancel** sends `machine.tool_change_abort`.
+**State:** Only when **`PLASMAWEB_TOOLCHANGE_HAL_ENABLED=1`** (or similar) is set does the backend poll via `halcmd getp` typically **`iocontrol.0.tool-change`** and **`iocontrol.0.tool-prep-number`**. **Without that** (default) there is **no** HAL tool-change dialog — regardless of what iocontrol reports. On a rising edge the backend sends WebSocket **`machine_event`** `machine.tool_change.requested` with `tool_number` and `description`. **Description** uses the same logic as the tool list: first **display name from sidecar** (`meta.name`), else comment from `stat.tool_table`, else on-disk **`[EMCIO] TOOL_TABLE`** comment suffix (after `;`). The web UI shows a modal dialog; **OK** sends `machine.tool_change_ack`, **Cancel** sends `machine.tool_change_abort`.
 
 **Multiple events / open dialog:** If another `machine.tool_change.requested` arrives while the dialog is open, the frontend **replaces** the displayed pending entry with the new payload (no queue).
 
@@ -61,19 +61,19 @@ Numeric tool data that LinuxCNC controls (**offsets, diameter, pocket**) always 
 
 | Variable | Meaning |
 |----------|-----------|
-| `LCNCGUI_TOOLCHANGE_HAL_ENABLED` | **`1`** / `true` / `on` enables polling (default: **off**). Without enabling, no dialog. |
-| `LCNCGUI_TOOLCHANGE_POLL_S` | Poll interval in seconds (default `0.15`) |
-| `LCNCGUI_TOOLCHANGE_CHANGE_PIN` | HAL pin for change request (default `iocontrol.0.tool-change`) |
-| `LCNCGUI_TOOLCHANGE_PREP_NUMBER_PIN` | HAL pin for tool number (default `iocontrol.0.tool-prep-number`) |
-| `LCNCGUI_TOOLCHANGE_ACK_CMD` | **One shell line** after operator confirm (e.g. `halcmd setp …`); empty → ack command fails |
-| `LCNCGUI_TOOLCHANGE_ABORT_EXTRA_CMD` | Optional: shell after `command.abort()` |
-| `LCNCGUI_HALCMD_TIMEOUT_S` | Timeout for `halcmd getp` (default `3`) |
+| `PLASMAWEB_TOOLCHANGE_HAL_ENABLED` | **`1`** / `true` / `on` enables polling (default: **off**). Without enabling, no dialog. |
+| `PLASMAWEB_TOOLCHANGE_POLL_S` | Poll interval in seconds (default `0.15`) |
+| `PLASMAWEB_TOOLCHANGE_CHANGE_PIN` | HAL pin for change request (default `iocontrol.0.tool-change`) |
+| `PLASMAWEB_TOOLCHANGE_PREP_NUMBER_PIN` | HAL pin for tool number (default `iocontrol.0.tool-prep-number`) |
+| `PLASMAWEB_TOOLCHANGE_ACK_CMD` | **One shell line** after operator confirm (e.g. `halcmd setp …`); empty → ack command fails |
+| `PLASMAWEB_TOOLCHANGE_ABORT_EXTRA_CMD` | Optional: shell after `command.abort()` |
+| `PLASMAWEB_HALCMD_TIMEOUT_S` | Timeout for `halcmd getp` (default `3`) |
 
-**Security / shell:** `LCNCGUI_TOOLCHANGE_ACK_CMD` and `LCNCGUI_TOOLCHANGE_ABORT_EXTRA_CMD` are executed in the backend with **`/bin/sh -c`**. Use only **trusted, short** command lines (typically one `halcmd setp …` or a fixed helper script). Never put unchecked remote input into these variables.
+**Security / shell:** `PLASMAWEB_TOOLCHANGE_ACK_CMD` and `PLASMAWEB_TOOLCHANGE_ABORT_EXTRA_CMD` are executed in the backend with **`/bin/sh -c`**. Use only **trusted, short** command lines (typically one `halcmd setp …` or a fixed helper script). Never put unchecked remote input into these variables.
 
-**HAL / PostGUI:** The backend runs as a **separate process** and does **not** use a `gmoccapy` HAL component. Machine configuration must wire iocontrol signals per LinuxCNC docs for manual change (cf. [hal-examples / hal_manualtoolchange](https://github.com/LinuxCNC/linuxcnc/blob/master/docs/src/hal/hal-examples.adoc)). Do **not** use `hal_manualtoolchange` with its own GTK dialog **and** lcncgui dialog without coordination.
+**HAL / PostGUI:** The backend runs as a **separate process** and does **not** use a `gmoccapy` HAL component. Machine configuration must wire iocontrol signals per LinuxCNC docs for manual change (cf. [hal-examples / hal_manualtoolchange](https://github.com/LinuxCNC/linuxcnc/blob/master/docs/src/hal/hal-examples.adoc)). Do **not** use `hal_manualtoolchange` with its own GTK dialog **and** plasmaweb dialog without coordination.
 
-**PostGUI sketch** (adjust pin names per config; `LCNCGUI_TOOLCHANGE_ACK_CMD` must hit the correct ack path):
+**PostGUI sketch** (adjust pin names per config; `PLASMAWEB_TOOLCHANGE_ACK_CMD` must hit the correct ack path):
 
 ```hal
 # Prepare handshake (example, see LinuxCNC docs / sim configs)
@@ -81,17 +81,17 @@ net tool-prep-loop iocontrol.0.tool-prepare => iocontrol.0.tool-prepared
 
 # Variant A: hal_manualtoolchange **without** parallel GTK dialog — simulate button:
 #   net … => hal_manualtoolchange.change_button
-#   LCNCGUI_TOOLCHANGE_ACK_CMD='halcmd setp hal_manualtoolchange.change_button 1'
+#   PLASMAWEB_TOOLCHANGE_ACK_CMD='halcmd setp hal_manualtoolchange.change_button 1'
 
 # Variant B: custom HAL out wired to iocontrol.0.tool-changed (like gmoccapy → iocontrol):
 #   loadusr -Wn myack …   # e.g. provides myack.ack-bit
 #   net tool-done myack.ack-bit => iocontrol.0.tool-changed
-#   LCNCGUI_TOOLCHANGE_ACK_CMD='halcmd setp myack.ack-bit 1'
+#   PLASMAWEB_TOOLCHANGE_ACK_CMD='halcmd setp myack.ack-bit 1'
 ```
 
-On **cancel** in the dialog the backend roughly matches gmoccapy via `linuxcnc.command.abort()`; optionally `LCNCGUI_TOOLCHANGE_ABORT_EXTRA_CMD` resets HAL pins (like manual reset in gmoccapy).
+On **cancel** in the dialog the backend roughly matches gmoccapy via `linuxcnc.command.abort()`; optionally `PLASMAWEB_TOOLCHANGE_ABORT_EXTRA_CMD` resets HAL pins (like manual reset in gmoccapy).
 
-**gmoccapy reference:** In [gmoccapy.py](https://github.com/LinuxCNC/linuxcnc/blob/master/src/emc/usr_intf/gmoccapy/gmoccapy.py) the GUI component has `toolchange-change`, `toolchange-number`, `toolchange-changed` pins; lcncgui reads **iocontrol** directly (configurable) and acknowledges via shell.
+**gmoccapy reference:** In [gmoccapy.py](https://github.com/LinuxCNC/linuxcnc/blob/master/src/emc/usr_intf/gmoccapy/gmoccapy.py) the GUI component has `toolchange-change`, `toolchange-number`, `toolchange-changed` pins; plasmaweb reads **iocontrol** directly (configurable) and acknowledges via shell.
 
 Protocol: [`docs/commands-events.md`](../commands-events.md), [`docs/backend-frontend-messages.md`](../backend-frontend-messages.md).
 
@@ -102,7 +102,7 @@ Protocol: [`docs/commands-events.md`](../commands-events.md), [`docs/backend-fro
 - `tool.update_tool_table_row` (edit → save), `tool.add_tool_table_row` (new → add), `tool.delete_tool_table_row` (delete confirmed): **writing** requires interpreter `INTERP_IDLE` and reachable `TOOL_TABLE` (machine may be **OFF**). **LinuxCNC reload** (`load_tool_table`) only when machine ON, `stat.enabled`, and idle — else successful ACK with `result.toolTableReloadDeferred`. **Backup:** `.tbl` and matching `.lcncgui-tools.json` together. See [`docs/commands-events.md`](../commands-events.md).
 - `Change tool` (`program.mdi`): same MDI preconditions as the MDI console (e.g. machine ON, no ESTOP, interpreter idle).
 - `tool.touch_off`: same MDI-like gateway preconditions as `program.mdi`, plus `tool_in_spindle > 0` and no G41/G42; details and error codes: [`docs/commands-events.md`](../commands-events.md).
-- **HAL tool-change dialog:** enable `LCNCGUI_TOOLCHANGE_HAL_ENABLED`; WebSocket connected; backend has `halcmd` and **`LCNCGUI_TOOLCHANGE_ACK_CMD`** set, else **OK** fails with `tool_change_ack_not_configured`.
+- **HAL tool-change dialog:** enable `PLASMAWEB_TOOLCHANGE_HAL_ENABLED`; WebSocket connected; backend has `halcmd` and **`PLASMAWEB_TOOLCHANGE_ACK_CMD`** set, else **OK** fails with `tool_change_ack_not_configured`.
 
 ## Example files
 

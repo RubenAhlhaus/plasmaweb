@@ -1,4 +1,4 @@
-# lcncgui
+# plasmaweb
 
 Web-based GUI for LinuxCNC — jog, tool table, program editor, macros, and machine control in a touch-friendly browser UI (similar role to gmoccapy).
 
@@ -50,15 +50,15 @@ Web-based GUI for LinuxCNC — jog, tool table, program editor, macros, and mach
 
 ## Install (LinuxCNC controller)
 
-You do **not** need Node.js on the machine. Download a pre-built release tarball from **[GitHub Releases](https://github.com/salomom/lcncgui/releases)**.
+You do **not** need Node.js on the machine. Download a pre-built release tarball from **[GitHub Releases](https://github.com/salomom/plasmaweb/releases)**.
 
 ```bash
-tar xzf lcncgui-1.0.0-linux.tar.gz
-cd lcncgui-1.0.0-linux
+tar xzf plasmaweb-1.0.0-linux.tar.gz
+cd plasmaweb-1.0.0-linux
 sudo ./install.sh
 ```
 
-Then set `DISPLAY = lcncgui` in your LinuxCNC INI and restart LinuxCNC.
+Then set `DISPLAY = plasmaweb` in your LinuxCNC INI and restart LinuxCNC.
 
 Full guide: [`installation.md`](installation.md) (requirements, per-user install, upgrades, uninstall, shutdown permissions).
 
@@ -85,7 +85,7 @@ Restart LinuxCNC after upgrading.
 Requires Node.js 20+ and Python 3 with LinuxCNC (`import linuxcnc`).
 
 ```bash
-cp public/lcncgui-config.example.json public/lcncgui-config.json
+cp public/plasmaweb-config.example.json public/plasmaweb-config.json
 npm install
 python -m backend.main    # terminal 1 — WebSocket on :8765
 npm run dev               # terminal 2 — Vite on :5173
@@ -97,7 +97,7 @@ See [`docs/frontend-web-start.md`](docs/frontend-web-start.md) for details. Run 
 
 See [`docs/releasing.md`](docs/releasing.md) for the full checklist (changelog, version bump, tagging, CI verification).
 
-Quick summary: update `CHANGELOG.md`, bump `package.json`, push tag `v1.0.0` to GitHub — Actions builds and publishes `lcncgui-<version>-linux.tar.gz`.
+Quick summary: update `CHANGELOG.md`, bump `package.json`, push tag `v1.0.0` to GitHub — Actions builds and publishes `plasmaweb-<version>-linux.tar.gz`.
 
 ## License
 

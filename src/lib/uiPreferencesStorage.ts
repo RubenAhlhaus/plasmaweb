@@ -1,5 +1,5 @@
 /** localStorage key for virtual button sidebar visibility. */
-export const SHOW_VIRTUAL_SIDEBAR_STORAGE_KEY = 'lcncgui.showVirtualSidebar';
+export const SHOW_VIRTUAL_SIDEBAR_STORAGE_KEY = 'plasmaweb.showVirtualSidebar';
 
 export function readStoredShowVirtualSidebar(): boolean | null {
   if (typeof window === 'undefined') return null;

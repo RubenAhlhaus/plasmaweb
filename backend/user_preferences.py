@@ -15,10 +15,20 @@ LINUXCNC_INI_PATH_KEY = "linuxCncIniPath"
 TOOL_IN_SPINDLE_KEY = "toolInSpindle"
 RELOAD_TOOL_ON_STARTUP_KEY = "reloadToolOnStartup"
 
-DEFAULT_USER_PREFERENCES_DIR = (
-    Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")) / "lcncgui"
-)
+def _data_home() -> Path:
+    return Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
+
+
+DEFAULT_USER_PREFERENCES_DIR = _data_home() / "plasmaweb"
 USER_PREFERENCES_FILE = DEFAULT_USER_PREFERENCES_DIR / "user-preferences.json"
+
+#: Where this file lived before the project had its own name. A machine set up under the old
+#: name still has its window mode, its INI path and its last tool in here, and losing those to
+#: a rename would look like the UI forgetting the machine.
+LEGACY_USER_PREFERENCES_FILE = _data_home() / "plasmaweb" / "user-preferences.json"
+
+#: Both spellings of the override, new first.
+USER_PREFERENCES_ENV = ("PLASMAWEB_USER_PREFERENCES", "LCNCGUI_USER_PREFERENCES")
 
 
 class UserPreferencesWriteError(OSError):
@@ -26,15 +36,28 @@ class UserPreferencesWriteError(OSError):
 
 
 def user_preferences_path() -> Path:
-    override = os.environ.get("LCNCGUI_USER_PREFERENCES", "").strip()
-    if override:
-        return Path(override).expanduser().resolve()
+    """Where preferences are written. The new location, unless something says otherwise.
+
+    A file only the *old* location has is still read (see :func:`_load_raw`); writes always go
+    to the new one, so the first save migrates the machine without anybody being asked to.
+    """
+    for name in USER_PREFERENCES_ENV:
+        override = os.environ.get(name, "").strip()
+        if override:
+            return Path(override).expanduser().resolve()
     return USER_PREFERENCES_FILE
 
 
 def _load_raw() -> dict[str, Any]:
-    """Read preferences from disk without side effects."""
+    """Read preferences from disk without side effects.
+
+    Falls back to the pre-rename location so a machine set up under the old name keeps its
+    settings. Only read from there — the next write moves them.
+    """
     path = user_preferences_path()
+    if not path.is_file() and path == USER_PREFERENCES_FILE:
+        if LEGACY_USER_PREFERENCES_FILE.is_file():
+            path = LEGACY_USER_PREFERENCES_FILE
     if not path.is_file():
         return {}
     try:
@@ -217,7 +240,7 @@ def _read_config_kiosk_mode(config_path: Path) -> bool | None:
 
 def resolve_launch_kiosk_mode(config_path: str | Path) -> bool:
     """
-    Resolve kiosk vs windowed launch mode for ``bin/lcncgui``.
+    Resolve kiosk vs windowed launch mode for ``bin/plasmaweb``.
 
     Priority: user preferences file → ``ui.kioskMode`` in config → default kiosk.
     """

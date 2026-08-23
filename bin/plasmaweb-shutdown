@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# lcncgui-shutdown — power off the controller (GUI exit with shutdown).
+# plasmaweb-shutdown — power off the controller (GUI exit with shutdown).
 #
 # Tries session poweroff first; install.sh can grant passwordless sudo for --as-root.
 
@@ -46,7 +46,7 @@ if [[ "${1:-}" == "--as-root" ]]; then
     exit 0
   fi
   _poweroff || {
-    echo "lcncgui-shutdown: poweroff failed" >&2
+    echo "plasmaweb-shutdown: poweroff failed" >&2
     exit 1
   }
   exit 0
@@ -61,6 +61,6 @@ if command -v sudo >/dev/null 2>&1 && sudo -n "$SELF" --as-root 2>/dev/null; the
   exit 0
 fi
 
-echo "lcncgui-shutdown: no permission to power off." >&2
+echo "plasmaweb-shutdown: no permission to power off." >&2
 echo "Run once as root: sudo ./install.sh --setup-shutdown" >&2
 exit 1

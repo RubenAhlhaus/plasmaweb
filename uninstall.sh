@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# Remove an lcncgui installation created by install.sh.
+# Remove an plasmaweb installation created by install.sh.
 #
 # Usage:
-#   sudo ./uninstall.sh                 # remove /opt/lcncgui install
-#   ./uninstall.sh --user               # remove ~/.local/share/lcncgui install
+#   sudo ./uninstall.sh                 # remove /opt/plasmaweb install
+#   ./uninstall.sh --user               # remove ~/.local/share/plasmaweb install
 #   ./uninstall.sh --prefix /path/to/dir
 #   ./uninstall.sh --yes                # skip confirmation prompt
 
 set -euo pipefail
 
-PREFIX="/opt/lcncgui"
+PREFIX="/opt/plasmaweb"
 USER_INSTALL=0
 KEEP_USER_DATA=0
 ASSUME_YES=0
@@ -20,19 +20,19 @@ usage() {
   cat <<'EOF'
 Usage: uninstall.sh [--prefix DIR] [--user] [--keep-user-data] [--yes] [--help]
 
-Removes an lcncgui install created by install.sh:
+Removes an plasmaweb install created by install.sh:
 
-  - Stops running lcncgui backend processes for this install prefix
-  - Removes the lcncgui symlink from PATH (/usr/local/bin or ~/.local/bin)
-  - Removes matching /etc/sudoers.d/lcncgui-shutdown-* entries for this prefix (requires root)
+  - Stops running plasmaweb backend processes for this install prefix
+  - Removes the plasmaweb symlink from PATH (/usr/local/bin or ~/.local/bin)
+  - Removes matching /etc/sudoers.d/plasmaweb-shutdown-* entries for this prefix (requires root)
   - Deletes the install directory (application files and venv)
-  - Deletes ~/.local/share/lcncgui user data (preferences, Chromium profile)
+  - Deletes ~/.local/share/plasmaweb user data (preferences, Chromium profile)
     unless --keep-user-data is set or --user install (already removed with PREFIX)
 
 Options:
-  --prefix DIR       Install root (default: /opt/lcncgui, or ~/.local/share/lcncgui with --user)
-  --user             Uninstall per-user install (~/.local/share/lcncgui, ~/.local/bin/lcncgui)
-  --keep-user-data   Keep ~/.local/share/lcncgui (settings, browser profile) after system install
+  --prefix DIR       Install root (default: /opt/plasmaweb, or ~/.local/share/plasmaweb with --user)
+  --user             Uninstall per-user install (~/.local/share/plasmaweb, ~/.local/bin/plasmaweb)
+  --keep-user-data   Keep ~/.local/share/plasmaweb (settings, browser profile) after system install
   --yes, -y          Do not ask for confirmation
   --help             Show this help
 EOF
@@ -68,16 +68,16 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ "$USER_INSTALL" -eq 1 && "$PREFIX" == "/opt/lcncgui" ]]; then
-  PREFIX="${HOME}/.local/share/lcncgui"
+if [[ "$USER_INSTALL" -eq 1 && "$PREFIX" == "/opt/plasmaweb" ]]; then
+  PREFIX="${HOME}/.local/share/plasmaweb"
   BIN_DIR="${HOME}/.local/bin"
 fi
 
-if [[ -z "$BIN_DIR" && "$PREFIX" == "/opt/lcncgui" ]]; then
+if [[ -z "$BIN_DIR" && "$PREFIX" == "/opt/plasmaweb" ]]; then
   BIN_DIR="/usr/local/bin"
 fi
 
-if [[ -z "$BIN_DIR" && "$PREFIX" != "/opt/lcncgui" ]]; then
+if [[ -z "$BIN_DIR" && "$PREFIX" != "/opt/plasmaweb" ]]; then
   LINK_GLOBAL=0
 fi
 
@@ -86,7 +86,7 @@ PREFIX="$(readlink -f "$PREFIX" 2>/dev/null || echo "$PREFIX")"
 resolve_data_home() {
   local data_home="${XDG_DATA_HOME:-}"
   if [[ -n "$data_home" ]]; then
-    echo "$data_home/lcncgui"
+    echo "$data_home/plasmaweb"
     return
   fi
   local home_dir="$HOME"
@@ -94,7 +94,7 @@ resolve_data_home() {
     home_dir="$(getent passwd "$SUDO_USER" | cut -d: -f6 || true)"
     [[ -n "$home_dir" ]] || home_dir="$HOME"
   fi
-  echo "${home_dir}/.local/share/lcncgui"
+  echo "${home_dir}/.local/share/plasmaweb"
 }
 
 confirm() {
@@ -128,7 +128,7 @@ stop_install_processes() {
   for pid in $(pgrep -f 'uvicorn.*backend\.main' 2>/dev/null || true); do
     [[ -z "$pid" ]] && continue
     if is_lcncgui_backend_pid "$pid" "$prefix"; then
-      echo "Stopping lcncgui backend (PID ${pid})..."
+      echo "Stopping plasmaweb backend (PID ${pid})..."
       kill "$pid" 2>/dev/null || true
       stopped=1
     fi
@@ -152,12 +152,12 @@ stop_install_processes() {
 }
 
 remove_symlink() {
-  local link="${BIN_DIR}/lcncgui"
+  local link="${BIN_DIR}/plasmaweb"
   [[ -n "$BIN_DIR" ]] || return 0
   [[ -e "$link" || -L "$link" ]] || return 0
 
   local target expected
-  expected="${PREFIX}/bin/lcncgui"
+  expected="${PREFIX}/bin/plasmaweb"
   if [[ -L "$link" ]]; then
     target="$(readlink -f "$link" 2>/dev/null || readlink "$link" 2>/dev/null || true)"
     if [[ "$target" == "$expected" ]]; then
@@ -175,9 +175,9 @@ remove_symlink() {
 remove_shutdown_sudoers() {
   local prefix="$1"
   local helper file removed=0
-  helper="$(readlink -f "${prefix}/bin/lcncgui-shutdown" 2>/dev/null || true)"
+  helper="$(readlink -f "${prefix}/bin/plasmaweb-shutdown" 2>/dev/null || true)"
   shopt -s nullglob
-  for file in /etc/sudoers.d/lcncgui-shutdown-*; do
+  for file in /etc/sudoers.d/plasmaweb-shutdown-*; do
     if [[ -n "$helper" ]] && grep -qF "$helper" "$file" 2>/dev/null; then
       rm -f "$file"
       echo "Removed sudoers: ${file}"
@@ -215,7 +215,7 @@ remove_user_data() {
   echo "Removed user data: ${data_dir}"
 }
 
-if [[ "$USER_INSTALL" -eq 0 && "$PREFIX" == "/opt/lcncgui" && "$(id -u)" -ne 0 ]]; then
+if [[ "$USER_INSTALL" -eq 0 && "$PREFIX" == "/opt/plasmaweb" && "$(id -u)" -ne 0 ]]; then
   echo "error: system uninstall from ${PREFIX} requires root (sudo ./uninstall.sh) or use --user" >&2
   exit 1
 fi
@@ -227,12 +227,12 @@ fi
 
 USER_DATA_DIR="$(resolve_data_home)"
 
-echo "This will remove lcncgui from: ${PREFIX}"
+echo "This will remove plasmaweb from: ${PREFIX}"
 if [[ -n "$BIN_DIR" ]]; then
-  echo "  Symlink: ${BIN_DIR}/lcncgui (if it points to this install)"
+  echo "  Symlink: ${BIN_DIR}/plasmaweb (if it points to this install)"
 fi
 if [[ "$(id -u)" -eq 0 ]]; then
-  echo "  Sudoers: /etc/sudoers.d/lcncgui-shutdown-* (matching this install prefix)"
+  echo "  Sudoers: /etc/sudoers.d/plasmaweb-shutdown-* (matching this install prefix)"
 fi
 if [[ "$KEEP_USER_DATA" -eq 0 && "$USER_DATA_DIR" != "$PREFIX" ]]; then
   echo "  User data: ${USER_DATA_DIR}"
@@ -248,7 +248,7 @@ remove_symlink
 
 if [[ "$(id -u)" -eq 0 ]]; then
   remove_shutdown_sudoers "$PREFIX"
-elif compgen -G "/etc/sudoers.d/lcncgui-shutdown-*" >/dev/null 2>&1; then
+elif compgen -G "/etc/sudoers.d/plasmaweb-shutdown-*" >/dev/null 2>&1; then
   echo "To remove GUI shutdown permissions, run:"
   echo "  sudo $0 --prefix ${PREFIX} --yes"
 fi
@@ -269,9 +269,9 @@ fi
 
 cat <<EOF
 
-lcncgui uninstalled.
+plasmaweb uninstalled.
 
-If your machine INI still has DISPLAY = lcncgui, change or remove that line
+If your machine INI still has DISPLAY = plasmaweb, change or remove that line
 before starting LinuxCNC again.
 
 EOF

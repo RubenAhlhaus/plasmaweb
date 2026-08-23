@@ -243,7 +243,7 @@ def test_api_put_linuxcnc_autostart_enable_disable(
         "toolInSpindle": 0,
         "reloadToolOnStartup": True,
     }
-    assert (config_home / "autostart" / "linuxcnc-lcncgui.desktop").is_file()
+    assert (config_home / "autostart" / "linuxcnc-plasmaweb.desktop").is_file()
 
     disable = client.put(
         "/api/user-preferences/linuxcnc-autostart",
@@ -252,7 +252,7 @@ def test_api_put_linuxcnc_autostart_enable_disable(
     assert disable.status_code == 200
     assert disable.json()["runLinuxCncAtStartup"] is False
     assert disable.json()["linuxCncIniPath"] is None
-    assert not (config_home / "autostart" / "linuxcnc-lcncgui.desktop").is_file()
+    assert not (config_home / "autostart" / "linuxcnc-plasmaweb.desktop").is_file()
 
 
 def test_api_put_linuxcnc_autostart_requires_ini_path(prefs_file: Path) -> None:
@@ -393,3 +393,59 @@ def test_api_put_tool_in_spindle_rejects_negative(prefs_file: Path) -> None:
 
     response = client.put("/api/user-preferences/tool-in-spindle", json={"toolInSpindle": -1})
     assert response.status_code == 422
+
+
+def test_preferences_written_under_the_old_name_are_still_read(monkeypatch, tmp_path) -> None:
+    """A machine set up before the rename keeps its window mode, INI path and last tool."""
+    import json as _json
+
+    from backend import user_preferences
+
+    monkeypatch.delenv("PLASMAWEB_USER_PREFERENCES", raising=False)
+    monkeypatch.delenv("LCNCGUI_USER_PREFERENCES", raising=False)
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+    legacy = tmp_path / "lcncgui"
+    legacy.mkdir(parents=True)
+    (legacy / "user-preferences.json").write_text(_json.dumps({"kioskMode": False}))
+
+    # The module reads the environment at import time for the defaults, so re-resolve.
+    monkeypatch.setattr(
+        user_preferences, "USER_PREFERENCES_FILE", tmp_path / "plasmaweb" / "user-preferences.json"
+    )
+    monkeypatch.setattr(
+        user_preferences,
+        "LEGACY_USER_PREFERENCES_FILE",
+        legacy / "user-preferences.json",
+    )
+
+    assert user_preferences._load_raw() == {"kioskMode": False}
+
+
+def test_the_new_location_wins_when_both_exist(monkeypatch, tmp_path) -> None:
+    import json as _json
+
+    from backend import user_preferences
+
+    monkeypatch.delenv("PLASMAWEB_USER_PREFERENCES", raising=False)
+    monkeypatch.delenv("LCNCGUI_USER_PREFERENCES", raising=False)
+    current = tmp_path / "plasmaweb" / "user-preferences.json"
+    current.parent.mkdir(parents=True)
+    current.write_text(_json.dumps({"kioskMode": True}))
+    legacy = tmp_path / "lcncgui" / "user-preferences.json"
+    legacy.parent.mkdir(parents=True)
+    legacy.write_text(_json.dumps({"kioskMode": False}))
+
+    monkeypatch.setattr(user_preferences, "USER_PREFERENCES_FILE", current)
+    monkeypatch.setattr(user_preferences, "LEGACY_USER_PREFERENCES_FILE", legacy)
+
+    assert user_preferences._load_raw() == {"kioskMode": True}
+
+
+def test_the_older_environment_override_still_works(monkeypatch, tmp_path) -> None:
+    from backend import user_preferences
+
+    monkeypatch.delenv("PLASMAWEB_USER_PREFERENCES", raising=False)
+    path = tmp_path / "somewhere.json"
+    monkeypatch.setenv("LCNCGUI_USER_PREFERENCES", str(path))
+
+    assert user_preferences.user_preferences_path() == path.resolve()

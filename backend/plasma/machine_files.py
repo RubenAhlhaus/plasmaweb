@@ -141,7 +141,7 @@ def write_config(path: str, parser: configparser.RawConfigParser) -> None:
     """Write via a temporary file in the same directory, so a crash cannot truncate a config."""
     content = render_config(parser)
     directory = os.path.dirname(os.path.abspath(path)) or "."
-    fd, tmp_path = tempfile.mkstemp(prefix=".lcncgui-plasma-", dir=directory, text=True)
+    fd, tmp_path = tempfile.mkstemp(prefix=".plasmaweb-plasma-", dir=directory, text=True)
     try:
         with os.fdopen(fd, "w", encoding="utf-8", newline="") as tmp:
             tmp.write(content)

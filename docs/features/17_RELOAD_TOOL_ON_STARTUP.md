@@ -2,7 +2,7 @@
 
 ## Description
 
-Like gmoccapy, lcncgui remembers the last tool that was in the spindle and can restore it after a restart once the machine is ready. The last tool number is stored in `~/.local/share/lcncgui/user-preferences.json` (`toolInSpindle`). When reload is enabled (`reloadToolOnStartup`, default **on**) and all jog axes (X/Y/Z) become homed while the spindle currently reports tool **0**, the UI issues MDI **`M61 Q<n> G43`** so LinuxCNC sets the tool number and length offset **without** a physical tool-change cycle (`T… M6`).
+Like gmoccapy, plasmaweb remembers the last tool that was in the spindle and can restore it after a restart once the machine is ready. The last tool number is stored in `~/.local/share/plasmaweb/user-preferences.json` (`toolInSpindle`). When reload is enabled (`reloadToolOnStartup`, default **on**) and all jog axes (X/Y/Z) become homed while the spindle currently reports tool **0**, the UI issues MDI **`M61 Q<n> G43`** so LinuxCNC sets the tool number and length offset **without** a physical tool-change cycle (`T… M6`).
 
 ## UI Interaction
 

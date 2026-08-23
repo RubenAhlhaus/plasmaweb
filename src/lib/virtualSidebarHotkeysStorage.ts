@@ -6,7 +6,7 @@ import {
 } from '@/lib/virtualSidebarHotkeys';
 
 /** localStorage key for virtual sidebar button hotkeys. */
-export const VIRTUAL_SIDEBAR_HOTKEYS_STORAGE_KEY = 'lcncgui.virtualSidebarHotkeys';
+export const VIRTUAL_SIDEBAR_HOTKEYS_STORAGE_KEY = 'plasmaweb.virtualSidebarHotkeys';
 
 export function readStoredVirtualSidebarHotkeys(): VirtualSidebarHotkeysMap {
   if (typeof window === 'undefined') return {};

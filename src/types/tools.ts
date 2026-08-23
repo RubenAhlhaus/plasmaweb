@@ -120,7 +120,7 @@ export type ToolPresetCoolant =
   | 'external_water'
   | 'air';
 
-/** Preset from lcncgui sidecar (backend snake_case JSON). */
+/** Preset from plasmaweb sidecar (backend snake_case JSON). */
 export interface ToolPreset {
   id: string;
   name: string;
