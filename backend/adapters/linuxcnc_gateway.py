@@ -1125,7 +1125,11 @@ class LinuxCncGateway:
                     paths = program_prefix_directories_from_ini(str(raw).strip(), ini_path)
                     return paths
 
-        parser = configparser.ConfigParser(interpolation=None)
+        # `strict=False`: a repeated key anywhere in the INI — `[MACROS] MACRO`, an
+        # `EMBED_TAB_NAME`, a second `APP` — makes a strict parser raise, and this would
+        # return no prefixes at all. PROGRAM_PREFIX is the guard on opening and writing
+        # programs, so failing it open is not something to do over a duplicate line.
+        parser = configparser.ConfigParser(interpolation=None, strict=False)
         parser.optionxform = str.lower
         try:
             parser.read(ini_path, encoding="utf-8")

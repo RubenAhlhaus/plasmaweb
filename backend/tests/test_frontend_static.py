@@ -111,12 +111,16 @@ def test_ws_and_static_together_like_main_app(tmp_path: Path) -> None:
 
     client = TestClient(app)
     assert client.get("/").status_code == 200
-    assert client.get("/api/user-preferences").status_code == 200
-    assert client.get("/api/user-preferences").json() == {
-        "kioskMode": None,
-        "runLinuxCncAtStartup": False,
-        "linuxCncIniPath": None,
-    }
+
+    # This test is about the routes surviving a `dist/` mounted at `/`, so it checks that the
+    # API answers and answers with preferences — not what the whole payload contains. Pinning
+    # the exact dict here made every new preference break a test about routing;
+    # `test_user_preferences.py` owns the payload's shape.
+    preferences = client.get("/api/user-preferences")
+    assert preferences.status_code == 200
+    body = preferences.json()
+    assert {"kioskMode", "runLinuxCncAtStartup", "linuxCncIniPath"} <= set(body)
+    assert body["runLinuxCncAtStartup"] is False
     with client.websocket_connect("/ws") as websocket:
         initial = websocket.receive_json()
         assert initial["type"] == "linuxcnc_status"

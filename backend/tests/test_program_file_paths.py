@@ -64,8 +64,12 @@ def test_resolve_existing_directory_allows_lexical_subpath_when_realpath_outside
     tmp_path,
 ) -> None:
     """
-    Symlink under PROGRAM_PREFIX pointing outside: realpath is outside prefix,
-    but navigation path is still lexikalisch unter dem Prefix (wie program.list-Einträge).
+    A symlink under PROGRAM_PREFIX pointing outside it: the realpath is outside the prefix,
+    but the path the client navigates with is still lexically under it — which is the path
+    ``program.list`` hands out, so clicking that entry has to work.
+
+    The path passed in is the **symlink**, not its target: a client can only send back what it
+    was given. Sending the resolved target instead is a different request, and refused below.
     """
     programs = tmp_path / "programs"
     programs.mkdir()
@@ -78,10 +82,43 @@ def test_resolve_existing_directory_allows_lexical_subpath_when_realpath_outside
         pytest.skip("cannot create directory symlink")
 
     prefixes = [str(programs.resolve())]
-    raw = str(link.resolve())
-    resolved, err = resolve_existing_directory(raw, prefixes)
+    resolved, err = resolve_existing_directory(str(link), prefixes)
     assert err is None
     assert resolved == str(outside.resolve())
+
+
+@pytest.mark.skipif(
+    os.name == "nt",
+    reason="directory symlinks on Windows are optional / need privileges",
+)
+def test_resolve_existing_directory_refuses_the_target_of_that_symlink(tmp_path) -> None:
+    """Allowing the link is not allowing its target.
+
+    The permissive rule above is about *navigation*: an entry `program.list` handed out stays
+    usable. It is not an invitation to name any directory the tree happens to link to — that
+    would make the prefix guard mean nothing.
+    """
+    programs = tmp_path / "programs"
+    programs.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    link = programs / "external_sub"
+    try:
+        link.symlink_to(outside, target_is_directory=True)
+    except OSError:
+        pytest.skip("cannot create directory symlink")
+
+    prefixes = [str(programs.resolve())]
+
+    # The resolved target, and the same directory named directly: both outside.
+    assert resolve_existing_directory(str(link.resolve()), prefixes) == (
+        None,
+        "outside_program_prefix",
+    )
+    assert resolve_existing_directory(str(outside), prefixes) == (
+        None,
+        "outside_program_prefix",
+    )
 
 
 @pytest.mark.skipif(

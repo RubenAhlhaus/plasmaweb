@@ -120,7 +120,9 @@ def machine_files(path: Optional[str] = None) -> Optional[MachineFiles]:
 
 def read_config(path: str) -> configparser.RawConfigParser:
     """Parse one of QtPlasmaC's files the way qtvcp does. A missing file reads as empty."""
-    parser = configparser.RawConfigParser()
+    # `strict=False` for the same reason the INI readers need it: these files are edited by
+    # hand and by two GUIs, and a duplicated key should not make the whole file unreadable.
+    parser = configparser.RawConfigParser(strict=False)
     parser.optionxform = str  # type: ignore[assignment,method-assign]
     if os.path.isfile(path):
         with open(path, "r", encoding="utf-8", errors="replace") as handle:

@@ -34,7 +34,10 @@ def _read_subroutine_path_raw(ini_path: str) -> str | None:
     except ImportError:
         pass
 
-    parser = configparser.ConfigParser(interpolation=None)
+    # `strict=False` because a LinuxCNC INI is allowed to repeat a key, and routinely does:
+    # `[MACROS]` declares one `MACRO =` line per macro. A strict parser raises on the second
+    # one and this function returns None, so a machine with two macros listed none at all.
+    parser = configparser.ConfigParser(interpolation=None, strict=False)
     parser.optionxform = str.lower
     try:
         parser.read(ini_path, encoding="utf-8")
