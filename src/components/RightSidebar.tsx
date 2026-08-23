@@ -77,16 +77,16 @@ export function RightSidebar({ selectedIndex, onSelect }: RightSidebarProps) {
         return (
           <AppTooltip key={idx} content={label} className="flex-1 w-full min-h-0 flex">
             <Button
-              variant="surface"
+              // The selected tab is the theme's highlight with the readable colour on it, and
+              // that has to come from the *variant*: `surface` sets its background through a
+              // plain `.surface` class, which beats a `bg-primary` utility on source order —
+              // the icon would go dark while the background stayed grey.
+              variant={isSelected ? 'default' : 'surface'}
               data-e2e={`sidebar-nav-${labelKey.replace('nav.', '')}`}
               data-active={isSelected}
               size="icon"
-              // The selected tab takes the theme's highlight, which on a QtPlasmaC machine is
-              // the colour that machine is themed with — not a gradient of its own choosing.
               className={`flex-1 w-full rounded-none h-full ${
-                isSelected
-                  ? 'bg-primary text-primary-foreground hover:bg-primary'
-                  : 'text-foreground'
+                isSelected ? 'hover:bg-primary' : 'text-foreground'
               }`}
               onClick={() => onSelect(idx)}
             >

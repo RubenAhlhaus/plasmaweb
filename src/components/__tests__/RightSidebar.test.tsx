@@ -66,6 +66,20 @@ describe('RightSidebar', () => {
     expect(selected.getAttribute('style') ?? '').not.toContain('gradient');
   });
 
+  it('the selected tab does not keep the surface background under its icon', () => {
+    // `.surface` sets a background through a plain class, which beats a `bg-primary` utility
+    // on source order: the icon went dark while the background stayed grey.
+    atSize(1348, 866);
+    render(<RightSidebar selectedIndex={2} onSelect={vi.fn()} />);
+
+    const selected = document.querySelector('[data-e2e="sidebar-nav-program"]') as HTMLElement;
+    const idle = document.querySelector('[data-e2e="sidebar-nav-home"]') as HTMLElement;
+
+    expect(selected.className).not.toContain('surface');
+    expect(selected.className).toContain('text-primary-foreground');
+    expect(idle.className).toContain('surface');
+  });
+
   it('hides the plasma tab on a machine that is not one', () => {
     useAppStore.setState({ plasmaAvailable: false });
     atSize(1348, 866);
