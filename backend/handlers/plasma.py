@@ -1296,7 +1296,11 @@ async def handle_plasma_save_peripheral_offset(
         )
     try:
         values = ctx.plasma_config.save_peripheral_offset(section, params.values)
-    except (KeyError, TypeError, ValueError) as exc:
+    except KeyError as exc:
+        return DispatchResult(
+            ack=build_error(command.commandId, "unknown_axis", str(exc).strip("'\""))
+        )
+    except (TypeError, ValueError) as exc:
         return DispatchResult(ack=build_error(command.commandId, "invalid_value", str(exc)))
     except OSError as exc:
         return DispatchResult(ack=build_error(command.commandId, "write_failed", str(exc)))

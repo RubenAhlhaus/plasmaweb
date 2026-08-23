@@ -139,6 +139,11 @@ def _shape_module(shape: str) -> Any:
             sys.path.pop()
 
 
+#: Parameters upstream's GUI *derives* rather than asks for. A client that had to supply these
+#: could get them wrong and produce a different cut from QtPlasmaC for the same inputs.
+DERIVED_PARAMETERS = ("invalidLeads",)
+
+
 def shape_parameters(shape: str) -> Tuple[Dict[str, Any], ...]:
     """The parameters one shape takes, in call order, with their defaults where they have one.
 
@@ -159,7 +164,11 @@ def shape_parameters(shape: str) -> Tuple[Dict[str, Any], ...]:
         parameters.append(
             {
                 "name": name,
-                "required": parameter.default is inspect.Parameter.empty,
+                # A derived parameter is not required of the caller: the backend works it out
+                # the way QtPlasmaC's form does, so a client cannot get it wrong.
+                "required": parameter.default is inspect.Parameter.empty
+                and name not in DERIVED_PARAMETERS,
+                "derived": name in DERIVED_PARAMETERS,
                 "default": None
                 if parameter.default is inspect.Parameter.empty
                 else parameter.default,
@@ -177,6 +186,62 @@ def shapes() -> Dict[str, Any]:
         except ConversationalError as exc:
             logger.info("plasma: conversational %s unavailable: %s", shape, exc.message)
     return available
+
+
+def derive_parameters(shape: str, values: Mapping[str, Any]) -> Dict[str, Any]:
+    """Fill in the parameters QtPlasmaC works out for itself.
+
+    ``invalidLeads`` is not an operator input: upstream computes it from the diameter, the
+    lead lengths and the small-hole threshold as the form is typed into
+    (``conversational.py:456``), and the shape modules read it to decide whether a lead-out is
+    possible at all. 0 means the leads are fine, 1 that the lead-out is too long, 2 that there
+    can be no lead-out.
+
+    Overcut is handled the same way: upstream *disables* the control for a large hole, no
+    hole, or an external circle, so asking for one there is asking for something its GUI
+    cannot produce.
+    """
+    derived: Dict[str, Any] = {}
+    expected = {entry["name"] for entry in shape_parameters(shape)}
+    if "invalidLeads" not in expected:
+        return derived
+
+    def number(name: str, fallback: float = 0.0) -> float:
+        try:
+            return float(values.get(name, fallback) or 0.0)
+        except (TypeError, ValueError):
+            return fallback
+
+    diameter = number("holeDia" if shape == "bolt_circle" else "diameter")
+    small_hole = number("smallHoleDia")
+    external = bool(values.get("isExternal"))
+    lead_in = number("leadinLength")
+    lead_out = number("leadoutLength")
+
+    # A bolt circle's holes are always internal, whatever isExternal says about the circle.
+    internal = shape == "bolt_circle" or not external
+
+    invalid = 0
+    if internal:
+        if diameter and small_hole and diameter < small_hole:
+            invalid = 2
+        elif diameter and lead_in and lead_in > diameter / 4:
+            invalid = 2
+        elif diameter and lead_out and lead_out > diameter / 4:
+            invalid = 1
+    derived["invalidLeads"] = invalid
+
+    if "isOvercut" in expected:
+        can_overcut = bool(
+            diameter and small_hole and diameter < small_hole and internal
+        )
+        if not can_overcut and values.get("isOvercut"):
+            derived["isOvercut"] = False
+            derived["overCut"] = 0.0
+        elif "isOvercut" not in values:
+            derived["isOvercut"] = False
+            derived["overCut"] = number("overCut")
+    return derived
 
 
 def generate(
@@ -230,6 +295,11 @@ def generate(
         {name: value for name, value in (defaults or {}).items() if name in expected}
     )
     values.update(params)
+    # What QtPlasmaC's own form works out as it is typed into, rather than what a client
+    # guessed. A supplied value still wins for anything but the derived ones.
+    for name, value in derive_parameters(shape, values).items():
+        if name in DERIVED_PARAMETERS or name not in params:
+            values[name] = value
 
     missing = [
         name

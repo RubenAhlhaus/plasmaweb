@@ -366,3 +366,17 @@ def test_tooltips_are_on_by_default_because_a_plasma_screen_is_full_of_abbreviat
     path.write_text("")
 
     assert read_gui_options(str(path))["toolTips"] is True
+
+
+def test_an_unknown_peripheral_axis_is_refused_rather_than_dropped(tmp_path) -> None:
+    """Dropped silently, a typed "Z axis" looks accepted and alignment uses the old offset."""
+    import pytest as _pytest
+
+    from backend.plasma.parameters import write_peripheral_offset
+
+    path = tmp_path / "machine.prefs"
+    path.write_text("")
+
+    with _pytest.raises(KeyError):
+        write_peripheral_offset(str(path), "LASER_OFFSET", {"Z axis": 5.0})
+    assert "Z axis" not in path.read_text()

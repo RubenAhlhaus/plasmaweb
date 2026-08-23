@@ -684,10 +684,12 @@ def write_peripheral_offset(path: str, section: str, values: Mapping[str, Any]) 
     parser = read_config(path)
     if not parser.has_section(section):
         parser.add_section(section)
+    unknown = [key for key in values if key not in PERIPHERAL_KEYS]
+    if unknown:
+        # Dropped silently, a typed "Z axis" looks accepted and the alignment quietly uses the
+        # old offset. The write is refused instead.
+        raise KeyError(f"{section} has no {', '.join(sorted(unknown))}")
     for key, value in values.items():
-        if key not in PERIPHERAL_KEYS:
-            logger.warning("plasma: refusing to write unknown %s key %r", section, key)
-            continue
         parser.set(section, key, str(float(value)))
     write_config(path, parser)
 

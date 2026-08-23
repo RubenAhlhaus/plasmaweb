@@ -56,6 +56,15 @@ MAX_RECOVERY_SPEED_PERCENT = 100.0
 #: hundreds is a bug or a stuck key, not an operator.
 MAX_RECOVERY_STEPS = 10
 
+#: Longest a torch pulse may be asked for. QtPlasmaC's own spinbox stops at 10 s, and this is
+#: a *momentary* control: a request for an hour is a mistake, not an instruction.
+MAX_TORCH_PULSE_SECONDS = 10.0
+
+#: How far the THC height override may be driven either way. QtPlasmaC steps it in whole volts
+#: and its own display assumes a handful; a value out here would command the Z axis through a
+#: multiple of the machine's travel the moment the arc lit.
+MAX_HEIGHT_OVERRIDE_VOLTS = 25.0
+
 
 class PlasmaService:
     """UI intents → plasmac setpoint writes, through :class:`HalBridge`'s policy check."""
@@ -126,9 +135,21 @@ class PlasmaService:
 
         The UI owns the increment (QtPlasmaC's ±1 V buttons and reset) and sends the resulting
         value; keeping the arithmetic in one place avoids two sources of truth for what the
-        current override is.
+        current override is. It is bounded here all the same — the number arrives over a
+        WebSocket and ends up scaling Z motion against the arc voltage.
         """
-        self._bridge.request_write(QTPLASMAC_COMPONENT, "height_override", float(volts))
+        try:
+            value = float(volts)
+        except (TypeError, ValueError):
+            raise PinWriteRejected(
+                "invalid_params", f"the height override must be a number, not {volts!r}"
+            ) from None
+        if not -MAX_HEIGHT_OVERRIDE_VOLTS <= value <= MAX_HEIGHT_OVERRIDE_VOLTS:
+            raise PinWriteRejected(
+                "invalid_params",
+                f"the height override must be within ±{MAX_HEIGHT_OVERRIDE_VOLTS:.0f} V",
+            )
+        self._bridge.request_write(QTPLASMAC_COMPONENT, "height_override", value)
 
     def torch_pulse(
         self, action: str, seconds: Optional[float] = None
@@ -155,6 +176,12 @@ class PlasmaService:
                     "torch_already_on", "the torch is on; a pulse would fight the running cut"
                 )
             if seconds is not None:
+                # A momentary control: an hour-long pulse is a mistake, not an instruction.
+                if not 0 < float(seconds) <= MAX_TORCH_PULSE_SECONDS:
+                    raise PinWriteRejected(
+                        "invalid_params",
+                        f"a torch pulse must be between 0 and {MAX_TORCH_PULSE_SECONDS:.0f}s",
+                    )
                 self._bridge.request_write(PLASMAC_COMPONENT, "torch-pulse-time", float(seconds))
             self._bridge.request_write(PLASMAC_COMPONENT, "torch-pulse-start", True)
             skipped += self._write_if_present("torch-pulse-hold", True)

@@ -13,7 +13,13 @@ import { usePlasmaCommands } from '@/hooks/usePlasmaCommands';
 import { useAppStore } from '@/store';
 import type { PlasmaToolpath } from '@/store/types';
 
-type ShapeParameter = { name: string; required: boolean; default: unknown };
+type ShapeParameter = {
+  name: string;
+  required: boolean;
+  /** The backend works this one out itself, the way QtPlasmaC's form does. */
+  derived?: boolean;
+  default: unknown;
+};
 type ShapeSchemas = Record<string, ShapeParameter[]>;
 
 /**
@@ -41,6 +47,13 @@ const BOOLEAN_PARAMETERS = new Set([
   'diaOrLen',
   'rButton',
 ]);
+/**
+ * Parameters the backend works out for itself, the way QtPlasmaC's form does — `invalidLeads`
+ * is computed from the diameter and the lead lengths, not typed by anyone. The backend marks
+ * them, so this filters on the mark rather than on a list that could drift.
+ */
+const isDerived = (parameter: { derived?: boolean }) => parameter.derived === true;
+
 const INTEGER_PARAMETERS = new Set([
   'sides',
   'points',
@@ -252,7 +265,7 @@ export function PlasmaConversationalScreen() {
     setValues(
       Object.fromEntries(
         schema
-          .filter((parameter) => !MACHINE_SUPPLIED.has(parameter.name))
+          .filter((parameter) => !MACHINE_SUPPLIED.has(parameter.name) && !isDerived(parameter))
           .map((parameter) => [parameter.name, initialValue(parameter)]),
       ),
     );
@@ -264,7 +277,7 @@ export function PlasmaConversationalScreen() {
   const fields = useMemo(
     () =>
       shape && schemas && schemas[shape]
-        ? schemas[shape].filter((p) => !MACHINE_SUPPLIED.has(p.name))
+        ? schemas[shape].filter((p) => !MACHINE_SUPPLIED.has(p.name) && !isDerived(p))
         : [],
     [shape, schemas],
   );

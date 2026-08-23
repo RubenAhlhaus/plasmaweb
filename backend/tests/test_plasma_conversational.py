@@ -537,3 +537,94 @@ def test_the_line_module_is_called_by_keyword_so_an_extra_argument_is_survivable
 
     assert result["error"] is None
     assert seen["lineType"] == "arc"
+
+
+# ---- derived parameters ----------------------------------------------------------------
+
+
+def test_invalid_leads_is_derived_rather_than_asked_for() -> None:
+    """Upstream computes it as the form is typed into; a client that guessed would cut
+    differently from QtPlasmaC for the same inputs."""
+    from backend.plasma.conversational import DERIVED_PARAMETERS, shape_parameters
+
+    entry = next(p for p in shape_parameters("circle") if p["name"] == "invalidLeads")
+
+    assert "invalidLeads" in DERIVED_PARAMETERS
+    assert entry["derived"] is True
+    assert entry["required"] is False
+
+
+def test_a_small_hole_can_have_no_lead_out() -> None:
+    """`2` is upstream's own value for "no lead-out possible" (conversational.py:475)."""
+    from backend.plasma.conversational import derive_parameters
+
+    derived = derive_parameters(
+        "circle",
+        {"diameter": 5.0, "smallHoleDia": 32.0, "isExternal": False, "leadinLength": 1.0},
+    )
+
+    assert derived["invalidLeads"] == 2
+
+
+def test_a_lead_in_longer_than_a_quarter_of_the_diameter_kills_the_lead_out() -> None:
+    from backend.plasma.conversational import derive_parameters
+
+    derived = derive_parameters(
+        "circle",
+        {"diameter": 40.0, "smallHoleDia": 32.0, "isExternal": False, "leadinLength": 15.0},
+    )
+
+    assert derived["invalidLeads"] == 2
+
+
+def test_a_long_lead_out_alone_is_the_milder_case() -> None:
+    from backend.plasma.conversational import derive_parameters
+
+    derived = derive_parameters(
+        "circle",
+        {
+            "diameter": 40.0,
+            "smallHoleDia": 32.0,
+            "isExternal": False,
+            "leadinLength": 2.0,
+            "leadoutLength": 15.0,
+        },
+    )
+
+    assert derived["invalidLeads"] == 1
+
+
+def test_an_external_circle_always_has_room_for_its_leads() -> None:
+    from backend.plasma.conversational import derive_parameters
+
+    derived = derive_parameters(
+        "circle",
+        {"diameter": 5.0, "smallHoleDia": 32.0, "isExternal": True, "leadinLength": 4.0},
+    )
+
+    assert derived["invalidLeads"] == 0
+
+
+def test_overcut_is_refused_where_qtplasmac_disables_it() -> None:
+    """Upstream greys the control out for a large hole or an external circle, so asking for
+    one there is asking for something its GUI cannot produce."""
+    from backend.plasma.conversational import derive_parameters
+
+    large = derive_parameters(
+        "circle",
+        {"diameter": 80.0, "smallHoleDia": 32.0, "isExternal": False, "isOvercut": True},
+    )
+    assert large["isOvercut"] is False
+    assert large["overCut"] == 0.0
+
+    small = derive_parameters(
+        "circle",
+        {"diameter": 10.0, "smallHoleDia": 32.0, "isExternal": False, "isOvercut": True},
+    )
+    assert "isOvercut" not in small  # the operator's choice stands
+
+
+def test_a_shape_with_no_leads_to_invalidate_is_left_alone() -> None:
+    from backend.plasma.conversational import derive_parameters
+
+    assert derive_parameters("rectangle", {"width": 50.0}) == {}

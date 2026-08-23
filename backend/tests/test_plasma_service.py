@@ -417,3 +417,44 @@ def test_a_healthy_supply_reports_no_fault_at_all() -> None:
     bridge.poll_once()
 
     assert service.powermax_status()["fault"] is None
+
+
+# ---- bounds found by the milestone audit -----------------------------------------------
+
+
+def test_the_height_override_is_bounded() -> None:
+    """It scales Z motion against the arc voltage, and it arrives over a WebSocket."""
+    from backend.plasma.service import MAX_HEIGHT_OVERRIDE_VOLTS
+
+    service, _runtime, _bridge = build()
+
+    with pytest.raises(PinWriteRejected) as excinfo:
+        service.height_override(1e9)
+    assert excinfo.value.code == "invalid_params"
+
+    with pytest.raises(PinWriteRejected):
+        service.height_override(-MAX_HEIGHT_OVERRIDE_VOLTS - 1)
+
+    service.height_override(MAX_HEIGHT_OVERRIDE_VOLTS)  # the edge is allowed
+
+
+def test_a_height_override_that_is_not_a_number_is_refused() -> None:
+    service, _runtime, _bridge = build()
+
+    with pytest.raises(PinWriteRejected):
+        service.height_override("high")
+
+
+def test_a_torch_pulse_of_an_hour_is_a_mistake_not_an_instruction() -> None:
+    from backend.plasma.service import MAX_TORCH_PULSE_SECONDS
+
+    service, _runtime, _bridge = build()
+
+    with pytest.raises(PinWriteRejected) as excinfo:
+        service.torch_pulse("press", seconds=9999)
+    assert excinfo.value.code == "invalid_params"
+
+    with pytest.raises(PinWriteRejected):
+        service.torch_pulse("press", seconds=0)
+
+    service.torch_pulse("press", seconds=MAX_TORCH_PULSE_SECONDS)
