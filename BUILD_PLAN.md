@@ -866,6 +866,39 @@ reimplemented: with tips off no `title` is rendered at all, which is what upstre
 Still open in M6: the virtual keyboard's custom layouts (`:2525`), which need a soft-keyboard
 this UI does not have — its numeric keypad is a dialog rather than an on-screen keyboard.
 
+## Milestone audit
+
+Every milestone driven against the running machine, September 2026, with the scripts kept under
+`scripts/audit/`. Two passes: `milestones.py` walks each milestone's happy path including a real
+cut, `adversarial.py` throws bad input at every command and checks the files afterwards.
+
+**88 checks, all passing after the fixes below.** The interesting part is what failed first.
+
+| Found | Why it mattered |
+|---|---|
+| the THC height override accepted 1e9 volts | it scales Z against the arc voltage, so that is the axis through a multiple of its own travel the moment the arc lights |
+| a torch pulse accepted 9999 seconds | on a control whose whole point is being momentary |
+| an unknown peripheral axis was dropped with a log line | a typed `Z axis` looked accepted while alignment kept using the old offset |
+| `invalidLeads` was a numeric field on the conversational form | it is *derived*, not typed — see below |
+
+The last is the one worth reading twice. `invalidLeads` is not an operator input in QtPlasmaC:
+its form computes it from the diameter, the lead lengths and the small-hole threshold as the
+values are typed (`conversational.py:456`), and the shape modules read it to decide whether a
+lead-out is possible at all — `2` means none is. Our form asked the operator for a number
+between 0 and 2 with no explanation, and typing 0 where upstream computes 2 produces a hole
+with a lead-out QtPlasmaC would not have cut. It is derived in the backend now, marked as such
+in the shape contract so the form drops it, and overcut is clamped the same way upstream
+disables its control.
+
+Three things the audit confirmed rather than broke, each of which had been a bug earlier in the
+project: `gcode_scale` is 1 (the M1 THC bug), the interpreter reports extents in machine units
+rather than inches, and `THIS CUTPATH` is refused on 2.9.4 instead of silently degrading.
+
+Two failures turned out to be the *audit's* fault, and both are worth knowing when writing
+another one: half the plasma commands are legitimately refused on a machine that is off, so the
+power-on and homing have to come first; and `run_from_line` loads its own generated program, so
+running it mid-suite swaps out what the next check was about to cut.
+
 ## Files to create / modify
 
 **New (backend):** `backend/adapters/hal_component.py`,
