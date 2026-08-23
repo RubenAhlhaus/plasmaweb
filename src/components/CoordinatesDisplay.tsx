@@ -44,28 +44,28 @@ export const CoordinatesDisplay = memo(function CoordinatesDisplay({
     >
       <div>
         <div className={getRowClass(isAxisHomed(homingStatus, 'x', jointCoordinates))}>
-          <span className="text-foreground text-2xl font-semibold">X</span>
+          <span className="text-[color:var(--axis-x)] text-2xl font-semibold">X</span>
           <span
             data-e2e="coord-x"
-            className="text-foreground text-3xl font-mono tabular-nums"
+            className="text-[color:var(--axis-x)] text-3xl font-mono tabular-nums"
           >
             {formatMachineCoordinate(x)}
           </span>
         </div>
         <div className={getRowClass(isAxisHomed(homingStatus, 'y', jointCoordinates))}>
-          <span className="text-foreground text-2xl font-semibold">Y</span>
+          <span className="text-[color:var(--axis-y)] text-2xl font-semibold">Y</span>
           <span
             data-e2e="coord-y"
-            className="text-foreground text-3xl font-mono tabular-nums"
+            className="text-[color:var(--axis-y)] text-3xl font-mono tabular-nums"
           >
             {formatMachineCoordinate(y)}
           </span>
         </div>
         <div className={getRowClass(isAxisHomed(homingStatus, 'z', jointCoordinates))}>
-          <span className="text-foreground text-2xl font-semibold">Z</span>
+          <span className="text-[color:var(--axis-z)] text-2xl font-semibold">Z</span>
           <span
             data-e2e="coord-z"
-            className="text-foreground text-3xl font-mono tabular-nums"
+            className="text-[color:var(--axis-z)] text-3xl font-mono tabular-nums"
           >
             {formatMachineCoordinate(z)}
           </span>

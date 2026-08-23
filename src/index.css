@@ -27,6 +27,14 @@
     --input: 56 100% 51%;
     --ring: 56 100% 51%;
     --radius: 0.5rem;
+    /*
+     * The axis colours are a CNC convention, not a theme choice: an operator reads the axis
+     * by its colour before they read the letter, and every other control they have used does
+     * it this way. Deliberately left out of the machine's [COLOR_OPTIONS] mapping.
+     */
+    --axis-x: #f87171;
+    --axis-y: #4ade80;
+    --axis-z: #60a5fa;
     /* The three with no shadcn role of their own. */
     --plasma-led: #ffee06;
     --plasma-estop: #ff0000;

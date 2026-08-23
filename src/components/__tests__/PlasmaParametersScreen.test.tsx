@@ -154,6 +154,16 @@ describe('PlasmaParametersScreen', () => {
     expect(save?.params.values).toEqual({ foreground: '#00ff88' });
   });
 
+  it('explains what a parameter does, where we know', () => {
+    setParameters();
+
+    render(<PlasmaParametersScreen />);
+
+    const label = e2e('plasma-parameter-height-per-volt')
+      .closest('div')?.parentElement?.textContent ?? '';
+    expect(label).toContain('Height Per Volt');
+  });
+
   it('reload asks the backend to re-read both files', async () => {
     const sent = installFakeSocket();
     setParameters();

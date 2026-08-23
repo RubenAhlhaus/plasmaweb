@@ -178,6 +178,12 @@ export function PlasmaParametersScreen() {
    * checks again — it owns the machine — but a bound the operator learns about only after
    * pressing SAVE is a bound they have already worked around.
    */
+  /** The explanation for a parameter, or nothing when we have none worth showing. */
+  const help = (key: string): string | null => {
+    const text = t(`parameters.help.${key}`, { defaultValue: '' });
+    return text || null;
+  };
+
   const validator = (key: string) => (parsed: number): string | null => {
     const limit = parameters.limits?.[key];
     if (!limit) return null;
@@ -415,7 +421,14 @@ export function PlasmaParametersScreen() {
                   <TouchNumericPickerField
                     key={key}
                     label={t(`parameters.key.${key}`, { defaultValue: key })}
-                    labelTooltip={noPin ? t('parameters.noPin') : undefined}
+                    // What the parameter does, in the operator's terms. Only the ones whose
+                    // behaviour is documented in plasmac.comp have an explanation; the rest
+                    // say nothing rather than guess.
+                    labelTooltip={
+                      [help(key), noPin ? t('parameters.noPin') : null]
+                        .filter(Boolean)
+                        .join(' ') || undefined
+                    }
                     labelAccessory={
                       noPin ? (
                         <span
