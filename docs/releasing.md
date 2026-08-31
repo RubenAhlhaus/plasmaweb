@@ -1,6 +1,6 @@
 # Publishing releases
 
-This guide is for **maintainers** who ship plasmaweb to LinuxCNC controllers via [GitHub Releases](https://github.com/salomom/plasmaweb/releases).
+This guide is for **maintainers** who ship plasmaweb to LinuxCNC controllers via [GitHub Releases](https://github.com/RubenAhlhaus/plasmaweb/releases).
 
 End users install from the published tarball — see [`docs/installation.md`](installation.md).
 
@@ -8,7 +8,7 @@ End users install from the published tarball — see [`docs/installation.md`](in
 
 | Step | Who | Result |
 |------|-----|--------|
-| Merge changes to `master` | Maintainer | Stable source on the default branch |
+| Merge changes to `main` | Maintainer | Stable source on the default branch |
 | Bump version + update changelog | Maintainer | `package.json` and `CHANGELOG.md` reflect the release |
 | Push git tag `v<version>` | Maintainer | Triggers GitHub Actions |
 | CI runs `build-release.sh` | GitHub Actions | Builds `plasmaweb-<version>-linux.tar.gz` |
@@ -54,7 +54,7 @@ npm version major    # 1.0.0 → 2.0.0
 If you used `npm version`, push the commit and tag:
 
 ```bash
-git push origin master
+git push origin main
 git push origin v1.0.0
 ```
 
@@ -62,15 +62,15 @@ If you tag manually after committing:
 
 ```bash
 git tag v1.0.0
-git push origin master v1.0.0
+git push origin main v1.0.0
 ```
 
-**Important:** The tag must be on a commit that is already on `master` (or at least reachable from the tagged commit). CI checks out the tagged commit and builds from that tree.
+**Important:** The tag must be on a commit that is already on `main` (or at least reachable from the tagged commit). CI checks out the tagged commit and builds from that tree.
 
 ### 4. Verify the GitHub Release
 
-1. Open [Actions](https://github.com/salomom/plasmaweb/actions) — the **Release** workflow should succeed.
-2. Open [Releases](https://github.com/salomom/plasmaweb/releases) — confirm assets:
+1. Open [Actions](https://github.com/RubenAhlhaus/plasmaweb/actions) — the **Release** workflow should succeed.
+2. Open [Releases](https://github.com/RubenAhlhaus/plasmaweb/releases) — confirm assets:
    - `plasmaweb-<version>-linux.tar.gz`
    - `checksums.txt`
 3. Optionally smoke-test on a controller:
@@ -136,7 +136,7 @@ Users extract a newer tarball and re-run `install.sh` from the new directory. Do
 | Problem | What to check |
 |---------|----------------|
 | Workflow did not run | Tag must match `v*` and be pushed to GitHub (`git push origin v1.0.0`). |
-| `build-release.sh` fails in CI | Reproduce locally; ensure `npm ci` and `npm run build` succeed on `master`. |
+| `build-release.sh` fails in CI | Reproduce locally; ensure `npm ci` and `npm run build` succeed on `main`. |
 | Wrong version in tarball | Tag version must match `package.json` (CI uses the tag, not `package.json`, for the tarball name and `VERSION` file). |
 | Release exists but no assets | Check the failed job log; re-run workflow or delete the tag/release and push the tag again. |
 | Users get source zip instead of tarball | Point them to **Assets** on the Release page, not “Source code (zip/tar.gz)”. Only the custom tarball includes the built frontend. |

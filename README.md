@@ -3,10 +3,12 @@
 A browser-based replacement for the **QtPlasmaC** screen — plasma cutter control for
 LinuxCNC in a touch-friendly web UI, with a Python backend on the machine.
 
-**Status: milestone M0 (foundation).** The plasmaweb application skeleton is vendored and
-boots against a QtPlasmaC config; no plasma-specific code exists yet. See
-[`BUILD_PLAN.md`](BUILD_PLAN.md) for the full plan and milestones, and
-[`plan.md`](plan.md) for the original brief.
+**Status: feature-complete against QtPlasmaC, released as `v1.0`.** Milestones M0–M5 are
+done and M6 (look, feel, customisability) is done except the virtual keyboard's custom
+layouts. Every milestone was driven against a running LinuxCNC machine, and an 88-check
+audit — happy path plus adversarial input, scripts under `scripts/audit/` — passes.
+[`BUILD_PLAN.md`](BUILD_PLAN.md) is the record of what was built, what it was measured
+against, and what each pass found; [`plan.md`](plan.md) is the original brief.
 
 ## Design in one page
 
@@ -24,44 +26,75 @@ boots against a QtPlasmaC config; no plasma-specific code exists yet. See
   never HAL calls from the event loop.
 - **Reuse over reimplementation.** Conversational geometry, run-from-line and the G-code
   interpreter come from LinuxCNC's own pure-Python modules. Jog, DRO, MDI, program
-  running and the tool table come from plasmaweb.
+  running and the tool table come from the vendored lcncgui application.
 
 See [`UPSTREAM.md`](UPSTREAM.md) for exactly what is vendored, what is reused at
 runtime, and the rules for both.
 
+## What the UI covers
+
+| Screen | What it is |
+|---|---|
+| MAIN | live plasma dashboard — arc voltage, THC state, LEDs, cut recovery, torch pulse, height override, single cut |
+| PARAMETERS | the `[QTPLASMAC]` / prefs parameters, written back to `<machine>.prefs` |
+| MATERIAL | cut materials from `<machine>_material.cfg`, including the `M190` material-change handshake |
+| CONVERSATIONAL | LinuxCNC's own `plasmac` shape modules, driven from a web form |
+| PREVIEW | toolpath preview and run-from-line |
+| STATISTICS | cut counts, arc time, consumable statistics |
+
+Plus everything the vendored application already did: jog and homing, MDI, program load
+and run, the tool table, macros, HAL softkeys and external panel inputs.
+
+**LinuxCNC version.** Verified on 2.9.4; the pin table is generated from a 2.10
+`plasmac.comp`. Eighteen pins do not exist on 2.9.4 (moving pierce, tube cutting, laser
+mode, slat height, offset feed rate). `backend/plasma/capabilities.py` works this out
+from the pins the machine actually exports: the PARAMETERS tab lists those features as
+unavailable and flags the settings that save to the prefs file but reach no pin here —
+rather than leaving a control that looks like it works and reaches nothing.
+
 ## Layout
 
 ```
-backend/            FastAPI + WebSocket backend (vendored from plasmaweb)
-  plasma/           plasma domain logic                       (M1+)
-  adapters/         LinuxCNC + HAL access
-src/                React + TypeScript frontend (vendored from plasmaweb)
-  screens/plasma/   MAIN / PARAMETERS / SETTINGS / STATISTICS /
-                    CONVERSATIONAL / MATERIAL                 (M1+)
-bin/plasmacweb      LinuxCNC [DISPLAY] launcher
-reference/          read-only upstream clones (git-ignored)
-docs/               upstream docs + UPSTREAM_README.md
+backend/
+  plasma/                 plasma domain logic — pins, hal_bridge, materials,
+                          parameters, conversational, toolpath, colors, capabilities
+  handlers/plasma.py      plasma commands on the shared CommandBus
+  services/               plasma_publisher.py + the vendored publishers
+  adapters/               LinuxCNC + HAL access
+src/
+  screens/Plasma*.tsx     MAIN / PARAMETERS / MATERIAL / CONVERSATIONAL / PREVIEW
+  components/plasma/      readouts, LEDs, toolpath canvas, recovery pad, panels
+  store/plasmaSlice.ts    plasma state
+bin/plasmaweb             the launcher (backend + kiosk browser)
+bin/plasmacweb            thin alias, for INIs that say DISPLAY = plasmacweb
+resources/                INI/HAL snippets and macro subroutines shipped to the machine
+reference/                read-only upstream clones (git-ignored)
+docs/                     installation, dev VM, WebSocket protocol, feature docs
 ```
 
 ## Development
 
 Requires Node 18+ and Python 3.9+. The backend needs LinuxCNC's `linuxcnc` and `hal`
-Python modules, which only exist on a LinuxCNC install — off-machine, plasma code falls
-back to fakes and fixtures (M1+).
+Python modules, which only exist on a LinuxCNC install — off-machine the plasma code
+falls back to fakes and fixtures, and the whole test suite runs.
 
 ```bash
 npm install
 npm run dev            # Vite dev server
-npm test               # vitest
+npm test               # vitest — 653 tests, 100 files
 npm run lint
 
 python -m backend.main # backend (needs the linuxcnc module)
-pytest backend/tests
+pytest backend/tests   # 827 pass, 1 skipped off-machine
 ```
 
-Five backend tests fail off-machine and are inherited from upstream — see
-[`docs/UPSTREAM_TEST_BASELINE.md`](docs/UPSTREAM_TEST_BASELINE.md) before treating a
-red suite as new.
+Both suites are green off-machine; a red one is a real failure, not inherited noise.
+(The historical upstream baseline is kept at
+[`docs/UPSTREAM_TEST_BASELINE.md`](docs/UPSTREAM_TEST_BASELINE.md) for diffing against
+lcncgui, not as an excuse for failures here.)
+
+Driving a real sim machine — VM access, deploying a build into it, making it actually
+cut, and comparing against real QtPlasmaC — is in [`docs/dev-vm.md`](docs/dev-vm.md).
 
 ## Running on a machine
 
@@ -69,11 +102,21 @@ Install per [`docs/installation.md`](docs/installation.md), then in the machine 
 
 ```ini
 [DISPLAY]
-DISPLAY = plasmacweb
+DISPLAY = plasmaweb
 ```
+
+Nothing else in a QtPlasmaC config changes: the same `plasmac` realtime component, the
+same POSTGUI halfiles, the same prefs and material files. Setting `DISPLAY` back to
+`qtvcp qtplasmac` returns the machine to QtPlasmaC.
 
 The integration target is the QtPlasmaC simulator config shipped with LinuxCNC
 (`configs/sim/qtplasmac/`), whose `sim-torch` component supplies a synthetic arc voltage.
+
+## Releases
+
+Pushing a `v*` tag builds `plasmaweb-<version>-linux.tar.gz` and publishes it with
+checksums via GitHub Actions (`.github/workflows/release.yml`). See
+[`docs/releasing.md`](docs/releasing.md).
 
 ## License
 

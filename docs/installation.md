@@ -1,8 +1,10 @@
 # Installing plasmaweb on a LinuxCNC controller
 
-This guide is for **end users** who run plasmaweb as the LinuxCNC display (like gmoccapy). You do **not** need Node.js on the machine — only a pre-built release archive.
+This guide is for **end users** who run plasmaweb as the LinuxCNC display (like gmoccapy or QtPlasmaC). You do **not** need Node.js on the machine — only a pre-built release archive.
 
-Developers: see [`docs/frontend-web-start.md`](frontend-web-start.md) for the dev workflow (split Vite + backend ports).
+plasmaweb is a **web replacement for the QtPlasmaC screen**: on a plasma machine it exports the same `qtplasmac` HAL component and reads and writes the same files QtPlasmaC does, so switching a machine over is one INI line. On a non-plasma machine it runs as an ordinary LinuxCNC GUI and the plasma layer simply stays inactive. The plasma-specific part of the setup is [Plasma: switching a QtPlasmaC machine over](#plasma-switching-a-qtplasmac-machine-over) below.
+
+Developers: see [`docs/frontend-web-start.md`](frontend-web-start.md) for the dev workflow (split Vite + backend ports), and [`docs/dev-vm.md`](dev-vm.md) for running the QtPlasmaC sim in a VM.
 
 ## What you get after install
 
@@ -14,7 +16,8 @@ Developers: see [`docs/frontend-web-start.md`](frontend-web-start.md) for the de
 
 | Requirement | Notes |
 |-------------|--------|
-| LinuxCNC | Installed and working; `python3 -c "import linuxcnc"` must succeed |
+| LinuxCNC | Installed and working; `python3 -c "import linuxcnc"` must succeed. Verified on **2.9.4**; 2.10 additionally enables moving pierce, tube cutting, laser mode, slat height and offset feed rate |
+| A working machine config | For plasma: an existing **QtPlasmaC** config (the realtime `plasmac` component, a `[QTPLASMAC]` INI section, `<machine>.prefs` and `<machine>_material.cfg`). plasmaweb replaces the *screen*, not the config |
 | `python3-venv` | `sudo apt install python3-venv python3-full` on Raspberry Pi OS / Debian |
 | pip (in venv) | Created by `install.sh` — uses `backend/requirements-runtime.txt` only |
 | HTTP probe | `curl` **or** `python3` (launcher waits for backend HTTP) |
@@ -23,7 +26,7 @@ Developers: see [`docs/frontend-web-start.md`](frontend-web-start.md) for the de
 
 ## 1. Download and extract
 
-**Recommended:** download the latest **`plasmaweb-<version>-linux.tar.gz`** from [GitHub Releases](https://github.com/salomom/plasmaweb/releases). Each release includes a `checksums.txt` for optional verification (`sha256sum -c checksums.txt`).
+**Recommended:** download the latest **`plasmaweb-<version>-linux.tar.gz`** from [GitHub Releases](https://github.com/RubenAhlhaus/plasmaweb/releases). Each release includes a `checksums.txt` for optional verification (`sha256sum -c checksums.txt`).
 
 To build a tarball yourself (maintainers / from source):
 
@@ -98,15 +101,15 @@ The installer:
 2. Writes `dist/plasmaweb-config.json` from `resources/plasmaweb-config.production.json` (`"websocketUrl": "auto"`)
 3. Creates **`$PREFIX/venv`** with `python3 -m venv --system-site-packages` (so the venv can `import linuxcnc` from the OS)
 4. Runs `pip install -r backend/requirements-runtime.txt` **inside that venv** (avoids PEP 668 on Raspberry Pi OS)
-5. Links `bin/plasmaweb` into `/usr/local/bin` or `~/.local/bin` when appropriate
-6. **System install (`sudo ./install.sh`):** grants the LinuxCNC user passwordless sudo for `$PREFIX/bin/plasmaweb-shutdown` only (`--as-root`, `--dry-run`, `--as-root --dry-run`), so **Fenster schließen und herunterfahren** in the exit dialog can power off the PC
+5. Links `plasmaweb`, `plasmacweb` (the plasma alias) and `lcncgui` (the old name) into `/usr/local/bin` or `~/.local/bin` when appropriate — so any of the three `DISPLAY` names starts this GUI
+6. **System install (`sudo ./install.sh`):** grants the LinuxCNC user passwordless sudo for `$PREFIX/bin/plasmaweb-shutdown` only (`--as-root`, `--dry-run`, `--as-root --dry-run`), so **Close window and shut down** in the exit dialog can power off the PC
 
 ### Shut down the PC from the GUI
 
 The power icon in the header opens an exit dialog:
 
-- **Fenster schließen** — closes the browser and stops the backend
-- **Fenster schließen und herunterfahren** — same, then powers off the controller
+- **Close window** — closes the browser and stops the backend
+- **Close window und shutdown** — same, then powers off the controller
 
 **System-wide install** (`sudo ./install.sh`): shutdown permissions are configured automatically for the user who ran `sudo` (e.g. `cnc`).
 
@@ -124,7 +127,7 @@ sudo ./install.sh --prefix /opt/plasmaweb --setup-shutdown cnc
 
 This writes `/etc/sudoers.d/plasmaweb-shutdown-<user>` allowing **only** `$PREFIX/bin/plasmaweb-shutdown` with arguments `--as-root`, `--dry-run`, or `--as-root --dry-run` without a password. The helper tries a normal session poweroff first (`loginctl`); sudo is used only when needed.
 
-**Shutdown sequence** (exit dialog → **Fenster schließen und herunterfahren**):
+**Shutdown sequence** (exit dialog → **Close window and shut down**):
 
 1. Backend aborts motion and switches the machine off (`machine.abort`, then `machine.power` off)
 2. Backend writes a marker file and returns `ok`; the browser closes and the backend stops
@@ -184,6 +187,44 @@ The UI shows at most **four** increment buttons (plus **Continuous**); additiona
 plasmaweb also loads `[HAL] POSTGUI_HALFILE` (same as gmoccapy), so call-lists like `postgui_call_list.hal` → `pendant.hal` still apply. Avoid `gmoccapy.*` pins in those files when using plasmaweb. Details: [`docs/features/16_POSTGUI_HALFILE.md`](features/16_POSTGUI_HALFILE.md).
 
 Other `[DISPLAY]` keys (`PROGRAM_PREFIX`, `INCREMENTS`, `LATHE`, …) are read by the plasmaweb backend from the active INI.
+
+### Plasma: switching a QtPlasmaC machine over
+
+On a plasma table plasmaweb replaces the **screen** only. Change the one `[DISPLAY]` line in the config you already run:
+
+```ini
+[DISPLAY]
+DISPLAY = plasmaweb
+```
+
+Everything else in a QtPlasmaC config stays exactly as it is — the realtime `plasmac` component, the `[QTPLASMAC]` section, the `[FILTER]` line that runs `qtplasmac_gcode.py`, your POSTGUI halfiles, and the machine's prefs and material files. Putting the original `qtvcp qtplasmac…` line back returns the machine to QtPlasmaC, and it reads everything plasmaweb wrote.
+
+`DISPLAY = plasmacweb` works too: `bin/plasmacweb` is a thin alias for the same launcher, and `install.sh` links it onto `PATH` alongside `plasmaweb`. Nothing about the two differs at runtime — pick whichever name your config already uses.
+
+**What it does at startup:**
+
+1. The backend exports the `qtplasmac` HAL component with all **91** pins and calls `ready()` while it is being imported — *before* the launcher loads `[HAL] POSTGUI_HALFILE`, so the `net qtplasmac.*` lines in a QtPlasmaC config resolve exactly as they do under QtPlasmaC.
+2. It recreates the HAL links QtPlasmaC makes at startup (`plasmac.axis-*-limit` from the INI, `plasmac` outputs into its own pins) and sets the output pins QtPlasmaC does not leave at zero.
+3. It loads the machine's materials and plasma parameters and writes them to their setpoints, because a `plasmac` with parameters at zero cannot cut (`arc-max-starts` at 0 pauses on the first pierce, `pid-p-gain` at 0 freezes the THC).
+
+**Files it reads and writes.** Both sit beside the INI and are named from `[EMC] MACHINE`:
+
+| File | Holds |
+|------|-------|
+| `<machine>.prefs` | plasma parameters, GUI options, `[COLOR_OPTIONS]` |
+| `<machine>_material.cfg` | cut materials |
+
+They are read and written with the same `RawConfigParser` settings qtvcp uses, so QtPlasmaC can open a file this UI saved. As in QtPlasmaC, a write rewrites the whole file and **comments do not survive** — back both files up before the first run. A machine with no `.prefs` yet gets QtPlasmaC's defaults on the pins rather than zeros.
+
+**Run one GUI at a time.** The `qtplasmac` HAL component name is unique in a HAL instance: QtPlasmaC and plasmaweb cannot both export it, and a stale backend from a previous run has the same effect. If the component cannot be exported, the UI still comes up but the plasma layer stays inactive and the log says `plasma: could not export the qtplasmac HAL component` — stop the other process and restart LinuxCNC.
+
+**LinuxCNC version.** The pin table is generated from a 2.10 `plasmac.comp`. On 2.9.4 eighteen of those pins do not exist, so moving pierce, tube cutting, laser mode, dry run, slat height and the offset feed rate are listed as unavailable on the **PARAMETERS** tab, and a parameter that still saves to the prefs file but reaches no pin on this machine is flagged there with `!`. This is worked out from the pins the machine actually exports, not from a version string — a value that is real in the file and would work on a newer build is marked, not hidden.
+
+To run plasmaweb on a non-plasma machine, or to turn the plasma layer off deliberately:
+
+```bash
+export LCNCGUI_PLASMA_ENABLED=0
+```
 
 ### Macro subroutines (optional)
 
@@ -252,7 +293,7 @@ source /opt/plasmaweb/resources/linuxcnc-config/lcncgui-panel-and-softkeys.hal
 Enable panel polling (disabled by default):
 
 ```bash
-export PLASMAWEB_PANEL_HAL_ENABLED=1
+export LCNCGUI_PANEL_HAL_ENABLED=1
 ```
 
 Details: [`docs/features/15_PANEL_HAL_INPUTS.md`](features/15_PANEL_HAL_INPUTS.md).
@@ -262,8 +303,8 @@ Details: [`docs/features/15_PANEL_HAL_INPUTS.md`](features/15_PANEL_HAL_INPUTS.m
 By default plasmaweb does **not** show a HAL tool-change dialog. To enable it (gmoccapy-style, with your HAL wiring):
 
 ```bash
-export PLASMAWEB_TOOLCHANGE_HAL_ENABLED=1
-export PLASMAWEB_TOOLCHANGE_ACK_CMD='halcmd setp …'   # your ack line
+export LCNCGUI_TOOLCHANGE_HAL_ENABLED=1
+export LCNCGUI_TOOLCHANGE_ACK_CMD='halcmd setp …'   # your ack line
 ```
 
 You can put these in `~/.profile`, a wrapper script, or your machine config’s `[APPLICATIONS]` section. Details: [`docs/features/05_TOOL_TABLE.md`](features/05_TOOL_TABLE.md).
@@ -284,8 +325,8 @@ LinuxCNC starts realtime/HAL, then runs `plasmaweb`, which:
 
 Click the **power icon** in the header to open an exit dialog:
 
-- **Fenster schließen** / **Close window** — sends `app.exit`, stops the backend, closes the browser
-- **Fenster schließen und herunterfahren** / **Close window and shut down** — same, then powers off the PC after LinuxCNC exits (requires shutdown permissions from `install.sh`; see **Shutdown sequence** above)
+- **Close window** / **Close window** — sends `app.exit`, stops the backend, closes the browser
+- **Close window and shut down** / **Close window and shut down** — same, then powers off the PC after LinuxCNC exits (requires shutdown permissions from `install.sh`; see **Shutdown sequence** above)
 
 If the browser tab cannot be closed automatically (e.g. dev mode), an info toast appears after a short delay.
 
@@ -302,6 +343,19 @@ When the DISPLAY program exits, LinuxCNC shuts down normally.
 | `PLASMAWEB_KIOSK` | (unset) | When set: `1` = fullscreen kiosk, `0` = normal window. When unset, uses user preferences file, then `ui.kioskMode` in config, then kiosk. |
 | `PLASMAWEB_USER_PREFERENCES` | `~/.local/share/plasmaweb/user-preferences.json` | JSON file for UI settings that affect the launcher (e.g. kiosk vs windowed) |
 | `PLASMAWEB_PYTHON` | auto | Python with `linuxcnc` module (prefers `$PREFIX/venv/bin/python`) |
+
+Every launcher variable also accepts its older `LCNCGUI_*` name (`LCNCGUI_PORT`, `LCNCGUI_KIOSK`, …); `PLASMAWEB_*` wins when both are set.
+
+## Environment variables (backend)
+
+Backend settings kept their upstream `LCNCGUI_*` names.
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `LCNCGUI_PLASMA_ENABLED` | `1` | Export the `qtplasmac` component and serve the plasma screens. `0` runs plasmaweb as a plain LinuxCNC GUI |
+| `LCNCGUI_PLASMA_POLL_S` | `0.05` | HAL poll interval on the plasma bridge thread |
+| `LCNCGUI_TOOLCHANGE_HAL_ENABLED` | `0` | HAL tool-change dialog (see above) |
+| `LCNCGUI_PANEL_HAL_ENABLED` | `0` | External panel polling (see above) |
 
 ## Troubleshooting
 
@@ -333,6 +387,18 @@ Do not open `index.html` as `file://`. Installed builds use `"websocketUrl": "au
 **Blank browser / no Chromium**  
 Install `chromium` or set `PLASMAWEB_BROWSER=/path/to/browser`.
 
+**Plasma screens empty / every plasma command answers `plasma_unavailable`**  
+The `qtplasmac` component was not exported. Check the LinuxCNC log for `plasma: could not export the qtplasmac HAL component` (a stale backend or QtPlasmaC still holding the name), `plasma: no LinuxCNC hal module in this process` (the launcher picked a Python without LinuxCNC — set `PLASMAWEB_PYTHON`), or `plasma: disabled via LCNCGUI_PLASMA_ENABLED`.
+
+**HAL errors about `qtplasmac.*` pins while POSTGUI halfiles load**  
+The backend must be up before those halfiles run. That is what `bin/plasmaweb` does; a config that loads them some other way (a `[HAL] HALFILE` instead of `POSTGUI_HALFILE`) will not find the pins.
+
+**`plasmacweb: command not found`**  
+Installs made before the alias was linked have only `plasmaweb` on `PATH`. Re-run `install.sh` (it links `plasmaweb`, `plasmacweb` and `lcncgui`), or use `DISPLAY = plasmaweb`.
+
+**Materials or parameters missing**  
+`plasma: no INI in the environment` means the backend was started without LinuxCNC's INI. Started as a `[DISPLAY]` program it is always there; started by hand, set `INI_FILE_NAME`.
+
 ## Per-config launcher (optional)
 
 LinuxCNC adds `<config-dir>/bin` to `PATH`. You can place a tiny wrapper there instead of a global install:
@@ -350,5 +416,10 @@ See [`resources/linuxcnc-config/ini-display-snippet.ini`](../resources/linuxcnc-
 ## Related docs
 
 - Dev / manual start: [`docs/frontend-web-start.md`](frontend-web-start.md)
+- Running the QtPlasmaC sim in a VM: [`docs/dev-vm.md`](dev-vm.md)
 - WebSocket API: [`docs/backend-frontend-messages.md`](backend-frontend-messages.md)
+- Commands and events: [`docs/commands-events.md`](commands-events.md)
 - Backend: [`backend/README.md`](../backend/README.md)
+- What was built and how it was verified: [`BUILD_PLAN.md`](../BUILD_PLAN.md)
+- What is vendored and what is reused from LinuxCNC: [`UPSTREAM.md`](../UPSTREAM.md)
+- Publishing releases: [`docs/releasing.md`](releasing.md)

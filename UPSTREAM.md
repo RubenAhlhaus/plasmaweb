@@ -22,17 +22,23 @@ Excluded from the copy: `.git/`, `node_modules/`, `dist/`, `.DS_Store`.
 ### Vendoring rules
 
 - **Upstream files stay recognisable.** Internal names are deliberately *not* renamed:
-  the Python package is still `backend`, environment variables are still `LCNCGUI_*`,
-  the WebSocket path is still `/ws`, and `bin/lcncgui` keeps its name. This preserves
-  `diff`-ability against upstream, which is worth more than cosmetic consistency.
+  the Python package is still `backend`, the backend's environment variables are still
+  `LCNCGUI_*`, and the WebSocket path is still `/ws`. This preserves `diff`-ability
+  against upstream, which is worth more than cosmetic consistency. The two user-facing
+  names *are* ours: `bin/lcncgui` is now `bin/plasmaweb` (with `bin/plasmacweb` as the
+  plasma alias), and the launcher reads `PLASMAWEB_*` first, falling back to every
+  `LCNCGUI_*` name it used to answer to. `install.sh` still links `lcncgui` onto `PATH`,
+  so an INI that says `DISPLAY = lcncgui` keeps starting.
 - **New code goes in new files** — `backend/plasma/*`, `backend/handlers/plasma_*.py`,
   `src/screens/plasma/*`, `src/components/plasma/*`.
 - **Edits to vendored files are additive** and kept minimal (registration lines in
   `backend/main.py`, new constants in `backend/config.py`).
 - `README.md` is the one intentional replacement; the upstream one is preserved at
   `docs/UPSTREAM_README.md`.
-- `.github/` is upstream's release CI. It targets the lcncgui repo and does not apply
-  here; it is kept only for diff-ability and should not be enabled.
+- `.github/` is upstream's release CI, and it is **in use here**: it is repo-agnostic
+  (default `GITHUB_TOKEN`, `scripts/build-release.sh`, which names the tarball from
+  `package.json`/the tag), so pushing a `v*` tag publishes a release on this repo. See
+  [`docs/releasing.md`](docs/releasing.md).
 
 ### Re-syncing with upstream
 
