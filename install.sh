@@ -237,12 +237,16 @@ fi
 echo "Installing Python dependencies into venv..."
 "${VENV}/bin/pip" install -r "${PREFIX}/backend/requirements-runtime.txt"
 
-chmod +x "${PREFIX}/bin/plasmaweb" "${PREFIX}/bin/plasmaweb-shutdown"
+chmod +x "${PREFIX}/bin/plasmaweb" "${PREFIX}/bin/plasmaweb-shutdown" "${PREFIX}/bin/plasmacweb"
 
 if [[ "$LINK_GLOBAL" -eq 1 && -n "$BIN_DIR" ]]; then
   mkdir -p "$BIN_DIR"
   ln -sf "${PREFIX}/bin/plasmaweb" "${BIN_DIR}/plasmaweb"
   echo "Linked: ${BIN_DIR}/plasmaweb -> ${PREFIX}/bin/plasmaweb"
+  # A plasma config may name the launcher after the screen it replaces. bin/plasmacweb is
+  # that name, so DISPLAY = plasmacweb has to resolve on PATH like DISPLAY = plasmaweb does.
+  ln -sf "${PREFIX}/bin/plasmacweb" "${BIN_DIR}/plasmacweb"
+  echo "Linked: ${BIN_DIR}/plasmacweb -> ${PREFIX}/bin/plasmacweb (for INIs that say DISPLAY = plasmacweb)"
   # A machine whose INI still says DISPLAY = lcncgui keeps starting: the old name is a link
   # to the new launcher rather than a second copy of it.
   ln -sf "${PREFIX}/bin/plasmaweb" "${BIN_DIR}/lcncgui"
@@ -266,6 +270,9 @@ Add to your machine INI:
 
   [DISPLAY]
   DISPLAY = plasmaweb
+
+  # a QtPlasmaC config may prefer the plasma name; both start the same launcher
+  # DISPLAY = plasmacweb
 
 Optional macro subroutines (see resources/linuxcnc-subroutines/README.md):
 

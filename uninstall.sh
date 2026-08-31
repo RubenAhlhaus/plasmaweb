@@ -151,13 +151,18 @@ stop_install_processes() {
   fi
 }
 
+# Every name install.sh links onto PATH, and the launcher each one points at.
+LINK_NAMES=("plasmaweb:plasmaweb" "plasmacweb:plasmacweb" "lcncgui:plasmaweb")
+
 remove_symlink() {
-  local link="${BIN_DIR}/plasmaweb"
+  local name="${1%%:*}"
+  local launcher="${1##*:}"
+  local link="${BIN_DIR}/${name}"
   [[ -n "$BIN_DIR" ]] || return 0
   [[ -e "$link" || -L "$link" ]] || return 0
 
   local target expected
-  expected="${PREFIX}/bin/plasmaweb"
+  expected="${PREFIX}/bin/${launcher}"
   if [[ -L "$link" ]]; then
     target="$(readlink -f "$link" 2>/dev/null || readlink "$link" 2>/dev/null || true)"
     if [[ "$target" == "$expected" ]]; then
@@ -229,7 +234,9 @@ USER_DATA_DIR="$(resolve_data_home)"
 
 echo "This will remove plasmaweb from: ${PREFIX}"
 if [[ -n "$BIN_DIR" ]]; then
-  echo "  Symlink: ${BIN_DIR}/plasmaweb (if it points to this install)"
+  for link_spec in "${LINK_NAMES[@]}"; do
+    echo "  Symlink: ${BIN_DIR}/${link_spec%%:*} (if it points to this install)"
+  done
 fi
 if [[ "$(id -u)" -eq 0 ]]; then
   echo "  Sudoers: /etc/sudoers.d/plasmaweb-shutdown-* (matching this install prefix)"
@@ -244,7 +251,9 @@ if ! confirm "Proceed?"; then
 fi
 
 stop_install_processes "$PREFIX"
-remove_symlink
+for link_spec in "${LINK_NAMES[@]}"; do
+  remove_symlink "$link_spec"
+done
 
 if [[ "$(id -u)" -eq 0 ]]; then
   remove_shutdown_sudoers "$PREFIX"
