@@ -14,7 +14,10 @@
   "connection": {
     "wsUrl": "WebSocket URL (from config file)",
     "notLoaded": "— (config not loaded yet)",
-    "help": "The URL comes from {{configFile}} (same origin as the app; in the Vite dev project the file lives under {{public}}, next to the built/packaged UI like the static web app). Values are applied when the page loads; the UI does not write the file back — reload after changes. See {{docLink}}."
+    "help": "The URL comes from {{configFile}} (same origin as the app; in the Vite dev project the file lives under {{public}}, next to the built/packaged UI like the static web app). Values are applied when the page loads; the UI does not write the file back — reload after changes. See {{docLink}}.",
+    "interfaceAddress": "Interface address (this machine)",
+    "addressUnavailable": "— (backend did not answer)",
+    "notServedOnNetwork": "bound to {{host}} — set PLASMAWEB_HOST=0.0.0.0 to serve this address"
   },
   "display": {
     "virtualSidebar": "Show virtual button sidebar on the left",

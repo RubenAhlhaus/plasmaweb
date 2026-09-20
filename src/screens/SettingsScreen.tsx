@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppTooltip } from '@/components/AppTooltip';
 import { HotkeyCaptureButton } from '@/components/HotkeyCaptureButton';
@@ -35,6 +35,7 @@ import { setAppLocale } from '@/i18n/config';
 import { isSupportedLocale, type SupportedLocale } from '@/i18n/constants';
 import { HAL_TOOL_IDS, launchHalTool, type HalToolId } from '@/lib/halToolsApi';
 import { halToolLaunchErrorMessage } from '@/lib/halToolErrors';
+import { fetchNetworkInfo, type NetworkInfo } from '@/lib/networkInfoApi';
 
 type CapturingHotkeyTarget =
   | { scope: 'virtualSidebar'; buttonId: VirtualSidebarButtonId }
@@ -105,6 +106,22 @@ export function SettingsScreen() {
   const [capturingHotkeyTarget, setCapturingHotkeyTarget] =
     useState<CapturingHotkeyTarget | null>(null);
   const [launchingHalTool, setLaunchingHalTool] = useState<HalToolId | null>(null);
+  // Asked once per mount: the bind host and the machine's addresses do not change while the
+  // backend runs, and the answer is only ever read off the screen.
+  const [networkInfo, setNetworkInfo] = useState<NetworkInfo | null>(null);
+  const [networkInfoLoaded, setNetworkInfoLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchNetworkInfo().then((info) => {
+      if (cancelled) return;
+      setNetworkInfo(info);
+      setNetworkInfoLoaded(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const languageOptions = useMemo(
     () => [
@@ -207,6 +224,29 @@ export function SettingsScreen() {
             <SettingsRow label={t('settings:connection.wsUrl')} testId="settings-row-ws-url">
               <span className="text-xs font-mono text-muted-foreground max-w-[min(520px,55vw)] truncate text-right block">
                 {backendWebSocketUrl ?? t('settings:connection.notLoaded')}
+              </span>
+            </SettingsRow>
+            <SettingsRow
+              label={t('settings:connection.interfaceAddress')}
+              testId="settings-row-interface-address"
+            >
+              <span className="max-w-[min(520px,55vw)] text-right block">
+                <span className="text-xs font-mono text-muted-foreground block">
+                  {!networkInfoLoaded
+                    ? t('settings:connection.notLoaded')
+                    : networkInfo === null
+                      ? t('settings:connection.addressUnavailable')
+                      : networkInfo.urls.length > 0
+                        ? networkInfo.urls.join(' · ')
+                        : `http://${networkInfo.host}:${networkInfo.port}`}
+                </span>
+                {networkInfo !== null &&
+                  networkInfo.urls.length > 0 &&
+                  !networkInfo.reachableFromNetwork && (
+                    <span className="text-[11px] text-muted-foreground/80 block">
+                      {t('settings:connection.notServedOnNetwork', { host: networkInfo.host })}
+                    </span>
+                  )}
               </span>
             </SettingsRow>
             <p className="text-[11px] text-muted-foreground/80 pl-1 pr-4">

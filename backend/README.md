@@ -129,7 +129,7 @@ Siehe **[`docs/installation.md`](../docs/installation.md)**. Kurz:
 - `bin/lcncgui` startet Uvicorn + Browser; LinuxCNC ruft `lcncgui -ini …` auf
 - Wenn `dist/index.html` existiert, liefert `backend/main.py` die gebaute UI unter `/` (WebSocket weiter unter `/ws`). Nach `install.sh`-Updates reicht ein LinuxCNC-Neustart: `index.html` wird nicht vom Kiosk-Chromium zwischengespeichert (siehe [`docs/installation.md`](../docs/installation.md) → Upgrading).
 
-Umgebungsvariablen (Auswahl): `LCNCGUI_HOST`, `LCNCGUI_PORT`, `LCNCGUI_FRONTEND_DIST`, `LCNCGUI_DISPLAY_LAUNCH` (setzt Default-Bind `127.0.0.1`), `LCNCGUI_USER_PREFERENCES`. Details: `backend/config.py`, `docs/installation.md`.
+Umgebungsvariablen (Auswahl): `LCNCGUI_HOST` (Default-Bind `0.0.0.0` — ohne Authentifizierung im Netz erreichbar; `127.0.0.1` schränkt auf den Rechner selbst ein), `LCNCGUI_PORT`, `LCNCGUI_FRONTEND_DIST`, `LCNCGUI_DISPLAY_LAUNCH`, `LCNCGUI_USER_PREFERENCES`. Details: `backend/config.py`, `docs/installation.md`.
 
 ## Tests
 

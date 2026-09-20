@@ -176,6 +176,108 @@ def default_material(units_per_mm: float = 1.0) -> Material:
     )
 
 
+class _StarterCut(NamedTuple):
+    """One row of the starting cut chart: everything that varies with plate thickness."""
+
+    thickness: float
+    kerf_width: float
+    pierce_height: float
+    pierce_delay: float
+    cut_height: float
+    cut_speed: float
+    cut_volts: float
+    #: What to dial the source to on its own front panel; see :data:`STARTER_CUT_AMPS`.
+    cut_amps: float
+
+
+#: Mild steel on an ANDELI CUT-65 (FPT60 torch, air), 1 mm to 10 mm in 0.5 mm steps.
+#:
+#: ANDELI publishes no cut chart — the datasheet gives only a maximum cut thickness — so the
+#: speeds and pierce delays here are interpolated from the Thermal Dynamics Cutmaster 82
+#: 60 A mechanized mild-steel chart (SL60 torch, exposed tip, air; manual 0-4979 section
+#: 4T.08), which is the nearest published chart for a 60-65 A air plasma and is taken at 60 A
+#: rather than 65 A so the numbers stay on the conservative side.
+#:
+#: Two columns are *not* from that chart and have to be dialled in on the machine:
+#:
+#: * ``cut_height`` / ``pierce_height`` — the Cutmaster chart's 4.8 mm standoff is measured to
+#:   the shield face, not the tip, so it cannot be used as a QtPlasmaC cut height. These are
+#:   the normal FPT60 tip-to-work heights instead, with pierce height at twice cut height.
+#: * ``cut_volts`` — arc voltage depends on the source's own arc characteristic and on the cut
+#:   height above, so no chart transfers. The ramp is anchored at a typical 60-65 A air arc at
+#:   1.5 mm and follows the Cutmaster chart's slope (about 1.9 V per mm of plate). **Measure
+#:   it**: cut a test piece with THC off, read the actual arc volts, save that back.
+#:
+#: Lengths and speeds are in millimetres and are scaled by ``units_per_mm`` when the machine is
+#: imperial; volts, amps and delays are not.
+_STARTER_CHART: Tuple[_StarterCut, ...] = (
+    #          thick  kerf  pierceH  delay  cutH   speed   volts  amps
+    _StarterCut(1.0 , 1.50, 3.0,     0.00,  1.5,   7350.0, 105.0, 30.0),
+    _StarterCut(1.5 , 1.55, 3.0,     0.00,  1.5,   7350.0, 106.0, 30.0),
+    _StarterCut(2.0 , 1.55, 3.0,     0.10,  1.5,   6900.0, 107.0, 35.0),
+    _StarterCut(2.5 , 1.60, 3.0,     0.10,  1.5,   5500.0, 108.0, 40.0),
+    _StarterCut(3.0 , 1.65, 3.0,     0.10,  1.5,   4550.0, 109.0, 40.0),
+    _StarterCut(3.5 , 1.65, 3.0,     0.10,  1.5,   4150.0, 110.0, 45.0),
+    _StarterCut(4.0 , 1.70, 3.0,     0.15,  1.5,   3350.0, 111.0, 45.0),
+    _StarterCut(4.5 , 1.75, 3.0,     0.20,  1.5,   2800.0, 112.0, 50.0),
+    _StarterCut(5.0 , 1.75, 3.0,     0.20,  1.5,   2450.0, 113.0, 50.0),
+    _StarterCut(5.5 , 1.80, 3.6,     0.25,  1.8,   2300.0, 114.0, 55.0),
+    _StarterCut(6.0 , 1.80, 3.6,     0.25,  1.8,   2150.0, 114.0, 55.0),
+    _StarterCut(6.5 , 1.85, 3.6,     0.30,  1.8,   2000.0, 115.0, 60.0),
+    _StarterCut(7.0 , 1.90, 3.6,     0.35,  1.8,   1850.0, 116.0, 60.0),
+    _StarterCut(7.5 , 1.90, 3.6,     0.35,  1.8,   1700.0, 117.0, 65.0),
+    _StarterCut(8.0 , 1.95, 3.6,     0.40,  1.8,   1550.0, 118.0, 65.0),
+    _StarterCut(8.5 , 2.00, 4.0,     0.45,  2.0,   1450.0, 119.0, 65.0),
+    _StarterCut(9.0 , 2.00, 4.0,     0.45,  2.0,   1350.0, 120.0, 65.0),
+    _StarterCut(9.5 , 2.05, 4.0,     0.50,  2.0,   1250.0, 121.0, 65.0),
+    _StarterCut(10.0, 2.10, 4.0,     0.55,  2.0,   1150.0, 122.0, 65.0),
+)
+
+#: The chart is a 60 A chart, so the speeds assume the source is near its rating. The per-row
+#: ``cut_amps`` is what to set on the CUT-65's own panel — it rides down for thin sheet, where
+#: full current burns more than it cuts. It reaches plasmac through nothing: ``CUT_AMPS`` is a
+#: PowerMax RS485 field, and the CUT-65 has no RS485, so it is a note to the operator. Running
+#: a thin-sheet row at less than its stated amps means cutting slower than its stated speed.
+STARTER_CUT_AMPS = 65.0
+
+
+def starter_material_name(thickness: float) -> str:
+    """``3.5 mm mild steel`` — the thickness first, so the list reads thinnest to thickest."""
+    return f"{thickness:g} mm mild steel"
+
+
+def starter_materials(units_per_mm: float = 1.0) -> List[Material]:
+    """The 1–10 mm mild steel chart as materials 1..19, thinnest first.
+
+    Numbered from 1 in ascending thickness so that QtPlasmaC's own ordering — by material
+    number — is also thickness order; material 0 stays QtPlasmaC's ``Default``.
+    """
+    materials: List[Material] = []
+    for index, cut in enumerate(_STARTER_CHART, start=1):
+        materials.append(
+            make_material(
+                index,
+                starter_material_name(cut.thickness),
+                {
+                    "kerfWidth": round(cut.kerf_width * units_per_mm, 3),
+                    "pierceHeight": round(cut.pierce_height * units_per_mm, 3),
+                    "pierceDelay": cut.pierce_delay,
+                    "puddleJumpHeight": 0.0,
+                    "puddleJumpDelay": 0.0,
+                    "cutHeight": round(cut.cut_height * units_per_mm, 3),
+                    "cutSpeed": round(cut.cut_speed * units_per_mm, 1),
+                    "cutAmps": cut.cut_amps,
+                    "cutVolts": cut.cut_volts,
+                    "pauseAtEnd": 0.0,
+                    "gasPressure": 0.0,
+                    "cutMode": 1.0,
+                    "thickness": round(cut.thickness * units_per_mm, 3),
+                },
+                units_per_mm,
+            )
+        )
+    return materials
+
 def read_materials(path: str, units_per_mm: float = 1.0) -> List[Material]:
     """Every material in the file, lowest number first, which is the order QtPlasmaC shows.
 

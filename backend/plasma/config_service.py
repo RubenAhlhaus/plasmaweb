@@ -40,6 +40,7 @@ from backend.plasma.materials import (
     material_pin_values,
     read_materials,
     read_temporary_material,
+    starter_materials,
     write_materials,
 )
 from backend.plasma.colors import read_colors, write_colors
@@ -206,18 +207,24 @@ class PlasmaConfigService:
             self._selected = self._default
 
     def _create_default_material(self) -> None:
-        """A machine with no materials gets QtPlasmaC's material 0, written to the file.
+        """A machine with no materials gets material 0 plus the 1-10 mm starter chart.
 
-        Upstream does the same on the update that introduced the material file, and without
-        it there is nothing to select, so the cut parameters stay at zero and nothing cuts.
+        Upstream writes only material 0 on the update that introduced the material file, and
+        without it there is nothing to select, so the cut parameters stay at zero and nothing
+        cuts. The starter materials go in alongside it because a fresh machine with a single
+        all-defaults material still cannot cut anything in particular; they are numbered in
+        ascending thickness so the list reads thinnest to thickest. Only ever written when the
+        file has no materials at all, so a shop's own chart is never touched.
         """
-        material = default_material(self._files.units_per_mm)
-        self._materials = {material.number: material}
+        materials = [default_material(self._files.units_per_mm)]
+        materials.extend(starter_materials(self._files.units_per_mm))
+        self._materials = {material.number: material for material in materials}
         try:
-            write_materials(self._files.materials_path, [material])
+            write_materials(self._files.materials_path, materials)
             logger.info(
-                "plasma: no materials in %s; wrote QtPlasmaC's default material 0",
+                "plasma: no materials in %s; wrote material 0 and %d starter materials",
                 self._files.materials_path,
+                len(materials) - 1,
             )
         except OSError:
             # A read-only config directory is not a reason to run without a material.

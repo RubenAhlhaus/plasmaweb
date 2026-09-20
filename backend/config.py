@@ -1,8 +1,12 @@
 import os
 from pathlib import Path
 
-_HOST_DEFAULT = "127.0.0.1" if os.environ.get("LCNCGUI_DISPLAY_LAUNCH") else "0.0.0.0"
-HOST: str = os.environ.get("LCNCGUI_HOST", _HOST_DEFAULT)
+# Every interface, including under ``LCNCGUI_DISPLAY_LAUNCH``: the machine this runs on is
+# typically a headless controller whose UI is opened from a laptop, tablet or phone on the
+# same network, and a loopback bind makes that impossible. Nothing authenticates the
+# interface, so a network that reaches this port can drive the machine — ``LCNCGUI_HOST`` (or
+# ``PLASMAWEB_HOST``, which ``bin/plasmaweb`` reads first) takes it back to ``127.0.0.1``.
+HOST: str = os.environ.get("LCNCGUI_HOST", "0.0.0.0")
 PORT: int = int(os.environ.get("LCNCGUI_PORT", "8765"))
 WEBSOCKET_PATH: str = "/ws"
 

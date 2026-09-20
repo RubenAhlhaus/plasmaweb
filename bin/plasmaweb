@@ -11,8 +11,20 @@ set -euo pipefail
 # starting. The old names are read, never written.
 
 PLASMAWEB_ROOT="${PLASMAWEB_ROOT:-${LCNCGUI_ROOT:-}}"
-HTTP_HOST="${PLASMAWEB_HOST:-${LCNCGUI_HOST:-127.0.0.1}}"
+# Binds every interface by default: the usual machine for this is a headless controller with
+# no screen of its own, so the UI is only useful when another machine on the network can open
+# it. There is no authentication in front of it — set PLASMAWEB_HOST=127.0.0.1 to serve the
+# controller's own screen only.
+HTTP_HOST="${PLASMAWEB_HOST:-${LCNCGUI_HOST:-0.0.0.0}}"
 HTTP_PORT="${PLASMAWEB_PORT:-${LCNCGUI_PORT:-8765}}"
+
+# The address this machine dials to reach its own backend. A wildcard bind is an instruction
+# about which interfaces to listen on, not somewhere a browser can go, so probes and the kiosk
+# URL use loopback instead.
+case "$HTTP_HOST" in
+  0.0.0.0|::|'*'|'') LOCAL_HOST="127.0.0.1" ;;
+  *)                 LOCAL_HOST="$HTTP_HOST" ;;
+esac
 BROWSER="${PLASMAWEB_BROWSER:-${LCNCGUI_BROWSER:-}}"
 WAIT_TIMEOUT_S="${PLASMAWEB_WAIT_TIMEOUT_S:-${LCNCGUI_WAIT_TIMEOUT_S:-60}}"
 
@@ -31,7 +43,7 @@ Used as the LinuxCNC [DISPLAY] program, e.g.:
 
 Environment:
   PLASMAWEB_ROOT          Install directory (default: parent of bin/)
-  LCNCGUI_HOST          HTTP bind address (default: 127.0.0.1)
+  PLASMAWEB_HOST          HTTP bind address (default: 0.0.0.0, i.e. reachable on the network)
   LCNCGUI_PORT          HTTP port (default: 8765)
   LCNCGUI_BROWSER       Browser executable (auto-detect if unset)
   LCNCGUI_KIOSK         1 = kiosk/fullscreen (default), 0 = normal window
@@ -253,7 +265,7 @@ http_port_listening() {
     return $?
   fi
   if command -v nc >/dev/null 2>&1; then
-    nc -z "$HTTP_HOST" "$HTTP_PORT" 2>/dev/null
+    nc -z "$LOCAL_HOST" "$HTTP_PORT" 2>/dev/null
     return $?
   fi
   return 1
@@ -274,7 +286,7 @@ pids_on_http_port() {
 }
 
 http_probe() {
-  local url="http://${HTTP_HOST}:${HTTP_PORT}/"
+  local url="http://${LOCAL_HOST}:${HTTP_PORT}/"
   if command -v curl >/dev/null 2>&1; then
     curl -fsS -o /dev/null -m 2 "$url" 2>/dev/null
     return $?
@@ -355,7 +367,7 @@ cleanup() {
 }
 
 wait_for_http() {
-  local url="http://${HTTP_HOST}:${HTTP_PORT}/"
+  local url="http://${LOCAL_HOST}:${HTTP_PORT}/"
   local deadline=$((SECONDS + WAIT_TIMEOUT_S))
   while (( SECONDS < deadline )); do
     if http_probe; then
@@ -470,13 +482,18 @@ main() {
   local python browser app_url chromium_profile kiosk
   python="$(find_python)"
   browser="$(find_browser)"
-  app_url="http://${HTTP_HOST}:${HTTP_PORT}/"
+  app_url="http://${LOCAL_HOST}:${HTTP_PORT}/"
   chromium_profile="$(chromium_profile_dir)"
   kiosk="$(resolve_kiosk_mode)"
 
   trap cleanup EXIT INT TERM
 
   ensure_http_port_available
+
+  if [[ "$LOCAL_HOST" != "$HTTP_HOST" ]]; then
+    echo "plasmaweb: serving on all interfaces, port ${HTTP_PORT}, with no authentication;" >&2
+    echo "plasmaweb: set PLASMAWEB_HOST=127.0.0.1 to serve this machine only" >&2
+  fi
 
   cd "$PLASMAWEB_ROOT"
   "$python" -m uvicorn backend.main:app \

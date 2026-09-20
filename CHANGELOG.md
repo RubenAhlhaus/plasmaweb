@@ -14,6 +14,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Feed override presets: while at feed **0 %** (pause-ownership, last accepted preset ≤ 0 %, or status ~1 % before any preset), values **above 100 %** (encoder wrap to 125–200 %) are ignored so the machine cannot jump straight to full override (see [`docs/features/18_OVERRIDE_PRESET_HOTKEYS.md`](docs/features/18_OVERRIDE_PRESET_HOTKEYS.md)).
 
+## [1.1.1] - 2026-09-21
+
+### Added
+
+- Mild steel cut presets from 1 mm to 10 mm in 0.5 mm steps, seeded into a machine that has no materials of its own. Speeds and pierce delays are interpolated from a published 60 A mechanized air-plasma chart; cut heights and arc voltages are starting points that have to be dialled in per torch (see `backend/plasma/materials.py`).
+- **Settings → Connection → Interface address**: the URL to type on another machine, from `GET /api/network`. The browser cannot work this out for itself — on the machine's own panel it is opened at `127.0.0.1`, the one address nobody else can use.
+
+### Changed
+
+- The backend now binds **every interface** by default instead of loopback, because the usual controller is headless and driven from another machine on the network. **Nothing authenticates this interface** — whoever reaches port 8765 can fire the torch, jog the table and run a program. Set `PLASMAWEB_HOST=127.0.0.1` to serve the controller's own screen only, and see *Who can reach the interface* in [`docs/installation.md`](docs/installation.md).
+
 ## [1.0.0] - 2026-07-19
 
 First stable release.

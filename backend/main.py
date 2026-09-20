@@ -121,6 +121,7 @@ from backend.plasma.startup import create_plasma_stack
 from backend.services.plasma_publisher import PlasmaPublisher
 from backend.application.command_bus import CommandBus
 from backend.api.hal_tools import create_hal_tools_router
+from backend.api.network import create_network_router
 from backend.api.user_preferences import create_user_preferences_router
 from backend.api.ws import create_ws_router
 from backend.adapters.linuxcnc_gateway import LinuxCncGateway
@@ -357,6 +358,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 app.include_router(create_hal_tools_router(gateway=gateway))
+app.include_router(create_network_router(host=HOST, port=PORT))
 app.include_router(create_user_preferences_router(gateway=gateway))
 app.include_router(
     create_ws_router(

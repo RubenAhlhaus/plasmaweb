@@ -96,11 +96,41 @@ sudo -u ruben -H DISPLAY=:0 XAUTHORITY=/home/ruben/.Xauthority \
      > /tmp/lcnc.log 2>&1 &
 ```
 
-`bin/plasmaweb` then serves the UI on `127.0.0.1:8765` and opens `firefox-esr -kiosk` on the
+`bin/plasmaweb` then serves the UI on port `8765` — bound to every interface, so the host can
+reach it at the VM's own address without a tunnel — and opens `firefox-esr -kiosk` on the
 VM desktop. Startup failures land in `/tmp/linuxcnc.debug.*` (a `wish` error window also
 appears on the VM display and blocks the run until dismissed). Without
 `dist/plasmaweb-config.json` the page renders *"Configuration not found (HTTP 404)"* instead
 of the UI.
+
+## The sim panel, and why there isn't one
+
+The stock QtPlasmaC sim configs load a `qtvcp qtplasmac_sim.ui` panel from
+`sim_postgui.hal`. It is the only thing sourcing the sensors a real machine has — arc-ok,
+float switch, ohmic probe, breakaway — and it does it with buttons somebody has to click. On
+this VM that window sat on top of the kiosk browser and could not be closed, so
+`sim_postgui.hal` was rewritten to model those sensors in HAL instead:
+
+- **arc-ok** — `plasmac:torch-on` through a `timedelay` (0.3 s on-delay). The panel only did
+  this automatically in modes 1 and 2; in mode 0, the arc-voltage THC mode this config runs,
+  arc-ok was a button, so an unattended cut never got one.
+- **float switch / ohmic** — two `comp` instances against `plasmac:axis-position` (which is
+  `joint.3.pos-fb`; `trivkins coordinates=xyyz` puts Z on joint 3). Ohmic trips at the plate
+  top, the float 1.5 mm below it, matching `Float Switch Travel` in `qtplasmac-metric.prefs`.
+  The plate top is one `setp` at the head of the file.
+- **breakaway** — `setp db_breakaway.in 0`; nothing crashes a simulated torch.
+
+The upshot is that a probe and a cut now complete with nobody clicking anything. What is lost
+is the ability to force a sensor the wrong way to exercise an error path — a false arc-ok, a
+breakaway mid-cut. The original is kept beside it:
+
+```bash
+cp sim_postgui.hal.panel sim_postgui.hal   # window and manual toggles back
+```
+
+Both files live in `~/linuxcnc/configs/qtplasmac/` on the VM and are not tracked in this repo.
+The change reaches every config that includes `qtplasmac_{metric,imperial}_ini.inc`, which is
+the three stock `qtplasmac_*_metric.ini` as well as `plasmacweb_metric.ini`.
 
 Screenshots of the guest desktop, useful as evidence when the host cannot reach the VM:
 

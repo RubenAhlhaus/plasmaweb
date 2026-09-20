@@ -319,7 +319,7 @@ linuxcnc ~/linuxcnc/configs/my-machine/my-machine.ini
 
 LinuxCNC starts realtime/HAL, then runs `plasmaweb`, which:
 
-1. Starts the backend on `http://127.0.0.1:8765/` (WebSocket at `/ws`, UI from `dist/`)
+1. Starts the backend on port `8765`, bound to every interface (WebSocket at `/ws`, UI from `dist/`). **Settings → Connection → Interface address** shows the URL to type on another machine.
 2. Opens Chromium in kiosk or windowed mode (see **Settings → Display → Window mode**, `PLASMAWEB_KIOSK`, or `ui.kioskMode` in `dist/plasmaweb-config.json`; user override in `~/.local/share/plasmaweb/user-preferences.json`)
 3. Waits until you close the browser window
 
@@ -332,12 +332,28 @@ If the browser tab cannot be closed automatically (e.g. dev mode), an info toast
 
 When the DISPLAY program exits, LinuxCNC shuts down normally.
 
+### Who can reach the interface
+
+The default bind (`0.0.0.0`) means any machine that can route to port `8765` can open the UI,
+and **there is no authentication in front of it** — whoever opens it can fire the torch, jog
+the table and run a program, exactly as if they were standing at the controller. That is the
+right trade for a headless controller on a workshop network you control; it is the wrong one
+on a shared, guest or public network.
+
+To restrict it to the controller itself, set `PLASMAWEB_HOST=127.0.0.1` before LinuxCNC
+starts. To keep the network bind but limit who reaches it, put the controller on its own
+subnet or VLAN, or firewall the port to known addresses — for example:
+
+```bash
+sudo ufw allow from 192.168.1.0/24 to any port 8765 proto tcp
+```
+
 ## Environment variables (launcher)
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `PLASMAWEB_ROOT` | parent of `bin/` | Install directory |
-| `PLASMAWEB_HOST` | `127.0.0.1` | HTTP bind address |
+| `PLASMAWEB_HOST` | `0.0.0.0` | HTTP bind address. The default serves the network, because the usual controller is headless and is driven from another machine. Set `127.0.0.1` to serve the controller's own screen only. |
 | `PLASMAWEB_PORT` | `8765` | HTTP + WebSocket port |
 | `PLASMAWEB_BROWSER` | auto | Browser executable |
 | `PLASMAWEB_KIOSK` | (unset) | When set: `1` = fullscreen kiosk, `0` = normal window. When unset, uses user preferences file, then `ui.kioskMode` in config, then kiosk. |

@@ -15,7 +15,9 @@ from backend.plasma.materials import (
     material_number,
     material_pin_values,
     read_materials,
+    STARTER_CUT_AMPS,
     read_temporary_material,
+    starter_materials,
     write_materials,
 )
 
@@ -204,3 +206,43 @@ def test_qtplasmacs_default_material_is_not_a_material_of_zeros() -> None:
     assert material.values["cutSpeed"] == 4000.0
     assert material.values["cutVolts"] == 99.0
     assert material.values["pierceHeight"] == 3.0
+
+
+def test_the_starter_chart_covers_1_to_10_mm_in_half_millimetre_steps() -> None:
+    materials = starter_materials()
+
+    assert [m.number for m in materials] == list(range(1, 20))
+    assert [m.values["thickness"] for m in materials] == [
+        round(1.0 + 0.5 * step, 1) for step in range(19)
+    ]
+    assert materials[0].name == "1 mm mild steel"
+    assert materials[-1].name == "10 mm mild steel"
+
+
+def test_the_starter_chart_gets_slower_and_hotter_as_the_plate_thickens() -> None:
+    """Material number is thickness order, so every per-thickness value must be monotonic."""
+    materials = starter_materials()
+    speeds = [m.values["cutSpeed"] for m in materials]
+    volts = [m.values["cutVolts"] for m in materials]
+    delays = [m.values["pierceDelay"] for m in materials]
+
+    assert speeds == sorted(speeds, reverse=True)
+    assert volts == sorted(volts)
+    assert delays == sorted(delays)
+    # Amps ride up with thickness and top out at the source's rating, never above it.
+    amps = [m.values["cutAmps"] for m in materials]
+    assert amps == sorted(amps)
+    assert max(amps) == STARTER_CUT_AMPS
+    assert min(amps) > 0
+    assert all(m.values["pierceHeight"] > m.values["cutHeight"] > 0 for m in materials)
+
+
+def test_the_starter_chart_is_scaled_for_an_imperial_machine() -> None:
+    materials = starter_materials(INCH_UNITS_PER_MM)
+
+    ten_mm = materials[-1]
+    assert ten_mm.values["thickness"] == pytest.approx(10.0 / 25.4, abs=0.001)
+    assert ten_mm.values["cutSpeed"] == pytest.approx(1150.0 / 25.4, abs=0.1)
+    # Volts, amps and delays are not lengths.
+    assert ten_mm.values["cutVolts"] == 122.0
+    assert ten_mm.values["cutAmps"] == STARTER_CUT_AMPS

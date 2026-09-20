@@ -372,8 +372,14 @@ def test_only_the_handshake_pin_may_be_written_outside_the_plasma_components(ser
     assert excinfo.value.code == "pin_not_writable"
 
 
-def test_a_machine_with_no_material_file_gets_qtplasmacs_default(tmp_path: Path) -> None:
-    """Without a material there is nothing to select, so the cut parameters stay at zero."""
+def test_a_machine_with_no_material_file_gets_the_default_and_the_starter_chart(
+    tmp_path: Path,
+) -> None:
+    """Without a material there is nothing to select, so the cut parameters stay at zero.
+
+    Material 0 is QtPlasmaC's ``Default`` and is what gets selected; 1..19 are the 1-10 mm
+    mild steel starter chart, numbered in thickness order.
+    """
     (tmp_path / "machine.ini").write_text(INI)
     files = machine_files(str(tmp_path / "machine.ini"))
     assert files is not None
@@ -387,9 +393,18 @@ def test_a_machine_with_no_material_file_gets_qtplasmacs_default(tmp_path: Path)
     config.apply_selected_material()
     flush(bridge)
 
-    assert [m["number"] for m in config.materials_payload()["materials"]] == [0]
+    numbers = [m["number"] for m in config.materials_payload()["materials"]]
+    assert numbers == list(range(0, 20))
+    # Selection falls to the lowest number, so it is still QtPlasmaC's default that is live.
     assert written(runtime)["plasmac.cut-feed-rate"] == "4000.0"
     assert Path(files.materials_path).exists()
+    # The starter materials survive a round trip through the file, thinnest first.
+    reread = PlasmaConfigService(bridge, files)
+    reread.load()
+    written_materials = reread.materials_payload()["materials"]
+    assert [m["thickness"] for m in written_materials[1:]] == [
+        round(1.0 + 0.5 * step, 1) for step in range(19)
+    ]
 
 
 def test_the_remembered_toggles_are_restored_to_hal(service) -> None:
