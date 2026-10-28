@@ -6,12 +6,22 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-10-29
+
+### Added
+
+- **Update from the GUI**: on load the UI checks GitHub for a newer release and offers **Update now**, **Later** or **Skip this version**. **Settings → Updates** shows the installed version and a **Check for updates** button. `bin/plasmaweb-update` downloads the release over HTTPS, verifies its sha256 against `checksums.txt` and runs the new release's `install.sh`; installing is refused while a program runs. `sudo ./install.sh` grants passwordless sudo for that helper's `--as-root` mode only (`--setup-update [USER]` to re-apply). See [`docs/installation.md`](docs/installation.md#update-from-the-gui).
+
 ### Changed
 
 - Feed override preset **0 %**: clamps to ~1 % when idle/MDI; while an AUTO program runs, requests pause and resumes when leaving 0 only after that pause is confirmed in status (and only if it came from the preset). Spindle **0 %** also clamps to ~1 % (see [`docs/features/18_OVERRIDE_PRESET_HOTKEYS.md`](docs/features/18_OVERRIDE_PRESET_HOTKEYS.md)).
 
 ### Fixed
 
+- `install.sh` failed on a stock LinuxCNC ISO, which has no `rsync`; it now falls back to `cp`.
+- `install.sh` never copied `VERSION` into the install, so an install could not tell which release it was.
+- Re-running `$PREFIX/install.sh` (e.g. `--recreate-venv`) failed copying the tree onto itself.
+- `install.sh` refuses to write a passwordless-sudo rule (shutdown or update) for a helper that is not root-owned, or that sits under a directory writable by group or others.
 - Feed override presets: while at feed **0 %** (pause-ownership, last accepted preset ≤ 0 %, or status ~1 % before any preset), values **above 100 %** (encoder wrap to 125–200 %) are ignored so the machine cannot jump straight to full override (see [`docs/features/18_OVERRIDE_PRESET_HOTKEYS.md`](docs/features/18_OVERRIDE_PRESET_HOTKEYS.md)).
 
 ## [1.1.1] - 2026-09-21
