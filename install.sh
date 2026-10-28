@@ -17,13 +17,15 @@ PREFIX="/opt/plasmaweb"
 USER_INSTALL=0
 RECREATE_VENV=0
 SETUP_SHUTDOWN_ONLY=0
+SETUP_UPDATE_ONLY=0
 LINUXCNC_USER=""
 BIN_DIR=""
 LINK_GLOBAL=1
 
 usage() {
   cat <<'EOF'
-Usage: install.sh [--prefix DIR] [--user] [--recreate-venv] [--setup-shutdown [USER]] [--help]
+Usage: install.sh [--prefix DIR] [--user] [--recreate-venv] [--setup-shutdown [USER]]
+                  [--setup-update [USER]] [--help]
 
 Copies the release tree to PREFIX, creates a Python venv, and links plasmaweb
 onto PATH when appropriate.
@@ -39,6 +41,11 @@ Options:
                      (passwordless sudo for PREFIX/bin/plasmaweb-shutdown only).
                      Default USER: SUDO_USER or the current user with --user.
                      A full install with sudo also runs this automatically.
+  --setup-update [USER]
+                     Allow USER to install updates from the plasmaweb update prompt
+                     (passwordless sudo for PREFIX/bin/plasmaweb-update only).
+                     Default USER as for --setup-shutdown. A full install with sudo
+                     also runs this automatically.
   --help             Show this help
 EOF
 }
@@ -59,6 +66,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --setup-shutdown)
       SETUP_SHUTDOWN_ONLY=1
+      shift
+      if [[ $# -gt 0 && "$1" != -* ]]; then
+        LINUXCNC_USER="$1"
+        shift
+      fi
+      ;;
+    --setup-update)
+      SETUP_UPDATE_ONLY=1
       shift
       if [[ $# -gt 0 && "$1" != -* ]]; then
         LINUXCNC_USER="$1"
@@ -106,6 +121,19 @@ resolve_linuxcnc_user() {
   echo ""
 }
 
+# A NOPASSWD rule is only as safe as the file it names: if the LinuxCNC user can rewrite the
+# helper, or rename any directory above it, the rule runs their code as root. So the helper
+# and every directory from / down to it must be root-owned and not group- or world-writable.
+path_is_root_controlled() {
+  local p="$1"
+  while :; do
+    [[ "$(stat -c %u "$p" 2>/dev/null)" == 0 ]] || return 1
+    [[ -z "$(find "$p" -maxdepth 0 -perm /022 2>/dev/null)" ]] || return 1
+    [[ "$p" == / ]] && return 0
+    p="$(dirname "$p")"
+  done
+}
+
 install_shutdown_permissions() {
   local strict="${1:-0}"
   local target_user helper sudoers_file line
@@ -143,6 +171,13 @@ install_shutdown_permissions() {
     exit 1
   fi
 
+  if ! path_is_root_controlled "$helper"; then
+    echo "error: ${helper} or a directory above it is not root-owned or is writable by others;" >&2
+    echo "  refusing to grant passwordless sudo for it. Install to a root-owned prefix such as /opt/plasmaweb." >&2
+    [[ "$strict" -eq 1 ]] && exit 1
+    return 0
+  fi
+
   sudoers_file="/etc/sudoers.d/plasmaweb-shutdown-${target_user}"
   line="${target_user} ALL=(root) NOPASSWD: ${helper} --as-root, ${helper} --dry-run, ${helper} --as-root --dry-run"
 
@@ -164,8 +199,73 @@ install_shutdown_permissions() {
   echo "  sudoers: ${sudoers_file}"
 }
 
-if [[ "$SETUP_SHUTDOWN_ONLY" -eq 1 ]]; then
-  install_shutdown_permissions 1
+# The update prompt runs bin/plasmaweb-update as the LinuxCNC user. A root-owned install
+# cannot be written by that user, so the helper escalates through this one rule. It is only
+# safe because the helper sits in a root-owned PREFIX and its --as-root mode accepts no
+# arguments: what it installs is always the latest release of the one repository it names.
+install_update_permissions() {
+  local strict="${1:-0}"
+  local target_user helper sudoers_file line
+  target_user="$(resolve_linuxcnc_user)"
+  helper="$(readlink -f "${PREFIX}/bin/plasmaweb-update" 2>/dev/null || true)"
+
+  if [[ "$(id -u)" -ne 0 ]]; then
+    echo "To enable installing updates from the UI, run once as root:"
+    echo "  sudo $0 --prefix ${PREFIX} --setup-update ${target_user:-LINUXCNC_USER}"
+    return 0
+  fi
+
+  if [[ -z "$target_user" ]]; then
+    if [[ "$strict" -eq 1 ]]; then
+      echo "error: specify the LinuxCNC user, e.g. sudo $0 --setup-update cnc" >&2
+      exit 1
+    fi
+    echo "warning: could not detect LinuxCNC user; skipping UI update setup." >&2
+    echo "  Run later: sudo $0 --prefix ${PREFIX} --setup-update USERNAME" >&2
+    return 0
+  fi
+
+  if [[ ! -x "$helper" ]]; then
+    echo "error: missing executable ${PREFIX}/bin/plasmaweb-update — run ./install.sh first to install plasmaweb" >&2
+    exit 1
+  fi
+
+  if ! id "$target_user" >/dev/null 2>&1; then
+    echo "error: user does not exist: ${target_user}" >&2
+    exit 1
+  fi
+
+  if ! path_is_root_controlled "$helper"; then
+    echo "error: ${helper} or a directory above it is not root-owned or is writable by others;" >&2
+    echo "  refusing to grant passwordless sudo for it. Install to a root-owned prefix such as /opt/plasmaweb." >&2
+    [[ "$strict" -eq 1 ]] && exit 1
+    return 0
+  fi
+
+  sudoers_file="/etc/sudoers.d/plasmaweb-update-${target_user}"
+  line="${target_user} ALL=(root) NOPASSWD: ${helper} --as-root, ${helper} --as-root --dry-run"
+
+  if ! printf '%s\n' "$line" | visudo -cf - >/dev/null 2>&1; then
+    echo "error: generated sudoers line failed validation" >&2
+    exit 1
+  fi
+
+  umask 077
+  printf '%s\n' "$line" >"$sudoers_file"
+  chmod 440 "$sudoers_file"
+  if ! visudo -cf "$sudoers_file" >/dev/null 2>&1; then
+    rm -f "$sudoers_file"
+    echo "error: wrote invalid sudoers file ${sudoers_file}" >&2
+    exit 1
+  fi
+
+  echo "UI updates enabled for user: ${target_user}"
+  echo "  sudoers: ${sudoers_file}"
+}
+
+if [[ "$SETUP_SHUTDOWN_ONLY" -eq 1 || "$SETUP_UPDATE_ONLY" -eq 1 ]]; then
+  [[ "$SETUP_SHUTDOWN_ONLY" -eq 1 ]] && install_shutdown_permissions 1
+  [[ "$SETUP_UPDATE_ONLY" -eq 1 ]] && install_update_permissions 1
   exit 0
 fi
 
@@ -216,6 +316,10 @@ if [[ "$LINK_GLOBAL" -eq 1 && -n "$BIN_DIR" && "$BIN_DIR" == "/usr/local/bin" &&
 fi
 
 copy_release_tree "$SOURCE_DIR" "$PREFIX"
+# The release this install came from: the backend reads it to know whether GitHub has a newer one.
+if [[ -f "${SOURCE_DIR}/VERSION" && "$(readlink -f "$SOURCE_DIR")" != "$(readlink -f "$PREFIX")" ]]; then
+  cp "${SOURCE_DIR}/VERSION" "${PREFIX}/VERSION"
+fi
 write_production_config "${PREFIX}/dist" "$PRODUCTION_CONFIG"
 
 VENV="${PREFIX}/venv"
@@ -237,7 +341,8 @@ fi
 echo "Installing Python dependencies into venv..."
 "${VENV}/bin/pip" install -r "${PREFIX}/backend/requirements-runtime.txt"
 
-chmod +x "${PREFIX}/bin/plasmaweb" "${PREFIX}/bin/plasmaweb-shutdown" "${PREFIX}/bin/plasmacweb"
+chmod +x "${PREFIX}/bin/plasmaweb" "${PREFIX}/bin/plasmaweb-shutdown" "${PREFIX}/bin/plasmacweb" \
+  "${PREFIX}/bin/plasmaweb-update"
 
 if [[ "$LINK_GLOBAL" -eq 1 && -n "$BIN_DIR" ]]; then
   mkdir -p "$BIN_DIR"
@@ -256,6 +361,10 @@ else
 fi
 
 install_shutdown_permissions 0
+# A user or custom-prefix install the LinuxCNC user can write needs no sudo to update itself.
+if [[ "$USER_INSTALL" -eq 0 ]]; then
+  install_update_permissions 0
+fi
 
 VERSION_LINE=""
 if [[ -f "${PREFIX}/VERSION" ]]; then

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppTooltip } from '@/components/AppTooltip';
 import { HotkeyCaptureButton } from '@/components/HotkeyCaptureButton';
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
@@ -36,6 +37,8 @@ import { isSupportedLocale, type SupportedLocale } from '@/i18n/constants';
 import { HAL_TOOL_IDS, launchHalTool, type HalToolId } from '@/lib/halToolsApi';
 import { halToolLaunchErrorMessage } from '@/lib/halToolErrors';
 import { fetchNetworkInfo, type NetworkInfo } from '@/lib/networkInfoApi';
+import { fetchUpdateInfo, type UpdateInfo } from '@/lib/updateApi';
+import { UpdateDialog } from '@/components/UpdateDialog';
 
 type CapturingHotkeyTarget =
   | { scope: 'virtualSidebar'; buttonId: VirtualSidebarButtonId }
@@ -110,6 +113,22 @@ export function SettingsScreen() {
   // backend runs, and the answer is only ever read off the screen.
   const [networkInfo, setNetworkInfo] = useState<NetworkInfo | null>(null);
   const [networkInfoLoaded, setNetworkInfoLoaded] = useState(false);
+
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [updateChecking, setUpdateChecking] = useState(true);
+  const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
+
+  const checkForUpdate = (refresh: boolean) => {
+    setUpdateChecking(true);
+    void fetchUpdateInfo(refresh).then((info) => {
+      setUpdateInfo(info);
+      setUpdateChecking(false);
+    });
+  };
+
+  useEffect(() => {
+    checkForUpdate(false);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -256,6 +275,67 @@ export function SettingsScreen() {
                 docLink: 'docs/frontend-web-start.md',
               })}
             </p>
+          </SettingsGroup>
+
+          <SettingsGroup title={t('settings:groups.update')}>
+            <SettingsRow label={t('settings:update.version')} testId="settings-row-update">
+              <span className="flex items-center gap-3 max-w-[min(520px,55vw)] text-right">
+                <span className="text-xs text-muted-foreground block">
+                  <span className="font-mono" data-testid="settings-update-version">
+                    {updateInfo === null
+                      ? '—'
+                      : updateInfo.runningVersion !== null
+                        ? updateInfo.runningVersion
+                        : t('settings:update.sourceCheckout', {
+                            version: updateInfo.sourceVersion ?? '?',
+                          })}
+                  </span>
+                  {' · '}
+                  {updateChecking
+                    ? t('settings:update.checking')
+                    : updateInfo === null
+                      ? t('settings:connection.addressUnavailable')
+                      : updateInfo.restartRequired
+                        ? t('settings:update.restartRequired', {
+                            version: updateInfo.installedVersion,
+                          })
+                        : updateInfo.updateAvailable
+                          ? t('settings:update.available', { version: updateInfo.latestVersion })
+                          : updateInfo.error !== null
+                            ? t('settings:update.unavailable', { error: updateInfo.error })
+                            : updateInfo.runningVersion === null &&
+                                updateInfo.latestVersion !== updateInfo.sourceVersion
+                              ? t('settings:update.latestRelease', {
+                                  version: updateInfo.latestVersion,
+                                })
+                              : t('settings:update.upToDate')}
+                </span>
+                {updateInfo?.updateAvailable && !updateInfo.restartRequired ? (
+                  <Button size="sm" onClick={() => setUpdateDialogOpen(true)}>
+                    {t('settings:update.install')}
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={updateChecking}
+                    onClick={() => checkForUpdate(true)}
+                  >
+                    {t('settings:update.checkNow')}
+                  </Button>
+                )}
+              </span>
+            </SettingsRow>
+            {updateInfo !== null && (
+              <UpdateDialog
+                info={updateInfo}
+                open={updateDialogOpen}
+                onOpenChange={(open) => {
+                  setUpdateDialogOpen(open);
+                  if (!open) checkForUpdate(false);
+                }}
+              />
+            )}
           </SettingsGroup>
 
           <SettingsGroup title={t('settings:groups.display')}>

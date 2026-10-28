@@ -198,5 +198,21 @@
     "emptyRequired": "Bitte einen Wert eingeben oder Abbrechen.",
     "cancel": "Abbrechen",
     "confirm": "OK"
+  },
+  "update": {
+    "title": "plasmaweb {{version}} ist verfügbar",
+    "versions": "Installiert: {{current}} · Neueste: {{latest}}",
+    "restartNote": "Das Update wird installiert, während plasmaweb weiterläuft. Danach LinuxCNC neu starten, um die neue Version zu verwenden.",
+    "notPermitted": "Diese Installation kann sich nicht selbst aktualisieren. Auf der Steuerung einmalig ausführen: sudo /opt/plasmaweb/install.sh --setup-update",
+    "startFailed": "Das Update konnte nicht gestartet werden.",
+    "skip": "Diese Version überspringen",
+    "later": "Später",
+    "install": "Jetzt aktualisieren",
+    "installing": "Wird installiert — LinuxCNC erst neu starten, wenn dies abgeschlossen ist.",
+    "installedTitle": "Update installiert",
+    "installedBody": "plasmaweb {{version}} ist installiert. LinuxCNC neu starten, um sie zu verwenden.",
+    "failedTitle": "Update fehlgeschlagen",
+    "failedBody": "Ist der Download oder die Prüfsumme fehlgeschlagen, wurde nichts verändert. Die Ausgabe unten zeigt, wo es abgebrochen ist.",
+    "close": "Schließen"
   }
 }

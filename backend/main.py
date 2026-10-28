@@ -122,6 +122,7 @@ from backend.services.plasma_publisher import PlasmaPublisher
 from backend.application.command_bus import CommandBus
 from backend.api.hal_tools import create_hal_tools_router
 from backend.api.network import create_network_router
+from backend.api.updates import create_updates_router
 from backend.api.user_preferences import create_user_preferences_router
 from backend.api.ws import create_ws_router
 from backend.adapters.linuxcnc_gateway import LinuxCncGateway
@@ -360,6 +361,12 @@ app = FastAPI(lifespan=lifespan)
 app.include_router(create_hal_tools_router(gateway=gateway))
 app.include_router(create_network_router(host=HOST, port=PORT))
 app.include_router(create_user_preferences_router(gateway=gateway))
+# INTERP_IDLE is 1: anything else means a program or MDI line is being executed.
+app.include_router(
+    create_updates_router(
+        machine_busy=lambda: int(gateway.get_machine_task_context().get("interp_state", 1)) != 1
+    )
+)
 app.include_router(
     create_ws_router(
         websocket_path=WEBSOCKET_PATH,

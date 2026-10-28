@@ -82,6 +82,14 @@ git push origin main v1.0.0
    sudo ./install.sh
    ```
 
+### What installed machines see
+
+Installed machines check `releases/latest` on GitHub and offer the update in the GUI (see [Update from the GUI](installation.md#update-from-the-gui)). So:
+
+- **Publishing a non-prerelease offers it to every machine.** Tags starting `v0.` or containing `-` are published as prereleases and are never offered.
+- The updater downloads `plasmaweb-<version>-linux.tar.gz` and `checksums.txt` from the release and runs the tarball's `install.sh`. Keep those asset names and the `plasmaweb-<version>-linux/` top-level directory, or every machine's update fails.
+- The tag must be a plain version (`v1.2.3`); anything else is refused by the updater.
+
 ## CI workflow
 
 Defined in [`.github/workflows/release.yml`](../.github/workflows/release.yml).

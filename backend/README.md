@@ -14,6 +14,7 @@ Das Backend ist auf eine modulare Struktur umgestellt:
 | `backend/api/ws.py` | WebSocket-Endpunkt (`parse → dispatch → respond`), Backend-Stop nach `app.exit` |
 | `backend/api/user_preferences.py` | REST für launcher-sichtbare UI-Preferences (Kiosk vs. Fenster) |
 | `backend/api/hal_tools.py` | REST zum Starten von HAL-Hilfsprogrammen (HAL Show, HAL Meter, …) |
+| `backend/api/updates.py` | REST: neuere Release auf GitHub prüfen und über `bin/plasmaweb-update` installieren |
 | `backend/hal_tools.py` | Kommando-Auflösung und detached Start (gmoccapy-Parität) |
 | `backend/linuxcnc_autostart.py` | XDG-Autostart-Desktop-Eintrag für LinuxCNC beim grafischen Login |
 | `backend/user_preferences.py` | Lesen/Schreiben von `user-preferences.json` auf Disk |
@@ -53,6 +54,16 @@ Settings-UI startet LinuxCNC-Hilfsprogramme auf dem Backend-Host (gmoccapy-Parit
 Siehe `docs/features/12_HAL_TOOLS_SETTINGS.md`.
 
 Details: [`docs/features/08_WINDOW_MODE.md`](../docs/features/08_WINDOW_MODE.md), [`docs/installation.md`](../docs/installation.md).
+
+## Updates (REST)
+
+Logik in `backend/updates.py`, Installation durch `bin/plasmaweb-update`. Siehe [`docs/installation.md`](../docs/installation.md#update-from-the-gui).
+
+| Methode | Pfad | Beschreibung |
+|---------|------|--------------|
+| `GET` | `/api/update` | `?refresh=true` fragt GitHub erneut (sonst 6 h Cache). Antwort: `runningVersion`, `installedVersion`, `sourceVersion`, `latestVersion`, `updateAvailable`, `restartRequired`, `releaseUrl`, `releaseNotes`, `canInstall`, `error` |
+| `POST` | `/api/update/install` | Startet die Installation → **202** `{ "state", "log" }`. **409** `machine_busy` / `already_running`, **403** `not_permitted` / `source_checkout` |
+| `GET` | `/api/update/install` | Status: `{ "state": "idle" \| "running" \| "succeeded" \| "failed", "log": string[] }` |
 
 ## Message-Contract (v1)
 

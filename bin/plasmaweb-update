@@ -1,0 +1,135 @@
+#!/usr/bin/env bash
+# plasmaweb-update — install the latest GitHub release over this install.
+#
+# Downloads the release tarball and its checksums.txt over HTTPS, refuses a tarball whose
+# sha256 does not match, and runs the *new* release's install.sh against this install's
+# prefix — exactly what an operator does by hand, minus the typing.
+#
+# Usage:
+#   plasmaweb-update             install the latest release (escalates via sudo -n if needed)
+#   plasmaweb-update --dry-run   exit 0 when an install would be permitted, 1 otherwise
+#
+# A system install (/opt/plasmaweb) is root-owned, so the backend — running as the LinuxCNC
+# user — cannot write it. install.sh grants passwordless sudo for this helper's --as-root
+# mode only; that mode takes no other arguments, so the rule cannot be pointed at another
+# repository, version or prefix.
+
+set -euo pipefail
+
+REPO="RubenAhlhaus/plasmaweb"
+API_URL="https://api.github.com/repos/${REPO}/releases/latest"
+
+SELF="$(readlink -f "${BASH_SOURCE[0]}")"
+ROOT="$(readlink -f "$(dirname "$SELF")/..")"
+
+_fetch() {
+  local url="$1" out="$2"
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsSL --proto '=https' --tlsv1.2 --connect-timeout 20 --retry 3 -o "$out" "$url"
+    return
+  fi
+  python3 - "$url" "$out" <<'PY'
+import sys, urllib.request
+url, out = sys.argv[1], sys.argv[2]
+if not url.startswith("https://"):
+    sys.exit("refusing non-https url")
+with urllib.request.urlopen(url, timeout=60) as r, open(out, "wb") as f:
+    f.write(r.read())
+PY
+}
+
+_writable() {
+  [[ -w "$ROOT" && -w "${ROOT}/bin" && -w "${ROOT}/backend" ]]
+}
+
+WORK=""
+trap '[[ -n "$WORK" ]] && rm -rf "$WORK"' EXIT
+
+_install_latest() {
+  local work tag version tarball url
+  WORK="$(mktemp -d)"
+  work="$WORK"
+
+  echo "Checking ${API_URL}"
+  _fetch "$API_URL" "${work}/release.json"
+  tag="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["tag_name"])' "${work}/release.json")"
+  version="${tag#v}"
+  # Everything below builds paths and URLs from this; anything but a plain version is refused.
+  if [[ ! "$version" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
+    echo "plasmaweb-update: unexpected release tag: ${tag}" >&2
+    exit 1
+  fi
+
+  tarball="plasmaweb-${version}-linux.tar.gz"
+  url="https://github.com/${REPO}/releases/download/${tag}"
+  echo "Downloading ${tarball}"
+  _fetch "${url}/${tarball}" "${work}/${tarball}"
+  _fetch "${url}/checksums.txt" "${work}/checksums.txt"
+
+  echo "Verifying checksum"
+  (
+    cd "$work"
+    grep -E "  ${tarball//./\\.}\$" checksums.txt > expected.sha256 || {
+      echo "plasmaweb-update: ${tarball} is not listed in checksums.txt" >&2
+      exit 1
+    }
+    sha256sum -c expected.sha256
+  )
+
+  tar -xzf "${work}/${tarball}" -C "$work"
+  if [[ ! -x "${work}/plasmaweb-${version}-linux/install.sh" ]]; then
+    echo "plasmaweb-update: ${tarball} has no install.sh" >&2
+    exit 1
+  fi
+
+  echo "Installing ${version} to ${ROOT}"
+  "${work}/plasmaweb-${version}-linux/install.sh" --prefix "$ROOT"
+  echo "plasmaweb ${version} installed. Restart LinuxCNC to use it."
+}
+
+case "${1:-}" in
+  --as-root)
+    if [[ "$(id -u)" -ne 0 ]]; then
+      echo "plasmaweb-update: --as-root must run as root" >&2
+      exit 1
+    fi
+    # Belt and braces for the sudoers rule: never run, as root, an install tree that someone
+    # other than root could have changed.
+    p="$SELF"
+    while :; do
+      if [[ "$(stat -c %u "$p")" != 0 || -n "$(find "$p" -maxdepth 0 -perm /022)" ]]; then
+        echo "plasmaweb-update: ${p} is not root-owned or is writable by others; refusing" >&2
+        exit 1
+      fi
+      [[ "$p" == / ]] && break
+      p="$(dirname "$p")"
+    done
+    if [[ "${2:-}" == "--dry-run" ]]; then
+      exit 0
+    fi
+    [[ $# -eq 1 ]] || { echo "plasmaweb-update: --as-root takes no arguments" >&2; exit 1; }
+    _install_latest
+    ;;
+  --dry-run)
+    if _writable; then
+      exit 0
+    fi
+    command -v sudo >/dev/null 2>&1 && sudo -n "$SELF" --as-root --dry-run 2>/dev/null
+    ;;
+  "")
+    if _writable; then
+      _install_latest
+      exit 0
+    fi
+    if command -v sudo >/dev/null 2>&1 && sudo -n "$SELF" --as-root --dry-run 2>/dev/null; then
+      exec sudo -n "$SELF" --as-root
+    fi
+    echo "plasmaweb-update: no permission to write ${ROOT}." >&2
+    echo "Run once as root: sudo ${ROOT}/install.sh --setup-update" >&2
+    exit 1
+    ;;
+  *)
+    echo "Usage: plasmaweb-update [--dry-run]" >&2
+    exit 1
+    ;;
+esac

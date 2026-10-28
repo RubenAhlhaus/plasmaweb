@@ -112,11 +112,21 @@ same POSTGUI halfiles, the same prefs and material files. Setting `DISPLAY` back
 The integration target is the QtPlasmaC simulator config shipped with LinuxCNC
 (`configs/sim/qtplasmac/`), whose `sim-torch` component supplies a synthetic arc voltage.
 
+### Updates
+
+An installed machine checks GitHub for a newer release when the UI loads and offers
+**Update now**, **Later** or **Skip this version**. **Settings → Updates** shows the installed
+version and a **Check for updates** button. Updating downloads the release tarball, verifies
+its checksum and runs that release's `install.sh` over the install; restart LinuxCNC
+afterwards. Details, permissions and network needs:
+[*Update from the GUI*](docs/installation.md#update-from-the-gui).
+
 ## Releases
 
 Pushing a `v*` tag builds `plasmaweb-<version>-linux.tar.gz` and publishes it with
 checksums via GitHub Actions (`.github/workflows/release.yml`). See
-[`docs/releasing.md`](docs/releasing.md).
+[`docs/releasing.md`](docs/releasing.md). Publishing a non-prerelease is what offers the
+update to every installed machine.
 
 ## License
 

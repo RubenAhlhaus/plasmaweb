@@ -46,7 +46,7 @@ copy_release_tree "$ROOT" "$STAGING"
 write_version_file "$STAGING" "$VERSION"
 
 chmod +x "${STAGING}/bin/plasmaweb" "${STAGING}/bin/plasmaweb-shutdown" \
-  "${STAGING}/bin/plasmacweb" "${STAGING}/install.sh" "${STAGING}/uninstall.sh"
+  "${STAGING}/bin/plasmacweb" "${STAGING}/bin/plasmaweb-update" "${STAGING}/install.sh" "${STAGING}/uninstall.sh"
 
 mkdir -p "$OUT_DIR"
 tar -czf "$TARBALL" -C "${ROOT}/dist-release/staging" "$RELEASE_NAME"

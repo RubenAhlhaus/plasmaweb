@@ -30,6 +30,7 @@ import { ErrorToast } from './components/ErrorToast';
 import { CoordinatesDialogHost } from './components/CoordinatesDialogHost';
 import { SpindleFeedDialogsHost } from './components/SpindleFeedDialogsHost';
 import { ToolChangeDialogHost } from './components/ToolChangeDialogHost';
+import { UpdateDialogHost } from './components/UpdateDialog';
 import {
   SIDEBAR_INDEX_HOME,
   SIDEBAR_INDEX_PLASMA,
@@ -162,6 +163,7 @@ function AppContent() {
       <SpindleFeedDialogsHost />
       <ErrorToast />
       <ToolChangeDialogHost />
+      <UpdateDialogHost />
     </div>
   );
 }

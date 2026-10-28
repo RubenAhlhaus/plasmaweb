@@ -20,7 +20,7 @@ Developers: see [`docs/frontend-web-start.md`](frontend-web-start.md) for the de
 | A working machine config | For plasma: an existing **QtPlasmaC** config (the realtime `plasmac` component, a `[QTPLASMAC]` INI section, `<machine>.prefs` and `<machine>_material.cfg`). plasmaweb replaces the *screen*, not the config |
 | `python3-venv` | `sudo apt install python3-venv python3-full` on Raspberry Pi OS / Debian |
 | pip (in venv) | Created by `install.sh` — uses `backend/requirements-runtime.txt` only |
-| HTTP probe | `curl` **or** `python3` (launcher waits for backend HTTP) |
+| HTTP probe | `curl` **or** `python3` (launcher waits for backend HTTP; the GUI updater downloads with either) |
 | Browser | Chromium recommended (`chromium` or `chromium-browser`) |
 | X11 display | For the kiosk/window (`$DISPLAY` set — normal LinuxCNC desktop) |
 
@@ -103,6 +103,10 @@ The installer:
 4. Runs `pip install -r backend/requirements-runtime.txt` **inside that venv** (avoids PEP 668 on Raspberry Pi OS)
 5. Links `plasmaweb`, `plasmacweb` (the plasma alias) and `lcncgui` (the old name) into `/usr/local/bin` or `~/.local/bin` when appropriate — so any of the three `DISPLAY` names starts this GUI
 6. **System install (`sudo ./install.sh`):** grants the LinuxCNC user passwordless sudo for `$PREFIX/bin/plasmaweb-shutdown` only (`--as-root`, `--dry-run`, `--as-root --dry-run`), so **Close window and shut down** in the exit dialog can power off the PC
+7. **System install (`sudo ./install.sh`):** grants the LinuxCNC user passwordless sudo for `$PREFIX/bin/plasmaweb-update --as-root` only, so the GUI can install updates (see [Update from the GUI](#update-from-the-gui))
+8. Copies the release's `VERSION` file into `$PREFIX`, which is how the backend knows which release it is
+
+`rsync` is used when present but not required — the LinuxCNC ISO ships without it.
 
 ### Shut down the PC from the GUI
 
@@ -139,6 +143,34 @@ To re-apply after moving the install prefix:
 ```bash
 sudo ./install.sh --prefix /opt/plasmaweb --setup-shutdown cnc
 ```
+
+### Update from the GUI
+
+When the UI loads, the backend asks GitHub for the [latest release](https://github.com/RubenAhlhaus/plasmaweb/releases/latest) (prereleases such as `v0.x` or `-rc` tags are never offered). If it is newer than the installed one, a dialog shows the release notes with three choices:
+
+- **Update now** — installs it (see below)
+- **Later** — closes the dialog; it asks again the next time the UI loads
+- **Skip this version** — stays quiet until a newer release than this one appears (stored per browser, `localStorage` key `plasmaweb.skippedUpdateVersion`)
+
+**Settings → Updates** always shows the installed version with a **Check for updates** button, so a skipped release can still be installed from there. A source checkout shows its `package.json` version and the latest release, but is never installed over — update it with `git pull`.
+
+**What Update now does:** `$PREFIX/bin/plasmaweb-update` downloads `plasmaweb-<version>-linux.tar.gz` and `checksums.txt` from the release over HTTPS, refuses the tarball if its sha256 does not match, then runs the **new** release's `install.sh --prefix $PREFIX` — the same steps as [Upgrading an existing install](#upgrading-an-existing-install), done for you. The dialog shows the output as it runs. The install is refused while a program or MDI command is running.
+
+**Restart LinuxCNC afterwards.** The running backend and the page already loaded in the browser keep working on the old version until then; Settings shows *"<version> installed — restart LinuxCNC to use it"*. Do not just reload the browser — the new UI would be talking to the old backend.
+
+**Permissions:** a system install (`/opt/plasmaweb`) is root-owned, so `sudo ./install.sh` writes `/etc/sudoers.d/plasmaweb-update-<user>` allowing **only** `$PREFIX/bin/plasmaweb-update --as-root` (and its `--dry-run`) without a password. That mode takes no other arguments: it always installs the latest release of `RubenAhlhaus/plasmaweb`. `install.sh` refuses to write the rule unless the helper and every directory above it are root-owned and not writable by group or others, and the helper re-checks that before doing anything as root. A per-user install (`--user`) is writable by its owner and needs no sudo. To set up (or re-apply) the rule after install:
+
+```bash
+sudo ./install.sh --prefix /opt/plasmaweb --setup-update cnc
+```
+
+Without it, the dialog says the install cannot update itself and **Update now** stays disabled.
+
+**Network:** updates need outbound HTTPS to `api.github.com`, `github.com` and `objects.githubusercontent.com`. The check result is cached for 6 hours (GitHub allows 60 unauthenticated API calls per hour per address); **Check for updates** always asks again. Without network the check just reports that it could not reach GitHub.
+
+**Note:** the backend has no authentication (see [Who can reach the interface](#who-can-reach-the-interface)), so anyone who can reach port 8765 can also start an update. It can only ever install the latest checksummed release, but bind to `127.0.0.1` if that matters on your network.
+
+Machines on **v1.1.1 or older** have no updater yet: install the next release by hand once (below); from then on it updates from the GUI.
 
 ### Upgrading an existing install
 

@@ -9,7 +9,8 @@
     "spindleOverrideHotkeys": "Spindle-Override — Hotkeys",
     "halTools": "HAL-Werkzeuge",
     "debugLogging": "Debug / Logging",
-    "debugState": "Debug / Zustände"
+    "debugState": "Debug / Zustände",
+    "update": "Updates"
   },
   "connection": {
     "wsUrl": "WebSocket-URL (aus Konfigurationsdatei)",
@@ -133,5 +134,17 @@
     "fetchFailed": "Konfiguration konnte nicht geladen werden ({{message}}).",
     "httpNotOk": "Konfiguration nicht gefunden (HTTP {{status}}). Erwartet: {{url}}",
     "invalidJson": "Konfigurationsdatei ist kein gültiges JSON."
+  },
+  "update": {
+    "version": "Version",
+    "checkNow": "Nach Updates suchen",
+    "checking": "Wird geprüft…",
+    "upToDate": "Aktuell",
+    "available": "{{version}} verfügbar",
+    "install": "Installieren…",
+    "restartRequired": "{{version}} installiert — LinuxCNC neu starten, um sie zu verwenden",
+    "sourceCheckout": "{{version}} (Quellcode-Checkout)",
+    "unavailable": "Prüfung fehlgeschlagen: {{error}}",
+    "latestRelease": "neueste Version ist {{version}} — diesen Checkout mit git pull aktualisieren"
   }
 }

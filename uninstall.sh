@@ -24,7 +24,7 @@ Removes an plasmaweb install created by install.sh:
 
   - Stops running plasmaweb backend processes for this install prefix
   - Removes the plasmaweb symlink from PATH (/usr/local/bin or ~/.local/bin)
-  - Removes matching /etc/sudoers.d/plasmaweb-shutdown-* entries for this prefix (requires root)
+  - Removes matching /etc/sudoers.d/plasmaweb-{shutdown,update}-* entries for this prefix (requires root)
   - Deletes the install directory (application files and venv)
   - Deletes ~/.local/share/plasmaweb user data (preferences, Chromium profile)
     unless --keep-user-data is set or --user install (already removed with PREFIX)
@@ -177,23 +177,20 @@ remove_symlink() {
   echo "warning: ${link} exists but is not a symlink; leaving it in place." >&2
 }
 
-remove_shutdown_sudoers() {
+# One sudoers file per helper and user: plasmaweb-shutdown-USER and plasmaweb-update-USER.
+remove_helper_sudoers() {
   local prefix="$1"
-  local helper file removed=0
-  helper="$(readlink -f "${prefix}/bin/plasmaweb-shutdown" 2>/dev/null || true)"
+  local name helper file removed=0
   shopt -s nullglob
-  for file in /etc/sudoers.d/plasmaweb-shutdown-*; do
-    if [[ -n "$helper" ]] && grep -qF "$helper" "$file" 2>/dev/null; then
-      rm -f "$file"
-      echo "Removed sudoers: ${file}"
-      removed=1
-      continue
-    fi
-    if [[ -z "$helper" ]]; then
-      rm -f "$file"
-      echo "Removed sudoers: ${file}"
-      removed=1
-    fi
+  for name in plasmaweb-shutdown plasmaweb-update; do
+    helper="$(readlink -f "${prefix}/bin/${name}" 2>/dev/null || true)"
+    for file in /etc/sudoers.d/${name}-*; do
+      if [[ -z "$helper" ]] || grep -qF "$helper" "$file" 2>/dev/null; then
+        rm -f "$file"
+        echo "Removed sudoers: ${file}"
+        removed=1
+      fi
+    done
   done
   shopt -u nullglob
   if [[ "$removed" -eq 0 ]]; then
@@ -239,7 +236,7 @@ if [[ -n "$BIN_DIR" ]]; then
   done
 fi
 if [[ "$(id -u)" -eq 0 ]]; then
-  echo "  Sudoers: /etc/sudoers.d/plasmaweb-shutdown-* (matching this install prefix)"
+  echo "  Sudoers: /etc/sudoers.d/plasmaweb-{shutdown,update}-* (matching this install prefix)"
 fi
 if [[ "$KEEP_USER_DATA" -eq 0 && "$USER_DATA_DIR" != "$PREFIX" ]]; then
   echo "  User data: ${USER_DATA_DIR}"
@@ -256,9 +253,9 @@ for link_spec in "${LINK_NAMES[@]}"; do
 done
 
 if [[ "$(id -u)" -eq 0 ]]; then
-  remove_shutdown_sudoers "$PREFIX"
-elif compgen -G "/etc/sudoers.d/plasmaweb-shutdown-*" >/dev/null 2>&1; then
-  echo "To remove GUI shutdown permissions, run:"
+  remove_helper_sudoers "$PREFIX"
+elif compgen -G "/etc/sudoers.d/plasmaweb-*" >/dev/null 2>&1; then
+  echo "To remove GUI shutdown/update permissions, run:"
   echo "  sudo $0 --prefix ${PREFIX} --yes"
 fi
 
