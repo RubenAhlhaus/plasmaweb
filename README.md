@@ -5,8 +5,13 @@ LinuxCNC in a touch-friendly web UI, with a Python backend on the machine.
 
 **Status: feature-complete against QtPlasmaC, released as `v1.0`.** Milestones M0–M5 are
 done and M6 (look, feel, customisability) is done except the virtual keyboard's custom
-layouts. Every milestone was driven against a running LinuxCNC machine, and an 88-check
-audit — happy path plus adversarial input, scripts under `scripts/audit/` — passes.
+layouts. Every milestone was driven against a virtual LinuxCNC machine — the QtPlasmaC
+simulator config on LinuxCNC 2.9.4, running in a VM — and an 88-check audit — happy path
+plus adversarial input, scripts under `scripts/audit/` — passes.
+
+**Not yet tested on real hardware.** Nothing here has cut metal on a physical table yet; the
+author's table is still being built. Try it on a sim config first, and keep your QtPlasmaC
+config to switch back to (one INI line, see [Running on a machine](#running-on-a-machine)).
 [`BUILD_PLAN.md`](BUILD_PLAN.md) is the record of what was built, what it was measured
 against, and what each pass found; [`plan.md`](plan.md) is the original brief.
 
