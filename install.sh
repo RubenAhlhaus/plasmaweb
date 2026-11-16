@@ -9,6 +9,10 @@
 
 set -euo pipefail
 
+# sudo keeps the caller's umask, and Raspberry Pi OS defaults to 0002. Under it the tree comes
+# out group-writable, and the sudoers setup (and plasmaweb-update --as-root) then refuse it.
+umask 022
+
 SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/release-common.sh
 source "${SOURCE_DIR}/scripts/release-common.sh"

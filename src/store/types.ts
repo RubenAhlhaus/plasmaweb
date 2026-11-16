@@ -591,7 +591,8 @@ export interface PlasmaMaterials {
  */
 export interface PlasmaParameterLimits {
   minimum: number;
-  maximum: number;
+  /** `null` when the machine's INI sets no ceiling (JSON has no infinity). */
+  maximum: number | null;
   /** Digits after the point; 0 means whole numbers. */
   decimals: number;
   /** As QtPlasmaC labels it — `mS` for `Spotting Time` is its real unit, not a typo. */

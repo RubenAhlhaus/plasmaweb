@@ -203,9 +203,10 @@ maybe_shutdown_system() {
     && is_linuxcnc_parent_pid "$linuxcnc_pid"; then
     echo "plasmaweb: system shutdown scheduled after LinuxCNC exit (PID ${linuxcnc_pid})" | tee -a "$log_file" >&2
     (
-      deadline_epoch=$(( $(date +%s) + 60 ))
+      # Polls, not wall-clock time — see wait_for_http.
+      polls=240
       while kill -0 "$linuxcnc_pid" 2>/dev/null; do
-        if (( $(date +%s) >= deadline_epoch )); then
+        if (( polls-- <= 0 )); then
           echo "plasmaweb: timed out waiting for LinuxCNC exit (PID ${linuxcnc_pid}); proceeding with poweroff" >>"$log_file"
           break
         fi
@@ -368,8 +369,11 @@ cleanup() {
 
 wait_for_http() {
   local url="http://${LOCAL_HOST}:${HTTP_PORT}/"
-  local deadline=$((SECONDS + WAIT_TIMEOUT_S))
-  while (( SECONDS < deadline )); do
+  # Count polls rather than compare against SECONDS: SECONDS follows the wall clock, and a
+  # Pi without an RTC has NTP step its clock minutes forward shortly after boot. Started
+  # from autostart, that jump expired the deadline at once and LinuxCNC shut down.
+  local polls=$((WAIT_TIMEOUT_S * 4))
+  while (( polls-- > 0 )); do
     if http_probe; then
       return 0
     fi

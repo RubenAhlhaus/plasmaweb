@@ -27,6 +27,7 @@ published and lets the publisher do the sending.
 from __future__ import annotations
 
 import logging
+import math
 import os
 from typing import Any, Dict, List, Mapping, Optional, Tuple
 
@@ -261,8 +262,14 @@ class PlasmaConfigService:
             "values": dict(self._parameters),
             # The bounds travel with the values: they depend on this machine's INI and on
             # each other, so a client cannot work them out and should not have to guess.
+            # "No ceiling" is infinity here, which json.dumps writes as a bare `Infinity`. That
+            # is not JSON: the browser's JSON.parse throws on the whole snapshot and the plasma
+            # screen never appears. It travels as null instead.
             "limits": {
-                key: limit._asdict()
+                key: {
+                    **limit._asdict(),
+                    "maximum": limit.maximum if math.isfinite(limit.maximum) else None,
+                }
                 for key, limit in parameter_limits(self._files, self._parameters).items()
             },
             "enables": dict(self._enables),

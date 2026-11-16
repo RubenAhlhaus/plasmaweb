@@ -466,3 +466,30 @@ def test_the_powermax_setpoints_come_from_the_selected_material(service) -> None
 
     assert setpoints["cutAmps"] > 0
     assert setpoints["cutMode"] > 0
+
+
+def test_parameters_payload_is_strict_json_without_an_ini_ceiling(tmp_path: Path) -> None:
+    """A PNCconf INI has no [AXIS_Z] OFFSET_AV_RATIO, so Setup Feed Rate has no ceiling.
+
+    That ceiling used to go out as a bare ``Infinity``, which JSON.parse rejects: the whole
+    plasma snapshot was dropped in the browser and the plasma screen never appeared.
+    """
+    import json
+
+    (tmp_path / "machine.ini").write_text(
+        INI.replace("MAX_VELOCITY = 120.0\nOFFSET_AV_RATIO = 0.5\n", "")
+    )
+    (tmp_path / "my_plasma_material.cfg").write_text(CFG)
+    files = machine_files(str(tmp_path / "machine.ini"))
+    assert files is not None
+    bridge = HalBridge(FakeHalRuntime())
+    bridge.create_component()
+    bridge.ready()
+    config = PlasmaConfigService(
+        bridge, files, temp_material_path=str(tmp_path / "my_plasma_material.gcode")
+    )
+    config.load()
+
+    payload = config.parameters_payload()
+    json.dumps(payload, allow_nan=False)
+    assert payload["limits"]["Setup Feed Rate"]["maximum"] is None

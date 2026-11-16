@@ -187,10 +187,11 @@ export function PlasmaParametersScreen() {
   const validator = (key: string) => (parsed: number): string | null => {
     const limit = parameters.limits?.[key];
     if (!limit) return null;
-    if (parsed < limit.minimum || parsed > limit.maximum) {
+    const maximum = limit.maximum ?? Infinity;
+    if (parsed < limit.minimum || parsed > maximum) {
       return t('parameters.outOfRange', {
         minimum: limit.minimum,
-        maximum: Number.isFinite(limit.maximum) ? limit.maximum : '∞',
+        maximum: Number.isFinite(maximum) ? maximum : '∞',
         unit: limit.unit,
       });
     }
