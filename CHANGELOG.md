@@ -6,6 +6,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.1.4] - 2026-11-16
+
+### Fixed
+
+- The **Plasma** tab never appeared when the INI had no Z `MAX_VELOCITY`/`OFFSET_AV_RATIO`: the backend sent the missing parameter ceiling as a bare `Infinity`, which is not valid JSON, so the browser dropped the whole plasma snapshot. A missing ceiling is now sent as `null`.
+- `sudo ./install.sh` on Raspberry Pi OS (umask `0002`) left the install group-writable, so the shutdown and update sudo rules were refused. The installer now sets `umask 022`.
+- `bin/plasmaweb` timed out waiting for the backend when NTP stepped the clock during boot (Pi without an RTC). Its waits now count polls instead of comparing wall-clock times.
+
 ## [1.1.2] - 2026-10-29
 
 ### Added
