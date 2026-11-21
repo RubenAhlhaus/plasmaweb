@@ -36,7 +36,21 @@ def test_shutdown_helper_path_from_lcncgui_root(tmp_path: Path, monkeypatch: pyt
     helper.parent.mkdir(parents=True)
     helper.write_text("", encoding="utf-8")
     helper.chmod(0o755)
+    monkeypatch.delenv("PLASMAWEB_ROOT", raising=False)
     monkeypatch.setenv("LCNCGUI_ROOT", str(tmp_path))
+    assert shutdown_helper_path() == helper
+
+
+def test_shutdown_helper_path_from_plasmaweb_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The name bin/plasmaweb actually exports."""
+    helper = tmp_path / "bin" / "plasmaweb-shutdown"
+    helper.parent.mkdir(parents=True)
+    helper.write_text("", encoding="utf-8")
+    helper.chmod(0o755)
+    monkeypatch.delenv("LCNCGUI_ROOT", raising=False)
+    monkeypatch.setenv("PLASMAWEB_ROOT", str(tmp_path))
     assert shutdown_helper_path() == helper
 
 
@@ -48,7 +62,7 @@ def test_can_schedule_system_shutdown_uses_helper_dry_run(
     helper.parent.mkdir(parents=True)
     helper.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
     helper.chmod(0o755)
-    monkeypatch.setenv("LCNCGUI_ROOT", str(tmp_path))
+    monkeypatch.setenv("PLASMAWEB_ROOT", str(tmp_path))
 
     class _Result:
         returncode = 0
@@ -58,9 +72,10 @@ def test_can_schedule_system_shutdown_uses_helper_dry_run(
 
 
 def test_can_schedule_system_shutdown_false_without_helper(
+    tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("LCNCGUI_ROOT", raising=False)
+    monkeypatch.setenv("PLASMAWEB_ROOT", str(tmp_path))
     assert can_schedule_system_shutdown() is False
 
 

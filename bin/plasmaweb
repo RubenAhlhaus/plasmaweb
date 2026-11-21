@@ -211,19 +211,24 @@ maybe_shutdown_system() {
     && kill -0 "$linuxcnc_pid" 2>/dev/null \
     && is_linuxcnc_parent_pid "$linuxcnc_pid"; then
     echo "plasmaweb: system shutdown scheduled after LinuxCNC exit (PID ${linuxcnc_pid})" | tee -a "$log_file" >&2
-    (
-      # Polls, not wall-clock time — see wait_for_http.
+    # In its own session (setsid), like the restart helper, so LinuxCNC's exit cleanup
+    # cannot take the waiter down with it before it powers off. The marker stays until the
+    # waiter runs: maybe_restart_linuxcnc checks it to let a shutdown win over a restart.
+    setsid bash -c '
+      pid="$1"; helper="$2"; marker="$3"
+      # Polls, not wall-clock time: see wait_for_http.
       polls=240
-      while kill -0 "$linuxcnc_pid" 2>/dev/null; do
+      while kill -0 "$pid" 2>/dev/null; do
         if (( polls-- <= 0 )); then
-          echo "plasmaweb: timed out waiting for LinuxCNC exit (PID ${linuxcnc_pid}); proceeding with poweroff" >>"$log_file"
+          echo "plasmaweb: timed out waiting for LinuxCNC exit (PID ${pid}); proceeding with poweroff"
           break
         fi
         sleep 0.25
       done
       sleep 0.5
-      run_system_poweroff "$helper" "$marker" "$log_file"
-    ) >>"$log_file" 2>&1 &
+      rm -f "$marker"
+      "$helper" || echo "plasmaweb: poweroff failed"
+    ' plasmaweb-shutdown "$linuxcnc_pid" "$helper" "$marker" </dev/null >>"$log_file" 2>&1 &
     disown 2>/dev/null || true
     return 0
   fi

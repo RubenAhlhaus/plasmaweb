@@ -9,6 +9,7 @@ import subprocess
 from pathlib import Path
 
 from backend.adapters.linuxcnc_gateway import LinuxCncGateway
+from backend.updates import install_root
 
 logger = logging.getLogger(__name__)
 
@@ -32,10 +33,9 @@ def mark_shutdown_requested() -> None:
 
 
 def shutdown_helper_path() -> Path | None:
-    root = os.environ.get("LCNCGUI_ROOT")
-    if not root:
-        return None
-    helper = Path(root) / "bin" / "plasmaweb-shutdown"
+    # The launcher exports PLASMAWEB_ROOT; reading only the old LCNCGUI_ROOT name left every
+    # install reporting shutdown as unconfigured, however the sudo grant was set up.
+    helper = install_root() / "bin" / "plasmaweb-shutdown"
     if helper.is_file() and os.access(helper, os.X_OK):
         return helper
     return None
