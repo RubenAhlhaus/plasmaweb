@@ -6,6 +6,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.1.10] - 2026-11-21
+
+### Security
+
+- `POST /api/update/install` and `POST /api/update/restart` refuse requests from another site's page (an `Origin` that does not match the host). The UI has no authentication on the LAN, so any page open in a browser on that network could otherwise install an update or restart LinuxCNC.
+
+### Changed
+
+- The latest-release check is reused for 10 minutes instead of 6 hours, so reloading the page picks up a new release soon after it is published.
+
 ## [1.1.9] - 2026-11-21
 
 ### Added
