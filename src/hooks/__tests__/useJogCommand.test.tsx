@@ -347,4 +347,50 @@ describe('useJogCommand on an XYYZ gantry', () => {
     // Blocked pending confirmation instead of silently jogging in axis mode.
     expect((mockWs as unknown as MockWebSocket).sentMessages).toHaveLength(0);
   });
+
+  // LinuxCNC refuses world (teleop) mode until every joint is homed, so axis-letter jogs
+  // fail until then.
+  it('jogs homed X by joint while Z is still unhomed', () => {
+    const mockWs = new MockWebSocket() as unknown as WebSocket;
+    const state = useAppStore.getState();
+    state.setBackendWebSocket(mockWs);
+    setGantryConfig();
+    const currentStatus = state.linuxCncStatus as LinuxCncStatusRoot;
+    state.setLinuxCncStatus({
+      ...currentStatus,
+      motion: { ...currentStatus.motion, homed: [1, 1, 1, 0] },
+      joints: [],
+    });
+    state.setJogMode('continuous');
+
+    const { result } = renderHook(() => useJogCommand());
+
+    act(() => {
+      result.current({ axis: 'x', direction: 'positive' });
+    });
+
+    expect(sentParams(mockWs)).toMatchObject({ jointMode: true, index: 0 });
+  });
+
+  it('sends homed gantry Y by axis while Z is unhomed, never by one of its joints', () => {
+    const mockWs = new MockWebSocket() as unknown as WebSocket;
+    const state = useAppStore.getState();
+    state.setBackendWebSocket(mockWs);
+    setGantryConfig();
+    const currentStatus = state.linuxCncStatus as LinuxCncStatusRoot;
+    state.setLinuxCncStatus({
+      ...currentStatus,
+      motion: { ...currentStatus.motion, homed: [1, 1, 1, 0] },
+      joints: [],
+    });
+    state.setJogMode('continuous');
+
+    const { result } = renderHook(() => useJogCommand());
+
+    act(() => {
+      result.current({ axis: 'y', direction: 'positive' });
+    });
+
+    expect(sentParams(mockWs)).toMatchObject({ jointMode: false, index: 1 });
+  });
 });

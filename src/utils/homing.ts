@@ -65,6 +65,18 @@ export function isAxisHomed(
   return joints.every((joint) => jointHomedFlag(status, joint) === true);
 }
 
+/**
+ * Whether every joint of the machine reports homed — LinuxCNC's condition for world (teleop)
+ * mode, and so for jogging by axis on a machine whose kinematics are not identity.
+ */
+export function allJointsHomed(
+  status: HomingStatusSource,
+  jointCoordinates: readonly string[] = DEFAULT_JOINT_COORDINATES,
+): boolean {
+  const coords = jointCoordinates.length > 0 ? jointCoordinates : DEFAULT_JOINT_COORDINATES;
+  return coords.every((_, joint) => jointHomedFlag(status, joint) === true);
+}
+
 /** Axes the machine has that are not fully homed. See {@link isAxisHomed}. */
 export function getUnhomedAxes(
   status: HomingStatusSource | undefined | null,

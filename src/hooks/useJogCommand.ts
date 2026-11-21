@@ -3,7 +3,7 @@ import { useAppStore } from '@/store';
 import { useSendCommand } from '@/api/backendCommands';
 import type { UiJogRequest } from '@/api/jogTypes';
 import { eventBus } from '@/eventBus';
-import { isAxisHomed } from '@/utils/homing';
+import { allJointsHomed, isAxisHomed } from '@/utils/homing';
 import {
   axisNeedsSynchronisedHoming,
   jointCoordinatesFromIni,
@@ -46,10 +46,18 @@ function resolveJogRouting(
 ): JogRoutingResolution {
   const jointCoordinates = jointCoordinatesFromIni(iniRuntimeConfig);
   const axisIsHomed = isAxisHomed(linuxCncStatus, axis, jointCoordinates);
+  const synchronised = axisNeedsSynchronisedHoming(
+    jointCoordinates,
+    axis,
+    iniRuntimeConfig.joint_home_sequences ?? [],
+  );
 
-  // Homed axes jog in axis mode, addressed by axis letter. Unhomed axes jog in joint mode,
-  // addressed by joint index — which is only the same number on a plain XYZ machine.
-  if (axisIsHomed) {
+  // Jogging by axis letter needs LinuxCNC's world (teleop) mode, which it only allows once
+  // every joint is homed; the backend switches to it then. Until that point a homed axis
+  // still jogs by joint index (only the same number on a plain XYZ machine). A homed gantry
+  // axis is the exception: jogging one of its joints would rack it, so it is sent by axis
+  // and the backend answers with which joints still need homing.
+  if (axisIsHomed && (synchronised || allJointsHomed(linuxCncStatus, jointCoordinates))) {
     return { blocked: false, index: AXIS_INDEX[axis], jointMode: false, axisIsHomed };
   }
 
@@ -57,13 +65,10 @@ function resolveJogRouting(
   if (joint === null) {
     return { blocked: true, reason: 'unknown_axis' };
   }
-  if (
-    axisNeedsSynchronisedHoming(
-      jointCoordinates,
-      axis,
-      iniRuntimeConfig.joint_home_sequences ?? [],
-    )
-  ) {
+  if (axisIsHomed) {
+    return { blocked: false, index: joint, jointMode: true, axisIsHomed };
+  }
+  if (synchronised) {
     return { blocked: true, reason: 'synchronised_axis_unhomed' };
   }
   if (!shownUnhomedJogDialogAxes[axis]) {

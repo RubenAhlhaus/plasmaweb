@@ -1075,3 +1075,66 @@ def test_set_spindle_explicit_speed_not_divided_by_override(monkeypatch) -> None
     assert result.ok is True
     assert spindle_calls == [(1, 250.0, 0)]
 
+
+
+def _gateway_for_teleop_tests(
+    monkeypatch, *, homed: tuple[int, ...], motion_mode: int = 1
+) -> tuple[LinuxCncGateway, list[str]]:
+    gateway = LinuxCncGateway()
+    lc = SimpleNamespace(
+        STATE_ON=4,
+        MODE_MANUAL=1,
+        TRAJ_MODE_FREE=1,
+        TRAJ_MODE_TELEOP=3,
+    )
+    monkeypatch.setattr(gateway_module, "linuxcnc", lc)
+    calls: list[str] = []
+    stat = SimpleNamespace(
+        task_state=4,
+        task_mode=1,
+        motion_mode=motion_mode,
+        joints=len(homed),
+        homed=homed + (0,) * (16 - len(homed)),
+    )
+
+    def teleop_enable(flag: int) -> None:
+        calls.append(f"teleop_enable({flag})")
+        stat.motion_mode = 3 if flag else 1
+
+    gateway._cmd = SimpleNamespace(
+        teleop_enable=teleop_enable,
+        wait_complete=lambda *args: calls.append("wait_complete"),
+    )
+    stat.poll = lambda: None
+    gateway._stat = stat
+    return gateway, calls
+
+
+def test_axis_jog_switches_to_teleop_once_every_joint_is_homed(monkeypatch) -> None:
+    gateway, calls = _gateway_for_teleop_tests(monkeypatch, homed=(1, 1, 1, 1))
+
+    result = gateway._ensure_teleop_for_axis_jog(gateway._stat, gateway_module.linuxcnc)
+
+    assert result is None
+    assert calls == ["teleop_enable(1)", "wait_complete"]
+    assert gateway._stat.motion_mode == 3
+
+
+def test_axis_jog_names_the_unhomed_joints(monkeypatch) -> None:
+    gateway, calls = _gateway_for_teleop_tests(monkeypatch, homed=(1, 1, 1, 0))
+
+    result = gateway._ensure_teleop_for_axis_jog(gateway._stat, gateway_module.linuxcnc)
+
+    assert result is not None
+    assert result.error_code == "jog_needs_all_homed"
+    assert "joint 3" in (result.error_message or "")
+    assert calls == []
+
+
+def test_axis_jog_leaves_teleop_mode_alone(monkeypatch) -> None:
+    gateway, calls = _gateway_for_teleop_tests(
+        monkeypatch, homed=(1, 1, 1, 1), motion_mode=3
+    )
+
+    assert gateway._ensure_teleop_for_axis_jog(gateway._stat, gateway_module.linuxcnc) is None
+    assert calls == []

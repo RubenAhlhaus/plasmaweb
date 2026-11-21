@@ -3695,6 +3695,12 @@ class LinuxCncGateway:
             self._stat.poll()
             s = self._stat
 
+            if not joint_mode:
+                teleop_err = self._ensure_teleop_for_axis_jog(s, lc)
+                if teleop_err is not None:
+                    return teleop_err
+                s = self._stat
+
             err, joint_flag = self._jog_validate_context(s, lc, joint_mode)
             if err is not None:
                 return err
@@ -3926,6 +3932,58 @@ class LinuxCncGateway:
                 ),
             )
 
+        return None
+
+    @staticmethod
+    def _unhomed_joints(s: Any) -> list[int]:
+        """Joint indices LinuxCNC reports as not homed (``stat.homed`` covers every joint slot)."""
+        homed = tuple(getattr(s, "homed", ()) or ())
+        n = int(getattr(s, "joints", 0) or 0) or len(homed)
+        return [j for j in range(n) if j >= len(homed) or not homed[j]]
+
+    def _ensure_teleop_for_axis_jog(self, s: Any, lc: Any) -> Optional[GatewayCommandResult]:
+        """
+        Put motion in world (teleop) mode for an axis jog, as AXIS and QtPlasmaC do after
+        homing. Homing leaves it in joint (free) mode, and LinuxCNC only accepts teleop once
+        every joint is homed, so with a joint still unhomed this says which one.
+
+        Called with ``_stat_lock`` held and ``self._stat`` freshly polled; re-polls after
+        switching. Leaves other wrong states to ``_jog_validate_context``.
+        """
+        traj_free = int(getattr(lc, "TRAJ_MODE_FREE", 1))
+        traj_teleop = int(getattr(lc, "TRAJ_MODE_TELEOP", 3))
+        if int(getattr(s, "motion_mode", traj_teleop)) != traj_free:
+            return None
+        if int(getattr(s, "task_state", 0)) != int(getattr(lc, "STATE_ON", 4)):
+            return None
+        if int(getattr(s, "task_mode", 0)) != int(getattr(lc, "MODE_MANUAL", 1)):
+            return None
+
+        unhomed = self._unhomed_joints(s)
+        if unhomed:
+            joints = ", ".join(str(j) for j in unhomed)
+            return GatewayCommandResult(
+                ok=False,
+                error_code="jog_needs_all_homed",
+                error_message=(
+                    f"Home all axes first: joint {joints} is not homed. Jogging by axis needs "
+                    "world mode, which LinuxCNC only allows once every joint is homed."
+                ),
+            )
+
+        if not self._try_acquire_cmd_lock():
+            return GatewayCommandResult(
+                ok=False,
+                error_code="command_in_progress",
+                error_message="Cannot start jog while another command is being executed.",
+            )
+        try:
+            assert self._cmd is not None
+            self._cmd.teleop_enable(1)
+            self._cmd.wait_complete()
+        finally:
+            self._release_cmd_lock()
+        self._stat.poll()
         return None
 
     def _teleop_enable_joint_mode(self, lc: Any) -> None:
