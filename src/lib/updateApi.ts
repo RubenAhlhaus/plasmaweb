@@ -17,10 +17,13 @@ export type UpdateInfo = {
   releaseUrl: string | null;
   releaseNotes: string | null;
   canInstall: boolean;
+  /** LinuxCNC can be restarted from the UI (plasmaweb was launched as its display). */
+  canRestart: boolean;
   error: string | null;
 };
 
-export type UpdateInstallState = 'idle' | 'running' | 'succeeded' | 'failed';
+/** `restarting`: installed, and LinuxCNC is restarting to run it (the backend goes away). */
+export type UpdateInstallState = 'idle' | 'running' | 'succeeded' | 'failed' | 'restarting';
 
 /** Mirrors `UpdateInstallResponse` in `backend/api/updates.py`. */
 export type UpdateInstallStatus = {
@@ -43,6 +46,7 @@ function isUpdateInfo(raw: unknown): raw is UpdateInfo {
     nullableString(value.releaseUrl) &&
     nullableString(value.releaseNotes) &&
     typeof value.canInstall === 'boolean' &&
+    typeof value.canRestart === 'boolean' &&
     nullableString(value.error)
   );
 }
@@ -54,7 +58,8 @@ function isInstallStatus(raw: unknown): raw is UpdateInstallStatus {
     (value.state === 'idle' ||
       value.state === 'running' ||
       value.state === 'succeeded' ||
-      value.state === 'failed') &&
+      value.state === 'failed' ||
+      value.state === 'restarting') &&
     Array.isArray(value.log) &&
     value.log.every((line) => typeof line === 'string')
   );
@@ -74,9 +79,18 @@ export async function fetchUpdateInfo(refresh = false): Promise<UpdateInfo | nul
 
 export type StartInstallResult = { ok: true } | { ok: false; message: string | null };
 
-export async function startUpdateInstall(): Promise<StartInstallResult> {
+async function postForResult(url: string, body?: unknown): Promise<StartInstallResult> {
   try {
-    const response = await fetch('/api/update/install', { method: 'POST' });
+    const response = await fetch(
+      url,
+      body === undefined
+        ? { method: 'POST' }
+        : {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          },
+    );
     if (response.ok) return { ok: true };
     const raw: unknown = await response.json().catch(() => null);
     const detail = (raw as { detail?: { message?: unknown } } | null)?.detail;
@@ -84,6 +98,18 @@ export async function startUpdateInstall(): Promise<StartInstallResult> {
   } catch {
     return { ok: false, message: null };
   }
+}
+
+/** `restart`: restart LinuxCNC once the install succeeds, to run the new version straight away. */
+export function startUpdateInstall(
+  options: { restart?: boolean } = {},
+): Promise<StartInstallResult> {
+  return postForResult('/api/update/install', { restart: options.restart === true });
+}
+
+/** Restart LinuxCNC now (turns the machine off; the backend goes away until it is back). */
+export function requestLinuxCncRestart(): Promise<StartInstallResult> {
+  return postForResult('/api/update/restart');
 }
 
 export async function fetchUpdateInstallStatus(): Promise<UpdateInstallStatus | null> {

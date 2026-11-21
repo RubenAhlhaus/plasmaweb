@@ -213,6 +213,11 @@
     "installedBody": "plasmaweb {{version}} ist installiert. LinuxCNC neu starten, um sie zu verwenden.",
     "failedTitle": "Update fehlgeschlagen",
     "failedBody": "Ist der Download oder die Prüfsumme fehlgeschlagen, wurde nichts verändert. Die Ausgabe unten zeigt, wo es abgebrochen ist.",
-    "close": "Schließen"
+    "close": "Schließen",
+    "restartAfter": "LinuxCNC nach dem Update neu starten",
+    "restartAfterNote": "LinuxCNC startet nach der Installation von selbst neu. Die Maschine wird ausgeschaltet und muss neu referenziert werden.",
+    "restartingTitle": "LinuxCNC wird neu gestartet",
+    "restartingBody": "plasmaweb {{version}} ist installiert. LinuxCNC startet mit ausgeschalteter Maschine neu; diese Seite lädt neu, sobald es wieder läuft.",
+    "restartTimedOut": "LinuxCNC ist nach 3 Minuten nicht zurück. Die Steuerung prüfen, dort auch ~/.local/share/plasmaweb/restart.log."
   }
 }

@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog';
+import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
+import { useReloadWhenRestarted } from '@/hooks/useReloadWhenRestarted';
 import {
   fetchUpdateInfo,
   fetchUpdateInstallStatus,
@@ -21,30 +23,40 @@ type UpdateDialogProps = {
 };
 
 /**
- * Offers the newer release, installs it on request and says when LinuxCNC has to restart.
+ * Offers the newer release, installs it on request and restarts LinuxCNC afterwards, or says
+ * it has to be restarted.
  *
  * The page keeps running on the files it already loaded while the install rewrites them, so
- * the dialog can follow the install to the end; what it must not do is reload, because the
- * new UI would then be talking to the old backend.
+ * the dialog can follow the install to the end; what it must not do is reload before the new
+ * backend is up, because the new UI would then be talking to the old backend.
  */
 export function UpdateDialog({ info, open, onOpenChange }: UpdateDialogProps) {
   const { t } = useTranslation('components');
   const [install, setInstall] = useState<UpdateInstallStatus | null>(null);
   const [startError, setStartError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
+  const [restartAfter, setRestartAfter] = useState(info.canRestart);
   const logRef = useRef<HTMLPreElement>(null);
 
-  const running = starting || install?.state === 'running';
+  const restarting = install?.state === 'restarting';
+  const restartTimedOut = useReloadWhenRestarted(restarting, info.latestVersion);
+  const running = starting || install?.state === 'running' || (restarting && !restartTimedOut);
 
   useEffect(() => {
     if (install?.state !== 'running') return;
     const timer = window.setInterval(() => {
       void fetchUpdateInstallStatus().then((status) => {
-        if (status !== null) setInstall(status);
+        if (status !== null) {
+          setInstall(status);
+        } else if (restartAfter) {
+          // The backend went away mid-install: it finished and is restarting LinuxCNC, between
+          // two polls.
+          setInstall((current) => current && { ...current, state: 'restarting' });
+        }
       });
     }, INSTALL_POLL_INTERVAL_MS);
     return () => window.clearInterval(timer);
-  }, [install?.state]);
+  }, [install?.state, restartAfter]);
 
   useEffect(() => {
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight });
@@ -53,7 +65,7 @@ export function UpdateDialog({ info, open, onOpenChange }: UpdateDialogProps) {
   const handleInstall = () => {
     setStarting(true);
     setStartError(null);
-    void startUpdateInstall().then((result) => {
+    void startUpdateInstall({ restart: restartAfter && info.canRestart }).then((result) => {
       setStarting(false);
       if (result.ok) {
         setInstall({ state: 'running', log: [] });
@@ -74,18 +86,21 @@ export function UpdateDialog({ info, open, onOpenChange }: UpdateDialogProps) {
     onOpenChange(next);
   };
 
-  const finished = install?.state === 'succeeded' || install?.state === 'failed';
+  const finished =
+    install?.state === 'succeeded' || install?.state === 'failed' || restartTimedOut;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-2xl" onEscapeKeyDown={() => !running}>
         <div className="space-y-4">
           <h2 className="text-2xl font-semibold tracking-tight">
-            {install?.state === 'succeeded'
-              ? t('update.installedTitle')
-              : install?.state === 'failed'
-                ? t('update.failedTitle')
-                : t('update.title', { version: info.latestVersion })}
+            {restarting
+              ? t('update.restartingTitle')
+              : install?.state === 'succeeded'
+                ? t('update.installedTitle')
+                : install?.state === 'failed'
+                  ? t('update.failedTitle')
+                  : t('update.title', { version: info.latestVersion })}
           </h2>
 
           {install === null && (
@@ -101,7 +116,20 @@ export function UpdateDialog({ info, open, onOpenChange }: UpdateDialogProps) {
                   {info.releaseNotes}
                 </pre>
               )}
-              <p className="text-sm text-muted-foreground">{t('update.restartNote')}</p>
+              {info.canRestart && (
+                <ToggleSwitch
+                  checked={restartAfter}
+                  onCheckedChange={() => setRestartAfter((value) => !value)}
+                  label={t('update.restartAfter')}
+                  disabled={running}
+                  data-e2e="update-restart-after"
+                />
+              )}
+              <p className="text-sm text-muted-foreground">
+                {info.canRestart && restartAfter
+                  ? t('update.restartAfterNote')
+                  : t('update.restartNote')}
+              </p>
               {!info.canInstall && (
                 <p className="text-sm text-amber-400" data-testid="update-not-permitted">
                   {t('update.notPermitted')}
@@ -114,11 +142,15 @@ export function UpdateDialog({ info, open, onOpenChange }: UpdateDialogProps) {
           {install !== null && (
             <>
               <p className="text-sm text-muted-foreground">
-                {install.state === 'succeeded'
-                  ? t('update.installedBody', { version: info.latestVersion })
-                  : install.state === 'failed'
-                    ? t('update.failedBody')
-                    : t('update.installing')}
+                {restarting
+                  ? restartTimedOut
+                    ? t('update.restartTimedOut')
+                    : t('update.restartingBody', { version: info.latestVersion })
+                  : install.state === 'succeeded'
+                    ? t('update.installedBody', { version: info.latestVersion })
+                    : install.state === 'failed'
+                      ? t('update.failedBody')
+                      : t('update.installing')}
               </p>
               <pre
                 ref={logRef}

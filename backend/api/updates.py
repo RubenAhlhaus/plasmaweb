@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import Callable, List, Optional
+from typing import Awaitable, Callable, List, Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict
@@ -40,8 +40,17 @@ class UpdateInfoResponse(BaseModel):
     releaseNotes: Optional[str]
     #: Whether this backend may write its install directory (directly or via its sudoers rule).
     canInstall: bool
+    #: Whether LinuxCNC can be restarted from here (plasmaweb was launched as its display).
+    canRestart: bool
     #: Why the check could not be answered, e.g. no network. ``None`` when it was.
     error: Optional[str]
+
+
+class UpdateInstallRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    #: Restart LinuxCNC once the install succeeds, so the new version is running straight away.
+    restart: bool = False
 
 
 class UpdateInstallResponse(BaseModel):
@@ -51,13 +60,32 @@ class UpdateInstallResponse(BaseModel):
     log: List[str]
 
 
+_MACHINE_BUSY = {
+    "code": "machine_busy",
+    "message": "Stop the running program before restarting LinuxCNC.",
+}
+_RESTART_UNAVAILABLE = {
+    "code": "restart_unavailable",
+    "message": (
+        "LinuxCNC cannot be restarted from here: plasmaweb was not started by LinuxCNC as its "
+        "display. Restart LinuxCNC by hand."
+    ),
+}
+
+
 def create_updates_router(
     *,
     machine_busy: Callable[[], bool],
     root: Optional[Path] = None,
     checker: Optional[UpdateChecker] = None,
     installer: Optional[UpdateInstaller] = None,
+    can_restart: Callable[[], bool] = lambda: False,
+    restart: Optional[Callable[[], Awaitable[bool]]] = None,
 ) -> APIRouter:
+    """
+    ``can_restart`` / ``restart`` restart LinuxCNC (see :mod:`backend.restart`); ``restart``
+    returns False when it could not. Left out, restarting is reported as unavailable.
+    """
     router = APIRouter(prefix="/api", tags=["update"])
     install_dir = root if root is not None else install_root()
     running_version = installed_version(install_dir)
@@ -82,6 +110,7 @@ def create_updates_router(
                 releaseUrl=None,
                 releaseNotes=None,
                 canInstall=False,
+                canRestart=can_restart(),
                 error=str(exc),
             )
         # A source checkout is told what the latest release is, but is updated with git, not
@@ -101,11 +130,15 @@ def create_updates_router(
             releaseUrl=release.url or None,
             releaseNotes=release.notes or None,
             canInstall=available and await asyncio.to_thread(can_install, install_dir),
+            canRestart=can_restart(),
             error=None,
         )
 
     @router.post("/update/install", response_model=UpdateInstallResponse, status_code=202)
-    async def post_update_install() -> UpdateInstallResponse:
+    async def post_update_install(
+        request: Optional[UpdateInstallRequest] = None,
+    ) -> UpdateInstallResponse:
+        want_restart = request is not None and request.restart
         if running_version is None:
             raise HTTPException(
                 status_code=403,
@@ -140,8 +173,34 @@ def create_updates_router(
                     ),
                 },
             )
-        installer.start(helper)
+        if want_restart and (restart is None or not can_restart()):
+            raise HTTPException(status_code=409, detail=_RESTART_UNAVAILABLE)
+
+        async def restart_unless_busy() -> bool:
+            # The install takes a while; a program started meanwhile is not to be cut short.
+            assert restart is not None
+            if await asyncio.to_thread(machine_busy):
+                return False
+            return await restart()
+
+        installer.start(helper, restart_unless_busy if want_restart else None)
         return UpdateInstallResponse(state=installer.state, log=list(installer.log))
+
+    @router.post("/update/restart", status_code=202)
+    async def post_restart() -> dict:
+        """Restart LinuxCNC now, e.g. to run an update installed earlier."""
+        if restart is None or not can_restart():
+            raise HTTPException(status_code=409, detail=_RESTART_UNAVAILABLE)
+        if installer.running:
+            raise HTTPException(
+                status_code=409,
+                detail={"code": "already_running", "message": "An update is being installed."},
+            )
+        if await asyncio.to_thread(machine_busy):
+            raise HTTPException(status_code=409, detail=_MACHINE_BUSY)
+        if not await restart():
+            raise HTTPException(status_code=409, detail=_RESTART_UNAVAILABLE)
+        return {"state": "restarting"}
 
     @router.get("/update/install", response_model=UpdateInstallResponse)
     async def get_update_install() -> UpdateInstallResponse:

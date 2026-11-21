@@ -156,7 +156,11 @@ When the UI loads, the backend asks GitHub for the [latest release](https://gith
 
 **What Update now does:** `$PREFIX/bin/plasmaweb-update` downloads `plasmaweb-<version>-linux.tar.gz` and `checksums.txt` from the release over HTTPS, refuses the tarball if its sha256 does not match, then runs the **new** release's `install.sh --prefix $PREFIX` — the same steps as [Upgrading an existing install](#upgrading-an-existing-install), done for you. The dialog shows the output as it runs. The install is refused while a program or MDI command is running.
 
-**Restart LinuxCNC afterwards.** The running backend and the page already loaded in the browser keep working on the old version until then; Settings shows *"<version> installed — restart LinuxCNC to use it"*. Do not just reload the browser — the new UI would be talking to the old backend.
+**LinuxCNC restarts afterwards** when **Restart LinuxCNC after updating** is on (the default). The machine is turned off first and has to be homed again; the page reloads once the new version is up, which takes 20–40 s on a Raspberry Pi. Because plasmaweb is LinuxCNC's display, `bin/plasmaweb` does the restart: once LinuxCNC has exited, a helper in its own session starts `linuxcnc` again with the same INI, logging to `~/.local/share/plasmaweb/restart.log`. The option is only offered when plasmaweb was started by LinuxCNC as its display.
+
+With the option off, restart LinuxCNC yourself, or use **Restart LinuxCNC** in Settings. The running backend and the page already loaded in the browser keep working on the old version until then; Settings shows *"<version> installed — restart LinuxCNC to use it"*. Do not just reload the browser — the new UI would be talking to the old backend.
+
+Restarting from the UI needs the launcher that ships with it, so the first update to the release that adds it still asks for a manual restart.
 
 **Permissions:** a system install (`/opt/plasmaweb`) is root-owned, so `sudo ./install.sh` writes `/etc/sudoers.d/plasmaweb-update-<user>` allowing **only** `$PREFIX/bin/plasmaweb-update --as-root` (and its `--dry-run`) without a password. That mode takes no other arguments: it always installs the latest release of `RubenAhlhaus/plasmaweb`. `install.sh` refuses to write the rule unless the helper and every directory above it are root-owned and not writable by group or others, and the helper re-checks that before doing anything as root. A per-user install (`--user`) is writable by its owner and needs no sudo. To set up (or re-apply) the rule after install:
 

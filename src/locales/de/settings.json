@@ -145,6 +145,9 @@
     "restartRequired": "{{version}} installiert — LinuxCNC neu starten, um sie zu verwenden",
     "sourceCheckout": "{{version}} (Quellcode-Checkout)",
     "unavailable": "Prüfung fehlgeschlagen: {{error}}",
-    "latestRelease": "neueste Version ist {{version}} — diesen Checkout mit git pull aktualisieren"
+    "latestRelease": "neueste Version ist {{version}} — diesen Checkout mit git pull aktualisieren",
+    "restartNow": "LinuxCNC neu starten",
+    "restarting": "LinuxCNC startet neu… diese Seite lädt neu, sobald es wieder läuft",
+    "restartTimedOut": "LinuxCNC ist nicht zurück; Steuerung prüfen"
   }
 }

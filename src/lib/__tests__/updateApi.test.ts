@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { fetchUpdateInfo, startUpdateInstall, type UpdateInfo } from '@/lib/updateApi';
+import {
+  fetchUpdateInfo,
+  requestLinuxCncRestart,
+  startUpdateInstall,
+  type UpdateInfo,
+} from '@/lib/updateApi';
 
 function mockFetch(response: Partial<Response> & { json?: () => Promise<unknown> }) {
   const fetchMock = vi.fn().mockResolvedValue(response);
@@ -22,6 +27,7 @@ const available: UpdateInfo = {
   releaseUrl: 'https://github.com/RubenAhlhaus/plasmaweb/releases/tag/v1.2.0',
   releaseNotes: 'notes',
   canInstall: true,
+  canRestart: true,
   error: null,
 };
 
@@ -66,5 +72,33 @@ describe('startUpdateInstall', () => {
       ok: false,
       message: 'Stop the running program first.',
     });
+  });
+});
+
+describe('restarting LinuxCNC', () => {
+  it('asks the install to restart LinuxCNC afterwards', async () => {
+    const fetchMock = mockFetch({ ok: true, json: async () => ({ state: 'running', log: [] }) });
+
+    expect(await startUpdateInstall({ restart: true })).toEqual({ ok: true });
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('/api/update/install');
+    expect(JSON.parse(String(init.body))).toEqual({ restart: true });
+  });
+
+  it('installs without restarting by default', async () => {
+    const fetchMock = mockFetch({ ok: true, json: async () => ({ state: 'running', log: [] }) });
+
+    await startUpdateInstall();
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(String(init.body))).toEqual({ restart: false });
+  });
+
+  it('restarts on its own via /api/update/restart', async () => {
+    const fetchMock = mockFetch({ ok: true, json: async () => ({ state: 'restarting' }) });
+
+    expect(await requestLinuxCncRestart()).toEqual({ ok: true });
+    expect(fetchMock).toHaveBeenCalledWith('/api/update/restart', { method: 'POST' });
   });
 });

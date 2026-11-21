@@ -1,7 +1,6 @@
 import asyncio
 import json
 import logging
-import signal
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
@@ -17,19 +16,9 @@ logger = logging.getLogger(__name__)
 async def _shutdown_backend_after_ack() -> None:
     """Run after command_result was sent so the client receives the ACK first."""
     try:
-        await asyncio.sleep(0.05)
-        from backend.uvicorn_server_ref import request_uvicorn_exit
+        from backend.uvicorn_server_ref import _exit_backend_after
 
-        if request_uvicorn_exit():
-            return
-        try:
-            signal.raise_signal(signal.SIGINT)
-        except (ValueError, OSError) as exc:
-            logger.warning(
-                "app.exit: could not raise SIGINT for shutdown (%s); "
-                "backend process may keep running after the client disconnects.",
-                exc,
-            )
+        await _exit_backend_after(0.05)
     except Exception:
         logger.exception("app.exit: shutdown task failed unexpectedly")
 

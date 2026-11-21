@@ -24,7 +24,7 @@ import urllib.request
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Deque, Literal, Optional, Tuple
+from typing import Awaitable, Callable, Deque, Literal, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -166,7 +166,7 @@ def can_install(root: Path) -> bool:
     return result.returncode == 0
 
 
-InstallState = Literal["idle", "running", "succeeded", "failed"]
+InstallState = Literal["idle", "running", "succeeded", "failed", "restarting"]
 
 
 class UpdateInstaller:
@@ -181,12 +181,40 @@ class UpdateInstaller:
     def running(self) -> bool:
         return self.state == "running"
 
-    def start(self, helper: Path) -> None:
+    def start(
+        self,
+        helper: Path,
+        after_success: Optional[Callable[[], Awaitable[bool]]] = None,
+    ) -> None:
+        """
+        Run ``helper``. ``after_success`` (e.g. restarting LinuxCNC) runs once it succeeds; if
+        it returns True the state becomes ``"restarting"`` instead of ``"succeeded"``.
+        """
         if self.running:
             raise RuntimeError("An update is already being installed.")
         self.state = "running"
         self.log.clear()
-        self._task = asyncio.create_task(self._run(helper))
+        self._task = asyncio.create_task(self._run_then(helper, after_success))
+
+    async def _run_then(
+        self, helper: Path, after_success: Optional[Callable[[], Awaitable[bool]]]
+    ) -> None:
+        await self._run(helper)
+        if self.state != "succeeded" or after_success is None:
+            return
+        # Report "restarting" before asking: the restart stops this backend shortly after,
+        # and the browser should have seen the state by then.
+        self.state = "restarting"
+        self.log.append("Restarting LinuxCNC…")
+        try:
+            restarted = await after_success()
+        except Exception as exc:
+            logger.exception("Restart after update failed")
+            self.log.append(f"LinuxCNC could not be restarted: {exc}")
+            restarted = False
+        if not restarted:
+            self.state = "succeeded"
+            self.log.append("LinuxCNC was not restarted; restart it to use the update.")
 
     async def _run(self, helper: Path) -> None:
         try:

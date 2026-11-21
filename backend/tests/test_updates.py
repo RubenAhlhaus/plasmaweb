@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 
 import pytest
@@ -10,6 +11,7 @@ from fastapi.testclient import TestClient
 
 from backend.api.updates import create_updates_router
 from backend.updates import (
+    UpdateInstaller,
     ReleaseInfo,
     UpdateChecker,
     UpdateCheckError,
@@ -45,9 +47,11 @@ class FakeInstaller:
         self.state = "idle"
         self.log: list[str] = []
         self.started_with: Path | None = None
+        self.after_success = None
 
-    def start(self, helper: Path) -> None:
+    def start(self, helper: Path, after_success=None) -> None:
         self.started_with = helper
+        self.after_success = after_success
         self.state = "running"
 
 
@@ -69,6 +73,8 @@ def client_for(
     permitted: bool = True,
     monkeypatch: pytest.MonkeyPatch,
     installer: FakeInstaller | None = None,
+    can_restart: bool = False,
+    restart=None,
 ) -> TestClient:
     def fetch() -> ReleaseInfo:
         if isinstance(latest, Exception):
@@ -83,6 +89,8 @@ def client_for(
             root=root,
             checker=UpdateChecker(fetch=fetch),
             installer=installer or FakeInstaller(),  # type: ignore[arg-type]
+            can_restart=lambda: can_restart,
+            restart=restart,
         )
     )
     return TestClient(app)
@@ -188,3 +196,148 @@ def test_install_is_refused_without_permission(
 
     assert response.status_code == 403
     assert "--setup-update" in response.json()["detail"]["message"]
+
+
+class FakeRestart:
+    def __init__(self, result: bool = True) -> None:
+        self.calls = 0
+        self.result = result
+
+    async def __call__(self) -> bool:
+        self.calls += 1
+        return self.result
+
+
+def test_restart_availability_is_reported(install: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    assert client_for(install, monkeypatch=monkeypatch).get("/api/update").json()["canRestart"] is False
+    body = client_for(install, monkeypatch=monkeypatch, can_restart=True, restart=FakeRestart())
+    assert body.get("/api/update").json()["canRestart"] is True
+
+
+def test_install_with_restart_restarts_after_success(
+    install: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    installer = FakeInstaller()
+    restart = FakeRestart()
+    client = client_for(
+        install, monkeypatch=monkeypatch, installer=installer, can_restart=True, restart=restart
+    )
+
+    response = client.post("/api/update/install", json={"restart": True})
+
+    assert response.status_code == 202
+    assert installer.after_success is not None
+    assert asyncio.run(installer.after_success()) is True
+    assert restart.calls == 1
+
+
+def test_restart_after_install_is_skipped_once_a_program_runs(
+    install: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    installer = FakeInstaller()
+    restart = FakeRestart()
+    busy = {"now": False}
+    monkeypatch.setattr("backend.api.updates.can_install", lambda _root: True)
+    app = FastAPI()
+    app.include_router(
+        create_updates_router(
+            machine_busy=lambda: busy["now"],
+            root=install,
+            checker=UpdateChecker(fetch=lambda: ReleaseInfo(version="1.2.0", url="", notes="")),
+            installer=installer,  # type: ignore[arg-type]
+            can_restart=lambda: True,
+            restart=restart,
+        )
+    )
+    TestClient(app).post("/api/update/install", json={"restart": True})
+    busy["now"] = True
+
+    assert asyncio.run(installer.after_success()) is False
+    assert restart.calls == 0
+
+
+def test_install_without_restart_does_not_restart(
+    install: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    installer = FakeInstaller()
+    client = client_for(
+        install, monkeypatch=monkeypatch, installer=installer, can_restart=True, restart=FakeRestart()
+    )
+
+    assert client.post("/api/update/install").status_code == 202
+    assert installer.after_success is None
+
+
+def test_install_with_restart_is_refused_when_restart_is_unavailable(
+    install: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    installer = FakeInstaller()
+    client = client_for(install, monkeypatch=monkeypatch, installer=installer)
+
+    response = client.post("/api/update/install", json={"restart": True})
+
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "restart_unavailable"
+    assert installer.started_with is None
+
+
+def test_restart_endpoint_restarts(install: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    restart = FakeRestart()
+    client = client_for(install, monkeypatch=monkeypatch, can_restart=True, restart=restart)
+
+    response = client.post("/api/update/restart")
+
+    assert response.status_code == 202
+    assert restart.calls == 1
+
+
+def test_restart_endpoint_is_refused_while_a_program_runs(
+    install: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    restart = FakeRestart()
+    client = client_for(
+        install, busy=True, monkeypatch=monkeypatch, can_restart=True, restart=restart
+    )
+
+    response = client.post("/api/update/restart")
+
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "machine_busy"
+    assert restart.calls == 0
+
+
+def test_installer_reports_restarting_after_a_successful_install(tmp_path: Path) -> None:
+    helper = tmp_path / "helper"
+    helper.write_text("#!/bin/sh\necho installed\n")
+    helper.chmod(0o755)
+    restart = FakeRestart()
+
+    async def run() -> UpdateInstaller:
+        installer = UpdateInstaller()
+        installer.start(helper, restart)
+        assert installer._task is not None
+        await installer._task
+        return installer
+
+    installer = asyncio.run(run())
+
+    assert installer.state == "restarting"
+    assert restart.calls == 1
+    assert installer.log[-1] == "Restarting LinuxCNC…"
+
+
+def test_installer_skips_restart_after_a_failed_install(tmp_path: Path) -> None:
+    helper = tmp_path / "helper"
+    helper.write_text("#!/bin/sh\nexit 3\n")
+    helper.chmod(0o755)
+    restart = FakeRestart()
+
+    async def run() -> UpdateInstaller:
+        installer = UpdateInstaller()
+        installer.start(helper, restart)
+        assert installer._task is not None
+        await installer._task
+        return installer
+
+    assert asyncio.run(run()).state == "failed"
+    assert restart.calls == 0

@@ -37,7 +37,8 @@ import { isSupportedLocale, type SupportedLocale } from '@/i18n/constants';
 import { HAL_TOOL_IDS, launchHalTool, type HalToolId } from '@/lib/halToolsApi';
 import { halToolLaunchErrorMessage } from '@/lib/halToolErrors';
 import { fetchNetworkInfo, type NetworkInfo } from '@/lib/networkInfoApi';
-import { fetchUpdateInfo, type UpdateInfo } from '@/lib/updateApi';
+import { fetchUpdateInfo, requestLinuxCncRestart, type UpdateInfo } from '@/lib/updateApi';
+import { useReloadWhenRestarted } from '@/hooks/useReloadWhenRestarted';
 import { UpdateDialog } from '@/components/UpdateDialog';
 
 type CapturingHotkeyTarget =
@@ -117,6 +118,20 @@ export function SettingsScreen() {
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [updateChecking, setUpdateChecking] = useState(true);
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
+  const [restartRequested, setRestartRequested] = useState(false);
+  const restartTimedOut = useReloadWhenRestarted(
+    restartRequested,
+    updateInfo?.installedVersion ?? null,
+  );
+
+  const restartLinuxCnc = () => {
+    setRestartRequested(true);
+    void requestLinuxCncRestart().then((result) => {
+      if (result.ok) return;
+      setRestartRequested(false);
+      showErrorToast({ message: result.message ?? t('settings:update.restartTimedOut') });
+    });
+  };
 
   const checkForUpdate = (refresh: boolean) => {
     setUpdateChecking(true);
@@ -291,7 +306,11 @@ export function SettingsScreen() {
                           })}
                   </span>
                   {' · '}
-                  {updateChecking
+                  {restartRequested
+                    ? restartTimedOut
+                      ? t('settings:update.restartTimedOut')
+                      : t('settings:update.restarting')
+                    : updateChecking
                     ? t('settings:update.checking')
                     : updateInfo === null
                       ? t('settings:connection.addressUnavailable')
@@ -310,7 +329,16 @@ export function SettingsScreen() {
                                 })
                               : t('settings:update.upToDate')}
                 </span>
-                {updateInfo?.updateAvailable && !updateInfo.restartRequired ? (
+                {updateInfo?.restartRequired && updateInfo.canRestart ? (
+                  <Button
+                    size="sm"
+                    disabled={restartRequested && !restartTimedOut}
+                    onClick={restartLinuxCnc}
+                    data-testid="settings-restart-linuxcnc"
+                  >
+                    {t('settings:update.restartNow')}
+                  </Button>
+                ) : updateInfo?.updateAvailable && !updateInfo.restartRequired ? (
                   <Button size="sm" onClick={() => setUpdateDialogOpen(true)}>
                     {t('settings:update.install')}
                   </Button>

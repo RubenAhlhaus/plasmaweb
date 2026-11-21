@@ -145,6 +145,9 @@
     "restartRequired": "{{version}} installed — restart LinuxCNC to use it",
     "sourceCheckout": "{{version}} (source checkout)",
     "unavailable": "Could not check: {{error}}",
-    "latestRelease": "latest release is {{version}} — update this checkout with git pull"
+    "latestRelease": "latest release is {{version}} — update this checkout with git pull",
+    "restartNow": "Restart LinuxCNC",
+    "restarting": "Restarting LinuxCNC… this page reloads when it is back",
+    "restartTimedOut": "LinuxCNC has not come back; check the controller"
   }
 }

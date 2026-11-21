@@ -213,6 +213,11 @@
     "installedBody": "plasmaweb {{version}} is installed. Restart LinuxCNC to use it.",
     "failedTitle": "Update failed",
     "failedBody": "Nothing was changed if the download or checksum failed. The output below says where it stopped.",
-    "close": "Close"
+    "close": "Close",
+    "restartAfter": "Restart LinuxCNC after updating",
+    "restartAfterNote": "LinuxCNC restarts by itself once the update is installed. The machine is turned off and has to be homed again.",
+    "restartingTitle": "Restarting LinuxCNC",
+    "restartingBody": "plasmaweb {{version}} is installed. LinuxCNC is restarting with the machine turned off; this page reloads when it is back.",
+    "restartTimedOut": "LinuxCNC has not come back after 3 minutes. Check the controller, and see ~/.local/share/plasmaweb/restart.log there."
   }
 }
