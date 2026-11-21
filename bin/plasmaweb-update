@@ -25,7 +25,13 @@ ROOT="$(readlink -f "$(dirname "$SELF")/..")"
 _fetch() {
   local url="$1" out="$2"
   if command -v curl >/dev/null 2>&1; then
-    curl -fsSL --proto '=https' --tlsv1.2 --connect-timeout 20 --retry 3 -o "$out" "$url"
+    local -a retry=(--retry 3 --retry-delay 2)
+    # Plain --retry skips a dropped connection ("Recv failure: Connection reset by peer"), the
+    # usual failure on a flaky shop network; --retry-all-errors (curl 7.71+) covers it.
+    if curl --help all 2>/dev/null | grep -q -- '--retry-all-errors'; then
+      retry+=(--retry-all-errors)
+    fi
+    curl -fsSL --proto '=https' --tlsv1.2 --connect-timeout 20 "${retry[@]}" -o "$out" "$url"
     return
   fi
   python3 - "$url" "$out" <<'PY'
