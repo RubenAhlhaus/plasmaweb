@@ -6,6 +6,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.1.9] - 2026-11-21
+
+### Added
+
+- **Restart LinuxCNC after updating**: the update dialog restarts LinuxCNC once the install succeeds (on by default), so the new version runs straight away; the machine is turned off first and the page reloads when the new version is up. **Settings → Updates** gets a **Restart LinuxCNC** button for an update installed without it. Refused while a program runs. Only offered when plasmaweb was started by LinuxCNC as its display; `bin/plasmaweb` does the restart from a helper in its own session, logging to `~/.local/share/plasmaweb/restart.log`. The first update to this release still needs a manual restart.
+
+### Fixed
+
+- `bin/plasmaweb` waited only for the local browser to exit, so **Close** from another device stopped the backend but left LinuxCNC running behind the Pi's own window. It now ends the session when the backend exits too.
+
 ## [1.1.8] - 2026-11-21
 
 ### Fixed
