@@ -37,7 +37,8 @@
     "autoVolts": "Auto-Volt",
     "cornerLock": "Ecken-Lock",
     "voidLock": "Void-Lock",
-    "mesh": "Streckmetall"
+    "mesh": "Streckmetall",
+    "ohmicProbe": "Ohmsche Abtastung"
   },
   "cycle": {
     "start": "Start",

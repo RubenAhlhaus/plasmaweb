@@ -88,6 +88,7 @@ export function PlasmaMainScreen() {
   const voidlockEnable = usePlasmacFlag('voidlock-enable');
   const autoVolts = usePlasmacFlag('use-auto-volts');
   const meshEnable = usePlasmacFlag('mesh-enable');
+  const ohmicProbeEnable = usePlasmacFlag('ohmic-probe-enable');
   // Probing and recovery only make sense while the program is paused or idle, and plasmac
   // itself is the authority on that — hence `paused-motion`, not a flag of our own.
   const pausedMotion = usePlasmacFlag('paused-motion');
@@ -238,6 +239,15 @@ export function PlasmaMainScreen() {
             onToggle={(next) => commands.setEnable('mesh', next)}
             title={tip('mesh')}
             data-e2e="plasma-toggle-mesh"
+          />
+          {/* Off is also the way out when the ohmic circuit reads closed with the torch in the
+              air: plasmac then counts the torch as touching and inhibits every jog. */}
+          <PlasmaToggleButton
+            label={t('toggle.ohmicProbe')}
+            active={ohmicProbeEnable}
+            onToggle={(next) => commands.setEnable('ohmicProbe', next)}
+            title={tip('ohmicProbe')}
+            data-e2e="plasma-toggle-ohmic-probe"
           />
         </div>
 

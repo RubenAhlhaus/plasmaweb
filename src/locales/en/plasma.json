@@ -37,7 +37,8 @@
     "autoVolts": "Auto volts",
     "cornerLock": "Corner lock",
     "voidLock": "Void lock",
-    "mesh": "Mesh mode"
+    "mesh": "Mesh mode",
+    "ohmicProbe": "Ohmic probe"
   },
   "cycle": {
     "start": "Cycle start",
