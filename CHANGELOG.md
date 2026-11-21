@@ -6,6 +6,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.1.13] - 2026-11-21
+
+### Fixed
+
+- Close with shutdown always said "System shutdown is not configured", even with the sudo grant in place: the backend looked for the shutdown helper under `LCNCGUI_ROOT`, and the launcher only exports `PLASMAWEB_ROOT`. It now finds the helper the same way the updater does.
+- The step that waits for LinuxCNC to exit before powering off now runs in its own session (`setsid`), like the restart helper, so LinuxCNC's exit cleanup cannot stop it.
+
 ## [1.1.12] - 2026-11-21
 
 ### Added
