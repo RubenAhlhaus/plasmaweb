@@ -49,7 +49,15 @@ chmod +x "${STAGING}/bin/plasmaweb" "${STAGING}/bin/plasmaweb-shutdown" \
   "${STAGING}/bin/plasmacweb" "${STAGING}/bin/plasmaweb-update" "${STAGING}/install.sh" "${STAGING}/uninstall.sh"
 
 mkdir -p "$OUT_DIR"
-tar -czf "$TARBALL" -C "${ROOT}/dist-release/staging" "$RELEASE_NAME"
+# Record root as the owner, not this machine's user: tar run as root on the controller keeps
+# the recorded owner, and the sudo rules refuse a helper that root doesn't own.
+tar_owner_flags=()
+if tar --version 2>/dev/null | grep -q 'GNU tar'; then
+  tar_owner_flags=(--owner=0 --group=0 --numeric-owner)
+else
+  tar_owner_flags=(--uid 0 --gid 0)
+fi
+tar "${tar_owner_flags[@]}" -czf "$TARBALL" -C "${ROOT}/dist-release/staging" "$RELEASE_NAME"
 
 echo "Created: $TARBALL"
 echo "On the controller:"

@@ -138,6 +138,17 @@ path_is_root_controlled() {
   done
 }
 
+# A release tarball records its build machine's file owner (GitHub's runner is uid 1001), and
+# tar, rsync -a and cp -a all keep it when root installs. path_is_root_controlled then refuses
+# the helpers, so the GUI can neither shut down nor update. When root installs into a
+# root-owned prefix, hand the tree to root and drop group/other write.
+secure_install_tree() {
+  [[ "$(id -u)" -eq 0 && -d "$PREFIX" ]] || return 0
+  [[ "$(stat -c %u "$PREFIX" 2>/dev/null)" == 0 ]] || return 0
+  chown -R root:root "$PREFIX"
+  chmod -R go-w "$PREFIX"
+}
+
 install_shutdown_permissions() {
   local strict="${1:-0}"
   local target_user helper sudoers_file line
@@ -268,6 +279,7 @@ install_update_permissions() {
 }
 
 if [[ "$SETUP_SHUTDOWN_ONLY" -eq 1 || "$SETUP_UPDATE_ONLY" -eq 1 ]]; then
+  secure_install_tree
   [[ "$SETUP_SHUTDOWN_ONLY" -eq 1 ]] && install_shutdown_permissions 1
   [[ "$SETUP_UPDATE_ONLY" -eq 1 ]] && install_update_permissions 1
   exit 0
@@ -325,6 +337,7 @@ if [[ -f "${SOURCE_DIR}/VERSION" && "$(readlink -f "$SOURCE_DIR")" != "$(readlin
   cp "${SOURCE_DIR}/VERSION" "${PREFIX}/VERSION"
 fi
 write_production_config "${PREFIX}/dist" "$PRODUCTION_CONFIG"
+secure_install_tree
 
 VENV="${PREFIX}/venv"
 if [[ "$RECREATE_VENV" -eq 1 && -d "$VENV" ]]; then
