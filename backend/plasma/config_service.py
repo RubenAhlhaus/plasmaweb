@@ -54,8 +54,10 @@ from backend.plasma.parameters import (
     offset_probing_pin_values,
     read_offset_probing,
     read_gui_options,
+    read_torch_pulse_time,
     read_peripheral_offset,
     write_gui_option,
+    write_torch_pulse_time,
     write_peripheral_offset,
     write_offset_probing,
     read_conversational_settings,
@@ -275,6 +277,7 @@ class PlasmaConfigService:
             "enables": dict(self._enables),
             "offsetProbing": dict(self._offset_probing),
             "guiOptions": self.gui_options(),
+            "torchPulseTime": self.torch_pulse_time(),
             "colors": self.colors(),
             "defaults": default_parameters(self._files),
             "unitsPerMm": self._files.units_per_mm,
@@ -334,6 +337,14 @@ class PlasmaConfigService:
     def save_gui_option(self, name: str, value: bool) -> Dict[str, bool]:
         write_gui_option(self._files.prefs_path, name, value)
         return self.gui_options()
+
+    def torch_pulse_time(self) -> float:
+        """``[GUI_OPTIONS] Torch pulse time``: seconds the TORCH PULSE button holds the torch on."""
+        return read_torch_pulse_time(self._files.prefs_path)
+
+    def save_torch_pulse_time(self, seconds: float) -> float:
+        write_torch_pulse_time(self._files.prefs_path, seconds)
+        return self.torch_pulse_time()
 
     def peripheral_offset(self, section: str) -> Dict[str, float]:
         """``[LASER_OFFSET]`` / ``[CAMERA_OFFSET]``: where the peripheral sits vs the torch."""

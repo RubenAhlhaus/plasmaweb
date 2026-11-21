@@ -2,7 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { TouchNumericPickerField } from '@/components/numeric';
-import { usePlasmaCommands } from '@/hooks/usePlasmaCommands';
+import {
+  DEFAULT_TORCH_PULSE_SECONDS,
+  TORCH_PULSE_MAX_SECONDS,
+  TORCH_PULSE_MIN_SECONDS,
+  usePlasmaCommands,
+} from '@/hooks/usePlasmaCommands';
 import { useAppStore } from '@/store';
 
 /**
@@ -131,6 +136,7 @@ export function PlasmaParametersScreen() {
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [probeDraft, setProbeDraft] = useState<Record<string, string>>({});
   const [peripheralDraft, setPeripheralDraft] = useState<Record<string, string>>({});
+  const [pulseDraft, setPulseDraft] = useState<string | null>(null);
   const alignment = useAppStore((s) => s.plasmaAlignment);
   const capabilities = useAppStore((s) => s.plasmaCapabilities);
 
@@ -149,11 +155,17 @@ export function PlasmaParametersScreen() {
     setDraft({});
     setProbeDraft({});
     setPeripheralDraft({});
+    setPulseDraft(null);
   }, [parameters]);
 
   const dirtyKeys = useMemo(
-    () => [...Object.keys(draft), ...Object.keys(probeDraft), ...Object.keys(peripheralDraft)],
-    [draft, probeDraft, peripheralDraft],
+    () => [
+      ...Object.keys(draft),
+      ...Object.keys(probeDraft),
+      ...Object.keys(peripheralDraft),
+      ...(pulseDraft === null ? [] : ['torchPulseTime']),
+    ],
+    [draft, probeDraft, peripheralDraft, pulseDraft],
   );
 
   if (!parameters) {
@@ -225,6 +237,11 @@ export function PlasmaParametersScreen() {
       }
       if (Object.keys(values).length > 0) commands.savePeripheralOffset(kind, values);
     }
+
+    if (pulseDraft !== null) {
+      const parsed = Number(pulseDraft);
+      if (Number.isFinite(parsed)) commands.saveTorchPulseTime(parsed);
+    }
   };
 
   return (
@@ -248,6 +265,7 @@ export function PlasmaParametersScreen() {
             setDraft({});
             setProbeDraft({});
             setPeripheralDraft({});
+            setPulseDraft(null);
           }}
         >
           {t('parameters.revert')}
@@ -378,6 +396,27 @@ export function PlasmaParametersScreen() {
               </span>
             </span>
           </label>
+          <div className="mt-3 max-w-xs">
+            <TouchNumericPickerField
+              label={t('parameters.gui.torchPulseTime')}
+              labelTooltip={t('parameters.gui.torchPulseTimeHint')}
+              unit="s"
+              value={
+                pulseDraft ?? String(parameters.torchPulseTime ?? DEFAULT_TORCH_PULSE_SECONDS)
+              }
+              onChange={setPulseDraft}
+              validateParsed={(parsed) =>
+                parsed < TORCH_PULSE_MIN_SECONDS || parsed > TORCH_PULSE_MAX_SECONDS
+                  ? t('parameters.outOfRange', {
+                      minimum: TORCH_PULSE_MIN_SECONDS,
+                      maximum: TORCH_PULSE_MAX_SECONDS,
+                      unit: 's',
+                    })
+                  : null
+              }
+              data-e2e="plasma-gui-torch-pulse-time"
+            />
+          </div>
         </section>
 
         <section data-e2e="plasma-parameters-group-peripherals">

@@ -19,6 +19,7 @@ we create matches the one QtPlasmaC would have created.
 from __future__ import annotations
 
 import logging
+import math
 from typing import Any, Callable, Dict, Mapping, NamedTuple, Optional, Tuple
 
 from backend.plasma.machine_files import MachineFiles, read_config, write_config
@@ -757,6 +758,54 @@ def write_gui_option(path: str, name: str, value: bool) -> None:
     if not parser.has_section(GUI_OPTIONS_SECTION):
         parser.add_section(GUI_OPTIONS_SECTION)
     parser.set(GUI_OPTIONS_SECTION, option.key, "True" if value else "False")
+    write_config(path, parser)
+
+
+#: ``[GUI_OPTIONS] Torch pulse time``: how long the TORCH PULSE button holds the torch on.
+#: QtPlasmaC keeps it in the same section as its switches and defaults it to one second. On
+#: LinuxCNC 2.9 a pulse lasts exactly this long (there is no ``torch-pulse-hold`` pin), so a
+#: value of zero, which is what ``plasmac.torch-pulse-time`` starts at, means no pulse at all.
+TORCH_PULSE_KEY = "Torch pulse time"
+TORCH_PULSE_DEFAULT = 1.0
+TORCH_PULSE_MINIMUM = 0.1
+TORCH_PULSE_MAXIMUM = 10.0
+
+
+def read_torch_pulse_time(path: str) -> float:
+    """``[GUI_OPTIONS] Torch pulse time``, the default where the file is silent or garbled."""
+    parser = read_config(path)
+    if not parser.has_option(GUI_OPTIONS_SECTION, TORCH_PULSE_KEY):
+        return TORCH_PULSE_DEFAULT
+    raw = (parser.get(GUI_OPTIONS_SECTION, TORCH_PULSE_KEY) or "").strip()
+    try:
+        value = float(raw)
+    except ValueError:
+        value = math.nan
+    if not (math.isfinite(value) and TORCH_PULSE_MINIMUM <= value <= TORCH_PULSE_MAXIMUM):
+        logger.warning(
+            "plasma: %s: [%s] %s is not a pulse time we can use (%r); using %s",
+            path,
+            GUI_OPTIONS_SECTION,
+            TORCH_PULSE_KEY,
+            raw,
+            TORCH_PULSE_DEFAULT,
+        )
+        return TORCH_PULSE_DEFAULT
+    return value
+
+
+def write_torch_pulse_time(path: str, seconds: float) -> None:
+    """Store the pulse time. Raises ``ValueError`` outside 0.1-10 s."""
+    value = float(seconds)
+    if not (math.isfinite(value) and TORCH_PULSE_MINIMUM <= value <= TORCH_PULSE_MAXIMUM):
+        raise ValueError(
+            f"the torch pulse time must be between {TORCH_PULSE_MINIMUM} and "
+            f"{TORCH_PULSE_MAXIMUM:.0f} s"
+        )
+    parser = read_config(path)
+    if not parser.has_section(GUI_OPTIONS_SECTION):
+        parser.add_section(GUI_OPTIONS_SECTION)
+    parser.set(GUI_OPTIONS_SECTION, TORCH_PULSE_KEY, str(round(value, 2)))
     write_config(path, parser)
 
 

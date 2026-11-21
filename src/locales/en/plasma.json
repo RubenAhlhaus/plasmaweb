@@ -110,7 +110,7 @@
       "scribe": "Scribe, spotting and offsets",
       "offsetProbing": "Offset probing",
       "peripherals": "Laser and camera offsets",
-      "gui": "Keyboard",
+      "gui": "Interface",
       "capabilities": "This machine's LinuxCNC",
       "colors": "Colours"
     },
@@ -127,7 +127,9 @@
     "gui": {
       "keyboardShortcuts": "Keyboard shortcuts",
       "keyboardShortcutsHint": "Off by default: these jog the torch and abort programs.",
-      "toolTips": "Tooltips"
+      "toolTips": "Tooltips",
+      "torchPulseTime": "Torch pulse time",
+      "torchPulseTimeHint": "How long the TORCH PULSE button fires the torch."
     },
     "capabilities": {
       "all": "This LinuxCNC supports every feature this screen offers.",

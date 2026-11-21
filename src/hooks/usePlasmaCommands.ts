@@ -16,6 +16,11 @@ export type PlasmaToggle =
 
 export type TorchPulseAction = 'press' | 'release' | 'abort';
 
+/** `[GUI_OPTIONS] Torch pulse time` bounds, matching the backend's (`parameters.py`). */
+export const DEFAULT_TORCH_PULSE_SECONDS = 1;
+export const TORCH_PULSE_MIN_SECONDS = 0.1;
+export const TORCH_PULSE_MAX_SECONDS = 10;
+
 /** What the sheet alignment sets the origin by: the alignment laser, or a camera. */
 export type PlasmaPeripheral = 'laser' | 'camera';
 
@@ -84,6 +89,7 @@ export function usePlasmaCommands() {
       savePowermaxPort: (port: string) => send('save_powermax_port', { port }),
       saveGuiOption: (name: string, enabled: boolean) =>
         send('save_gui_option', { name, enabled }),
+      saveTorchPulseTime: (seconds: number) => send('save_torch_pulse_time', { seconds }),
       saveColors: (values: Record<string, string>) => send('save_colors', { values }),
       machineLog: (params?: { limit?: number; severity?: 'critical' | 'warning' | 'info' }) =>
         sendForResult('get_machine_log', params ?? {}),

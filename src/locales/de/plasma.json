@@ -110,7 +110,7 @@
       "scribe": "Ritzen, Spotting und Offsets",
       "offsetProbing": "Versetztes Antasten",
       "peripherals": "Laser- und Kamera-Offsets",
-      "gui": "Tastatur",
+      "gui": "Bedienung",
       "capabilities": "LinuxCNC dieser Maschine",
       "colors": "Farben"
     },
@@ -127,7 +127,9 @@
     "gui": {
       "keyboardShortcuts": "Tastenkürzel",
       "keyboardShortcutsHint": "Standardmäßig aus: sie verfahren den Brenner und brechen Programme ab.",
-      "toolTips": "Tooltips"
+      "toolTips": "Tooltips",
+      "torchPulseTime": "Brennerimpulsdauer",
+      "torchPulseTimeHint": "Wie lange die Taste BRENNERIMPULS den Brenner zündet."
     },
     "capabilities": {
       "all": "Dieses LinuxCNC unterstützt alle Funktionen dieses Bildschirms.",

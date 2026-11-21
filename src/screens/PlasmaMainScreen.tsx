@@ -19,7 +19,7 @@ import { PlasmaStatisticsPanel } from '@/components/plasma/PlasmaStatisticsPanel
 import { PlasmaToggleButton } from '@/components/plasma/PlasmaToggleButton';
 import { eventBus } from '@/eventBus';
 import { useJogPanelSize } from '@/hooks/useJogPanelSize';
-import { usePlasmaCommands } from '@/hooks/usePlasmaCommands';
+import { DEFAULT_TORCH_PULSE_SECONDS, usePlasmaCommands } from '@/hooks/usePlasmaCommands';
 import { usePlasmacFlag, usePlasmacNumber, usePlasmacPin } from '@/hooks/usePlasmaPins';
 import { useAppStore } from '@/store';
 
@@ -79,6 +79,10 @@ export function PlasmaMainScreen() {
   const breakaway = usePlasmacPin('breakaway');
 
   const torchEnabled = usePlasmacFlag('torch-enable');
+  // Sent with each press: plasmac's pulse-time pin starts at 0, which on 2.9 means no pulse.
+  const torchPulseTime = useAppStore(
+    (s) => s.plasmaParameters?.torchPulseTime ?? DEFAULT_TORCH_PULSE_SECONDS,
+  );
   const thcEnabled = usePlasmacFlag('thc-enabled');
   const cornerlockEnable = usePlasmacFlag('cornerlock-enable');
   const voidlockEnable = usePlasmacFlag('voidlock-enable');
@@ -288,7 +292,7 @@ export function PlasmaMainScreen() {
             data-e2e="plasma-torch-pulse"
             // Momentary, exactly like QtPlasmaC's button: press raises the pulse pins,
             // release drops them again.
-            onPointerDown={() => commands.torchPulse('press')}
+            onPointerDown={() => commands.torchPulse('press', torchPulseTime)}
             onPointerUp={() => commands.torchPulse('release')}
             onPointerLeave={() => commands.torchPulse('release')}
           >

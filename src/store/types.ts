@@ -622,6 +622,11 @@ export interface PlasmaParameters {
    * off by default — the shortcuts jog the torch, so a keyboard on a bench must not.
    */
   guiOptions?: Record<string, boolean>;
+  /**
+   * `[GUI_OPTIONS] Torch pulse time`, seconds. Sent with every TORCH PULSE press: on
+   * LinuxCNC 2.9 the pulse lasts exactly this long, and the pin itself starts at 0.
+   */
+  torchPulseTime?: number;
   /** `[COLOR_OPTIONS]`: the nine colours QtPlasmaC themes the machine with. */
   colors?: Record<string, string>;
   /** 1 on a metric machine, 0.03937 on an imperial one (QtPlasmaC's own constant). */

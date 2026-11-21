@@ -380,3 +380,40 @@ def test_an_unknown_peripheral_axis_is_refused_rather_than_dropped(tmp_path) -> 
     with _pytest.raises(KeyError):
         write_peripheral_offset(str(path), "LASER_OFFSET", {"Z axis": 5.0})
     assert "Z axis" not in path.read_text()
+
+
+def test_torch_pulse_time_defaults_to_a_second_and_round_trips(tmp_path) -> None:
+    """A prefs file without the key still pulses: `plasmac.torch-pulse-time` starts at 0."""
+    from backend.plasma.parameters import read_torch_pulse_time, write_torch_pulse_time
+
+    path = tmp_path / "machine.prefs"
+    path.write_text("[GUI_OPTIONS]\nUse keyboard shortcuts = True\n")
+    assert read_torch_pulse_time(str(path)) == 1.0
+
+    write_torch_pulse_time(str(path), 0.5)
+    assert read_torch_pulse_time(str(path)) == 0.5
+    # QtPlasmaC's own key, so it reads the same value back.
+    assert "Torch pulse time = 0.5" in path.read_text()
+    assert "Use keyboard shortcuts = True" in path.read_text()
+
+
+def test_a_garbled_or_out_of_range_torch_pulse_time_reads_as_the_default(tmp_path) -> None:
+    from backend.plasma.parameters import read_torch_pulse_time
+
+    path = tmp_path / "machine.prefs"
+    for raw in ("soon", "0", "60", "nan"):
+        path.write_text(f"[GUI_OPTIONS]\nTorch pulse time = {raw}\n")
+        assert read_torch_pulse_time(str(path)) == 1.0
+
+
+def test_a_torch_pulse_time_outside_the_range_is_refused(tmp_path) -> None:
+    import pytest as _pytest
+
+    from backend.plasma.parameters import write_torch_pulse_time
+
+    path = tmp_path / "machine.prefs"
+    path.write_text("")
+    for seconds in (0, 0.05, 10.5, float("inf")):
+        with _pytest.raises(ValueError):
+            write_torch_pulse_time(str(path), seconds)
+    assert "Torch pulse time" not in path.read_text()

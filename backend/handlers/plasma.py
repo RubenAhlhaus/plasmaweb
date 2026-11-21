@@ -1361,6 +1361,35 @@ async def handle_plasma_save_gui_option(
     return DispatchResult(ack=build_ok(command.commandId, {"guiOptions": options}))
 
 
+class PlasmaTorchPulseTimeParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    seconds: float
+
+
+async def handle_plasma_save_torch_pulse_time(
+    command: CommandEnvelope, ctx: AppContext
+) -> DispatchResult:
+    """``[GUI_OPTIONS] Torch pulse time`` — how long a TORCH PULSE press fires the torch.
+
+    Kept in the prefs file under QtPlasmaC's own key, so both GUIs pulse for the same time.
+    The pin itself is written on each press (``PlasmaService.torch_pulse``), not here.
+    """
+    if ctx.plasma_config is None:
+        return _no_config(command)
+    try:
+        params = PlasmaTorchPulseTimeParams.model_validate(command.params)
+    except ValidationError:
+        return _invalid(command, 'plasma.save_torch_pulse_time params: {"seconds": number}')
+    try:
+        seconds = ctx.plasma_config.save_torch_pulse_time(params.seconds)
+    except ValueError as exc:
+        return DispatchResult(ack=build_error(command.commandId, "invalid_params", str(exc)))
+    except OSError as exc:
+        return DispatchResult(ack=build_error(command.commandId, "write_failed", str(exc)))
+    await _broadcast_config(ctx, materials=False, parameters=True)
+    return DispatchResult(ack=build_ok(command.commandId, {"torchPulseTime": seconds}))
+
+
 class PlasmaPowerMaxParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
     enabled: bool
