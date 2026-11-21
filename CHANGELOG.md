@@ -6,6 +6,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.1.14] - 2026-11-21
+
+### Added
+
+- An Ohmic probe toggle on the plasma main screen (`plasmac.ohmic-probe-enable`, saved to the prefs file). The backend already supported it; the screen had no control. Turning it off is also the way out when the ohmic circuit reads closed with the torch in the air, which makes plasmac inhibit every jog.
+
 ## [1.1.13] - 2026-11-21
 
 ### Fixed
