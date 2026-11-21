@@ -6,6 +6,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.1.5] - 2026-11-21
+
+### Changed
+
+- Jog speed and override limits follow the INI's `[DISPLAY]` section instead of fixed values: `DEFAULT_LINEAR_VELOCITY`, `MIN_LINEAR_VELOCITY` and `MAX_LINEAR_VELOCITY` (units per second) set the jog speed slider's range and starting speed, the number-key speed shortcuts and the Shift fast jog; `MAX_FEED_OVERRIDE` and `MIN/MAX_SPINDLE_OVERRIDE` set the override sliders and the backend's clamp. A key the INI leaves out keeps the previous built-in value (jog 1-1000 mm/min starting at 100, overrides 1-200 %).
+
 ## [1.1.4] - 2026-11-16
 
 ### Fixed
