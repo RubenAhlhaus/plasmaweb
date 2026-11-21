@@ -372,3 +372,38 @@ def test_the_ui_itself_can_restart(install: Path, monkeypatch: pytest.MonkeyPatc
 
     assert response.status_code == 202
     assert restart.calls == 1
+
+
+def test_a_rebound_domain_cannot_restart(install: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # DNS rebinding: evil.example now resolves to the controller, so Origin and Host agree.
+    restart = FakeRestart()
+    client = client_for(install, monkeypatch=monkeypatch, can_restart=True, restart=restart)
+
+    response = client.post(
+        "/api/update/restart",
+        headers={"Origin": "http://evil.example:8765", "Host": "evil.example:8765"},
+    )
+
+    assert response.status_code == 403
+    assert restart.calls == 0
+
+
+@pytest.mark.parametrize(
+    "host",
+    ["192.168.4.39:8765", "localhost:8765", "[::1]:8765", "raspberrypi.local:8765", "plasma.shop:8765"],
+)
+def test_the_controllers_own_names_are_accepted(
+    install: Path, monkeypatch: pytest.MonkeyPatch, host: str
+) -> None:
+    monkeypatch.setattr("backend.api.updates.socket.gethostname", lambda: "raspberrypi")
+    monkeypatch.setattr("backend.api.updates.socket.getfqdn", lambda: "raspberrypi")
+    monkeypatch.setenv("PLASMAWEB_ALLOWED_HOSTS", "plasma.shop")
+    restart = FakeRestart()
+    client = client_for(install, monkeypatch=monkeypatch, can_restart=True, restart=restart)
+
+    response = client.post(
+        "/api/update/restart", headers={"Origin": f"http://{host}", "Host": host}
+    )
+
+    assert response.status_code == 202
+    assert restart.calls == 1

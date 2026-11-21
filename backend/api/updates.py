@@ -6,6 +6,9 @@ import asyncio
 from pathlib import Path
 from typing import Awaitable, Callable, List, Optional
 
+import ipaddress
+import os
+import socket
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -75,6 +78,40 @@ _RESTART_UNAVAILABLE = {
 }
 
 
+def _host_name(host_header: str) -> str:
+    """The name or address in a ``Host`` header, without the port or IPv6 brackets."""
+    host = host_header.strip().lower()
+    if host.startswith("["):
+        return host[1 : host.find("]")] if "]" in host else host
+    return host.rsplit(":", 1)[0] if host.count(":") == 1 else host
+
+
+def _is_own_host(host_header: str) -> bool:
+    """
+    Whether ``Host`` names this controller: an IP address, ``localhost``, its own hostname
+    (also with ``.local``), or a name listed in ``PLASMAWEB_ALLOWED_HOSTS`` (comma-separated).
+
+    A page on a domain that DNS-rebinding points at this controller sends that domain as both
+    ``Origin`` and ``Host``, so the same-origin comparison alone would let it through.
+    """
+    name = _host_name(host_header).rstrip(".")
+    if not name:
+        return False
+    try:
+        ipaddress.ip_address(name)
+        return True
+    except ValueError:
+        pass
+    own = {"localhost"}
+    for candidate in (socket.gethostname(), socket.getfqdn()):
+        candidate = candidate.strip().lower().rstrip(".")
+        if candidate:
+            own.update({candidate, f"{candidate.split('.')[0]}.local", candidate.split(".")[0]})
+    extra = os.environ.get("PLASMAWEB_ALLOWED_HOSTS", "")
+    own.update(h.strip().lower() for h in extra.split(",") if h.strip())
+    return name in own
+
+
 def require_same_origin(request: Request) -> None:
     """
     Refuse a state-changing request sent by another site's page.
@@ -84,12 +121,19 @@ def require_same_origin(request: Request) -> None:
     ``Origin`` with every cross-origin POST (and with same-origin ones), so one that names a
     different host than the request went to is refused. Requests without ``Origin`` (curl,
     scripts on the controller) are let through.
+
+    The ``Host`` must also name this controller (see :func:`_is_own_host`), or DNS rebinding
+    would make another site's page look same-origin.
     """
     origin = request.headers.get("origin")
     if origin is None:
         return
     host = request.headers.get("host", "")
-    if origin == "null" or urlsplit(origin).netloc.lower() != host.lower():
+    if (
+        origin == "null"
+        or urlsplit(origin).netloc.lower() != host.lower()
+        or not _is_own_host(host)
+    ):
         raise HTTPException(
             status_code=403,
             detail={"code": "cross_origin", "message": "Request refused: sent from another site."},

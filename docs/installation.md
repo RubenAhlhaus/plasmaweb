@@ -390,6 +390,7 @@ sudo ufw allow from 192.168.1.0/24 to any port 8765 proto tcp
 |----------|---------|---------|
 | `PLASMAWEB_ROOT` | parent of `bin/` | Install directory |
 | `PLASMAWEB_HOST` | `0.0.0.0` | HTTP bind address. The default serves the network, because the usual controller is headless and is driven from another machine. Set `127.0.0.1` to serve the controller's own screen only. |
+| `PLASMAWEB_ALLOWED_HOSTS` | *(unset)* | Extra host names (comma-separated) the UI may be reached by when installing an update or restarting LinuxCNC. IP addresses, `localhost` and the controller's own hostname (also with `.local`) are always accepted; any other name is refused, so a web page cannot use DNS rebinding to send those requests. |
 | `PLASMAWEB_PORT` | `8765` | HTTP + WebSocket port |
 | `PLASMAWEB_BROWSER` | auto | Browser executable |
 | `PLASMAWEB_KIOSK` | (unset) | When set: `1` = fullscreen kiosk, `0` = normal window. When unset, uses user preferences file, then `ui.kioskMode` in config, then kiosk. |
