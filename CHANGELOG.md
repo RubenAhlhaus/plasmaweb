@@ -6,6 +6,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.1.8] - 2026-11-21
+
+### Fixed
+
+- Jogging by axis failed on machines whose kinematics are not identity (e.g. an XYYZ gantry) with "Axis jogging is only allowed in world/teleop mode": homing leaves LinuxCNC in joint mode and plasmaweb never switched it to world (teleop) mode. An axis jog now switches once every joint is homed, as AXIS and QtPlasmaC do, and otherwise names the joints still to home. Until every joint is homed, a homed single-joint axis jogs by joint; a gantry axis is never jogged by one of its joints.
+
 ## [1.1.7] - 2026-11-21
 
 ### Security
