@@ -6,6 +6,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.1.6] - 2026-11-21
+
+### Fixed
+
+- GUI update and shutdown were refused after installing a release tarball as root: the tarball recorded the build machine's file owner (uid 1001), which tar and `rsync -a` kept, so the helpers were not root-owned. Release tarballs now record root as the owner, and `install.sh` run as root hands a root-owned prefix to root and drops group/other write, including in `--setup-shutdown` / `--setup-update` mode, so those commands repair an affected install.
+
 ## [1.1.5] - 2026-11-21
 
 ### Changed
