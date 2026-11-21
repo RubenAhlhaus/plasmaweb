@@ -6,6 +6,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.1.7] - 2026-11-21
+
+### Security
+
+- `install.sh --setup-shutdown` / `--setup-update` no longer change file owners. In 1.1.6 they handed the whole install to root before granting passwordless sudo, so a helper another user had edited could end up running as root. They now refuse an install that is not root-owned and say to reinstall from a release. A full install as root hands only the paths the release replaces to root before overwriting them, and copies without the release files' owner (`rsync -rlpt`, `cp --preserve=mode,timestamps`).
+
 ## [1.1.6] - 2026-11-21
 
 ### Fixed
