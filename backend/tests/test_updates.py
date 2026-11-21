@@ -341,3 +341,34 @@ def test_installer_skips_restart_after_a_failed_install(tmp_path: Path) -> None:
 
     assert asyncio.run(run()).state == "failed"
     assert restart.calls == 0
+
+
+@pytest.mark.parametrize("path", ["/api/update/install", "/api/update/restart"])
+def test_a_page_from_another_site_cannot_install_or_restart(
+    install: Path, monkeypatch: pytest.MonkeyPatch, path: str
+) -> None:
+    installer = FakeInstaller()
+    restart = FakeRestart()
+    client = client_for(
+        install, monkeypatch=monkeypatch, installer=installer, can_restart=True, restart=restart
+    )
+
+    response = client.post(path, headers={"Origin": "http://evil.example"})
+
+    assert response.status_code == 403
+    assert response.json()["detail"]["code"] == "cross_origin"
+    assert installer.started_with is None
+    assert restart.calls == 0
+
+
+def test_the_ui_itself_can_restart(install: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    restart = FakeRestart()
+    client = client_for(install, monkeypatch=monkeypatch, can_restart=True, restart=restart)
+
+    response = client.post(
+        "/api/update/restart",
+        headers={"Origin": "http://192.168.4.39:8765", "Host": "192.168.4.39:8765"},
+    )
+
+    assert response.status_code == 202
+    assert restart.calls == 1

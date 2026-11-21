@@ -6,7 +6,9 @@ import asyncio
 from pathlib import Path
 from typing import Awaitable, Callable, List, Optional
 
-from fastapi import APIRouter, HTTPException
+from urllib.parse import urlsplit
+
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict
 
 from backend.updates import (
@@ -73,6 +75,27 @@ _RESTART_UNAVAILABLE = {
 }
 
 
+def require_same_origin(request: Request) -> None:
+    """
+    Refuse a state-changing request sent by another site's page.
+
+    The UI is served without authentication on the LAN, so any page open in a browser on that
+    network could otherwise POST here and install an update or restart LinuxCNC. Browsers send
+    ``Origin`` with every cross-origin POST (and with same-origin ones), so one that names a
+    different host than the request went to is refused. Requests without ``Origin`` (curl,
+    scripts on the controller) are let through.
+    """
+    origin = request.headers.get("origin")
+    if origin is None:
+        return
+    host = request.headers.get("host", "")
+    if origin == "null" or urlsplit(origin).netloc.lower() != host.lower():
+        raise HTTPException(
+            status_code=403,
+            detail={"code": "cross_origin", "message": "Request refused: sent from another site."},
+        )
+
+
 def create_updates_router(
     *,
     machine_busy: Callable[[], bool],
@@ -134,7 +157,12 @@ def create_updates_router(
             error=None,
         )
 
-    @router.post("/update/install", response_model=UpdateInstallResponse, status_code=202)
+    @router.post(
+        "/update/install",
+        response_model=UpdateInstallResponse,
+        status_code=202,
+        dependencies=[Depends(require_same_origin)],
+    )
     async def post_update_install(
         request: Optional[UpdateInstallRequest] = None,
     ) -> UpdateInstallResponse:
@@ -186,7 +214,7 @@ def create_updates_router(
         installer.start(helper, restart_unless_busy if want_restart else None)
         return UpdateInstallResponse(state=installer.state, log=list(installer.log))
 
-    @router.post("/update/restart", status_code=202)
+    @router.post("/update/restart", status_code=202, dependencies=[Depends(require_same_origin)])
     async def post_restart() -> dict:
         """Restart LinuxCNC now, e.g. to run an update installed earlier."""
         if restart is None or not can_restart():
