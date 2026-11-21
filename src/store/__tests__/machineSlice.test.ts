@@ -30,3 +30,38 @@ describe('machineSlice.setCoordinates', () => {
     expect(useAppStore.getState().coordinates.x).toBe(1.001);
   });
 });
+
+describe('machineSlice.setIniRuntimeConfig jog speed', () => {
+  const noJogLimits = {
+    default_linear_velocity: null,
+    min_linear_velocity: null,
+    max_linear_velocity: null,
+  };
+
+  beforeEach(() => {
+    useAppStore.getState().setIniRuntimeConfig(noJogLimits);
+    useAppStore.setState({ jogVelocityMmPerMin: 100 });
+  });
+
+  it('moves a jog speed still on the old default to the INI default', () => {
+    useAppStore.getState().setIniRuntimeConfig({
+      default_linear_velocity: 50,
+      max_linear_velocity: 150,
+    });
+    expect(useAppStore.getState().jogVelocityMmPerMin).toBe(3000);
+  });
+
+  it('keeps an operator-chosen speed, clamped to the INI range', () => {
+    useAppStore.setState({ jogVelocityMmPerMin: 700 });
+    useAppStore.getState().setIniRuntimeConfig({ default_linear_velocity: 5, max_linear_velocity: 10 });
+    expect(useAppStore.getState().jogVelocityMmPerMin).toBe(600);
+  });
+
+  it('lets the jog speed setter go up to the INI ceiling', () => {
+    useAppStore.getState().setIniRuntimeConfig({ max_linear_velocity: 150 });
+    useAppStore.getState().setJogVelocityMmPerMin(8000);
+    expect(useAppStore.getState().jogVelocityMmPerMin).toBe(8000);
+    useAppStore.getState().setJogVelocityMmPerMin(20000);
+    expect(useAppStore.getState().jogVelocityMmPerMin).toBe(9000);
+  });
+});

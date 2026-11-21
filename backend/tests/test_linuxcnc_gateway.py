@@ -115,6 +115,35 @@ def test_get_ini_runtime_config_reads_display_increments_and_units(tmp_path, mon
     assert Path(result["ini_path"]).name == "machine.ini"
 
 
+def test_get_ini_runtime_config_reads_display_speed_and_override_limits(
+    tmp_path, monkeypatch
+) -> None:
+    ini = tmp_path / "machine.ini"
+    ini.write_text(
+        "[DISPLAY]\n"
+        "MAX_FEED_OVERRIDE = 4.000000\n"
+        "MIN_SPINDLE_OVERRIDE = 0.5\n"
+        "DEFAULT_LINEAR_VELOCITY = 50\n"
+        "MAX_LINEAR_VELOCITY = 150.0\n"
+        "MIN_LINEAR_VELOCITY = not-a-number\n"
+        "[TRAJ]\n"
+        "LINEAR_UNITS = mm\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("INI_FILE_NAME", str(ini))
+    gateway = LinuxCncGateway()
+    gateway._stat = None
+
+    result = gateway.get_ini_runtime_config(force_reload=True)
+
+    assert result["max_feed_override"] == 4.0
+    assert result["min_spindle_override"] == 0.5
+    assert result["max_spindle_override"] is None
+    assert result["default_linear_velocity"] == 50.0
+    assert result["max_linear_velocity"] == 150.0
+    assert result["min_linear_velocity"] is None
+
+
 def test_get_ini_runtime_config_uses_defaults_when_no_ini(monkeypatch) -> None:
     monkeypatch.delenv("INI_FILE_NAME", raising=False)
     monkeypatch.delenv("LINUXCNC_INI", raising=False)
@@ -958,6 +987,28 @@ def test_set_feed_override_clamps_and_noop(monkeypatch) -> None:
     assert changed.ok is True
     assert changed.noop is False
     assert feedrate_calls == [2.0]
+
+
+def test_set_feed_override_follows_ini_max_feed_override(monkeypatch) -> None:
+    gateway, _, feedrate_calls = _gateway_for_override_tests(
+        monkeypatch, feedrate=1.0
+    )
+    gateway._ini_runtime_config_cache = {"max_feed_override": 4.0}
+
+    assert gateway.set_feed_override(3.0).ok is True
+    assert gateway.set_feed_override(9.0).ok is True
+    assert feedrate_calls == [3.0, 4.0]
+
+
+def test_override_bounds_follow_ini_spindle_limits() -> None:
+    gateway = LinuxCncGateway()
+    gateway._ini_runtime_config_cache = {
+        "min_spindle_override": 0.5,
+        "max_spindle_override": 1.0,
+    }
+
+    assert gateway._override_bounds("spindle") == (0.5, 1.0)
+    assert gateway._override_bounds("feed") == (0.01, 2.0)
 
 
 def _gateway_for_spindle_tests(

@@ -1,3 +1,4 @@
+import { clampJogVelocityMmPerMin, jogVelocityLimitsFromIni } from '@/lib/jogVelocity';
 import type { StateCreator } from 'zustand';
 import type {
   BoundStore,
@@ -45,6 +46,12 @@ const initialIniRuntimeConfig: IniRuntimeConfig = {
   kins_coordinates: null,
   joint_home_sequences: [],
   display_lathe: false,
+  default_linear_velocity: null,
+  min_linear_velocity: null,
+  max_linear_velocity: null,
+  max_feed_override: null,
+  min_spindle_override: null,
+  max_spindle_override: null,
   user_macros: [],
   source: 'default',
   ini_path: null,
@@ -106,12 +113,18 @@ export const createMachineSlice: StateCreator<
       },
     })),
   setIniRuntimeConfig: (partial) =>
-    set((state) => ({
-      iniRuntimeConfig: {
-        ...state.iniRuntimeConfig,
-        ...partial,
-      },
-    })),
+    set((state) => {
+      const iniRuntimeConfig = { ...state.iniRuntimeConfig, ...partial };
+      // The jog speed follows the INI: an operator still on the old default moves to the new
+      // one, and any other speed is pulled inside the new range.
+      const previous = jogVelocityLimitsFromIni(state.iniRuntimeConfig);
+      const next = jogVelocityLimitsFromIni(iniRuntimeConfig);
+      const jogVelocityMmPerMin =
+        state.jogVelocityMmPerMin === previous.default
+          ? next.default
+          : clampJogVelocityMmPerMin(state.jogVelocityMmPerMin, next);
+      return { iniRuntimeConfig, jogVelocityMmPerMin };
+    }),
   setBackendWebSocket: (ws) => set({ backendWebSocket: ws }),
   setPendingToolChange: (value: PendingToolChange | null) =>
     set({ pendingToolChange: value }),

@@ -6,7 +6,7 @@ import { shortcutForEvent, type PlasmaShortcut } from '@/lib/plasmaShortcuts';
 import { shouldIgnoreGlobalHotkeyTarget } from '@/lib/virtualSidebarHotkeys';
 import { usePlasmaCommands } from '@/hooks/usePlasmaCommands';
 import { useAppStore } from '@/store';
-import { clampJogVelocityMmPerMin, MAX_JOG_VELOCITY_MM_MIN } from '@/lib/jogVelocity';
+import { jogVelocityLimitsFromIni } from '@/lib/jogVelocity';
 
 /** Keys that modify a jog while held, as upstream allows: `+` is rapid, `-` is slow. */
 const RAPID_KEYS = new Set(['Equal', 'NumpadAdd']);
@@ -75,14 +75,11 @@ export function usePlasmaKeyboardShortcuts(): void {
         sendCommand('machine', 'rapid_override', { factor: shortcut.percent / 100 });
         return;
       }
-      // Upstream takes the digit as a percentage of the INI's DEFAULT_LINEAR_VELOCITY. This UI
-      // owns its jog speed rather than deriving it from the INI, so the percentage applies to
-      // the jog slider's range instead — same gesture, this UI's scale.
-      useAppStore
-        .getState()
-        .setJogVelocityMmPerMin(
-          clampJogVelocityMmPerMin((MAX_JOG_VELOCITY_MM_MIN * shortcut.percent) / 100),
-        );
+      // The digit is a percentage of the jog slider's ceiling, which is the INI's
+      // [DISPLAY] MAX_LINEAR_VELOCITY (the setter clamps to the INI's range).
+      const store = useAppStore.getState();
+      const { max } = jogVelocityLimitsFromIni(store.iniRuntimeConfig);
+      store.setJogVelocityMmPerMin((max * shortcut.percent) / 100);
     };
 
     const runAction = (action: Extract<PlasmaShortcut, { kind: 'action' }>['action']) => {
@@ -160,8 +157,8 @@ export function usePlasmaKeyboardShortcuts(): void {
           restoreVelocityRef.current = store.jogVelocityMmPerMin;
           store.setJogVelocityMmPerMin(
             rapid || event.shiftKey
-              ? MAX_JOG_VELOCITY_MM_MIN
-              : clampJogVelocityMmPerMin(store.jogVelocityMmPerMin * SLOW_FACTOR),
+              ? jogVelocityLimitsFromIni(store.iniRuntimeConfig).max
+              : store.jogVelocityMmPerMin * SLOW_FACTOR,
           );
         }
         joggingRef.current.add(shortcut.axis);

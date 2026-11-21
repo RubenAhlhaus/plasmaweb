@@ -6,6 +6,7 @@ import { DEFAULT_COORDINATE_UI_FLUSH_MS } from '@/lib/coordinateUpdateBatcher';
 import {
   clampJogVelocityMmPerMin,
   DEFAULT_JOG_VELOCITY_MM_MIN,
+  jogVelocityLimitsFromIni,
 } from '@/lib/jogVelocity';
 import {
   createDefaultMacroQueueProgramSetup,
@@ -40,7 +41,7 @@ function createInitialProgramEditorState(): ProgramEditorState {
   };
 }
 
-export const createUISlice: StateCreator<BoundStore, [], [], import('./types').UISlice> = (set) => ({
+export const createUISlice: StateCreator<BoundStore, [], [], import('./types').UISlice> = (set, get) => ({
   lastWsCommandResult: null,
   commandResultHistory: [],
   setLastWsCommandResult: (result) =>
@@ -88,7 +89,13 @@ export const createUISlice: StateCreator<BoundStore, [], [], import('./types').U
   selectedJogIncrement: 1,
   setSelectedJogIncrement: (selectedJogIncrement) => set({ selectedJogIncrement }),
   jogVelocityMmPerMin: DEFAULT_JOG_VELOCITY_MM_MIN,
-  setJogVelocityMmPerMin: (value) => set({ jogVelocityMmPerMin: clampJogVelocityMmPerMin(value) }),
+  setJogVelocityMmPerMin: (value) =>
+    set({
+      jogVelocityMmPerMin: clampJogVelocityMmPerMin(
+        value,
+        jogVelocityLimitsFromIni(get().iniRuntimeConfig),
+      ),
+    }),
   debugLoggingEnabled: false,
   setDebugLoggingEnabled: (debugLoggingEnabled) => set({ debugLoggingEnabled }),
   debugLogEventBus: true,

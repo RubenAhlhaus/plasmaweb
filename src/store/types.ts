@@ -337,6 +337,17 @@ export interface IniRuntimeConfig {
   /** From INI [DISPLAY] LATHE — controls lathe-specific tool fields. */
   display_lathe?: boolean;
   /**
+   * INI `[DISPLAY] DEFAULT/MIN/MAX_LINEAR_VELOCITY`, machine units per second (null when
+   * unset). They set the jog speed range; see lib/jogVelocity.ts.
+   */
+  default_linear_velocity?: number | null;
+  min_linear_velocity?: number | null;
+  max_linear_velocity?: number | null;
+  /** INI `[DISPLAY] MAX_FEED_OVERRIDE` and `MIN/MAX_SPINDLE_OVERRIDE`, factors (1.0 = 100 %). */
+  max_feed_override?: number | null;
+  min_spindle_override?: number | null;
+  max_spindle_override?: number | null;
+  /**
    * User macros from INI `[MACROS]` that resolve under `SUBROUTINE_PATH`
    * (Macros screen “Machine” tiles). From `machine.ini_config.loaded`.
    */

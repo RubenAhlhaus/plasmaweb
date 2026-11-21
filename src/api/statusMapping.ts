@@ -65,6 +65,12 @@ export type MachineIniConfigLoadedEventPayload = {
   kins_coordinates?: string | null;
   joint_home_sequences?: unknown;
   display_lathe?: boolean;
+  default_linear_velocity?: number | null;
+  min_linear_velocity?: number | null;
+  max_linear_velocity?: number | null;
+  max_feed_override?: number | null;
+  min_spindle_override?: number | null;
+  max_spindle_override?: number | null;
   user_macros?: Array<{ name?: string; fileName?: string; path?: string }>;
   source?: string;
   ini_path?: string | null;
@@ -211,6 +217,10 @@ interface StoreUpdates {
   linuxCncStatusPartial?: Partial<LinuxCncStatusRoot>;
   coordinatesUpdate?: Coordinates;
   connectionStatus?: ConnectionStatus;
+}
+
+function finiteOrNull(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
 export function isLinuxCncStatusMessage(msg: BackendMessage): msg is LinuxCncStatusMessage {
@@ -568,6 +578,12 @@ export function mapIniConfigLoadedEventToStoreUpdates(
         : null,
     joint_home_sequences: homeSequences,
     display_lathe: typeof payload.display_lathe === 'boolean' ? payload.display_lathe : false,
+    default_linear_velocity: finiteOrNull(payload.default_linear_velocity),
+    min_linear_velocity: finiteOrNull(payload.min_linear_velocity),
+    max_linear_velocity: finiteOrNull(payload.max_linear_velocity),
+    max_feed_override: finiteOrNull(payload.max_feed_override),
+    min_spindle_override: finiteOrNull(payload.min_spindle_override),
+    max_spindle_override: finiteOrNull(payload.max_spindle_override),
     user_macros: userMacros,
     source: typeof payload.source === 'string' ? payload.source : current.source,
     ini_path: typeof payload.ini_path === 'string' ? payload.ini_path : null,

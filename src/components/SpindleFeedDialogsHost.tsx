@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { generateCommandId, useSendCommand } from '@/api/backendCommands';
@@ -26,9 +26,13 @@ import {
 import {
   JOG_VELOCITY_SLIDER_STEP_MM_MIN,
   JOG_VELOCITY_STEP_MM_MIN,
-  MAX_JOG_VELOCITY_MM_MIN,
-  MIN_JOG_VELOCITY_MM_MIN,
+  jogVelocityLimitsFromIni,
 } from '@/lib/jogVelocity';
+import {
+  clampOverridePercent,
+  feedOverridePercentRange,
+  spindleOverridePercentRange,
+} from '@/lib/overrideLimits';
 import { formatFeedMdiLine, formatSpindleMdiLine } from '@/lib/mdiLineFormat';
 import { findLatestCommandResultForId } from '@/lib/wsCommandResults';
 import { useAppStore } from '@/store';
@@ -88,6 +92,11 @@ function SpindleSettingsDialog({
 
   const [rpmInput, setRpmInput] = useState('0');
   const [overridePct, setOverridePct] = useState(100);
+  const iniRuntimeConfig = useAppStore((s) => s.iniRuntimeConfig);
+  const overrideRange = useMemo(
+    () => spindleOverridePercentRange(iniRuntimeConfig),
+    [iniRuntimeConfig],
+  );
 
   const pendingMdiRef = useRef<string | null>(null);
   const pendingMdiLineRef = useRef<string | null>(null);
@@ -109,7 +118,10 @@ function SpindleSettingsDialog({
     const sRpm = spindleSFromStatus(status);
     setRpmInput(String(sRpm));
     const ovRaw = Math.round((status.spindle?.[0]?.override ?? 1) * 100);
-    const ov = Math.min(200, Math.max(1, ovRaw));
+    const ov = clampOverridePercent(
+      ovRaw,
+      spindleOverridePercentRange(useAppStore.getState().iniRuntimeConfig),
+    );
     setOverridePct(Number.isFinite(ov) ? ov : 100);
   }, [open, syncKey]);
 
@@ -156,7 +168,7 @@ function SpindleSettingsDialog({
   };
 
   const handleApplyOverride = () => {
-    const clamped = Math.min(200, Math.max(1, overridePct));
+    const clamped = clampOverridePercent(overridePct, overrideRange);
     const id = generateCommandId();
     pendingOverrideRef.current = id;
     sendCommand(
@@ -210,8 +222,8 @@ function SpindleSettingsDialog({
               label={t('spindleFeed.overridePercent')}
               currentLabel={t('spindleFeed.current')}
               value={overridePct}
-              min={1}
-              max={200}
+              min={overrideRange.min}
+              max={overrideRange.max}
               onValueChange={setOverridePct}
               ariaLabel={t('spindleFeed.spindleOverrideAria')}
               sliderE2e="spindle-override-slider"
@@ -274,6 +286,12 @@ function FeedSettingsDialog({
   const [rapidOverridePct, setRapidOverridePct] = useState(100);
   const jogVelocityMmPerMin = useAppStore((s) => s.jogVelocityMmPerMin);
   const setJogVelocityMmPerMin = useAppStore((s) => s.setJogVelocityMmPerMin);
+  const iniRuntimeConfig = useAppStore((s) => s.iniRuntimeConfig);
+  const feedOverrideRange = useMemo(
+    () => feedOverridePercentRange(iniRuntimeConfig),
+    [iniRuntimeConfig],
+  );
+  const jogLimits = useMemo(() => jogVelocityLimitsFromIni(iniRuntimeConfig), [iniRuntimeConfig]);
 
   const pendingMdiRef = useRef<string | null>(null);
   const pendingMdiLineRef = useRef<string | null>(null);
@@ -296,7 +314,10 @@ function FeedSettingsDialog({
     const f = Number.isFinite(fRaw) ? fRaw : 0;
     setFeedInput(String(Math.max(0, Math.round(f))));
     const ovRaw = Math.round((status.overrides.feedrate ?? 1) * 100);
-    const ov = Math.min(200, Math.max(1, ovRaw));
+    const ov = clampOverridePercent(
+      ovRaw,
+      feedOverridePercentRange(useAppStore.getState().iniRuntimeConfig),
+    );
     setOverridePct(Number.isFinite(ov) ? ov : 100);
     const rapidRaw = Math.round((status.overrides.rapidrate ?? 1) * 100);
     const rapidOv = Math.min(100, Math.max(0, rapidRaw));
@@ -359,7 +380,7 @@ function FeedSettingsDialog({
   };
 
   const handleApplyOverrides = () => {
-    const feedClamped = Math.min(200, Math.max(1, overridePct));
+    const feedClamped = clampOverridePercent(overridePct, feedOverrideRange);
     const rapidClamped = Math.min(100, Math.max(0, rapidOverridePct));
     const feedId = generateCommandId();
     const rapidId = generateCommandId();
@@ -408,8 +429,8 @@ function FeedSettingsDialog({
               label={t('spindleFeed.feedOverrideLabel')}
               currentLabel={t('spindleFeed.current')}
               value={overridePct}
-              min={1}
-              max={200}
+              min={feedOverrideRange.min}
+              max={feedOverrideRange.max}
               onValueChange={setOverridePct}
               ariaLabel={t('spindleFeed.feedOverrideAria')}
               sliderE2e="feed-feed-override-slider"
@@ -433,8 +454,8 @@ function FeedSettingsDialog({
               label={t('spindleFeed.jogSpeedLabel')}
               currentLabel={t('spindleFeed.current')}
               value={jogVelocityMmPerMin}
-              min={MIN_JOG_VELOCITY_MM_MIN}
-              max={MAX_JOG_VELOCITY_MM_MIN}
+              min={jogLimits.min}
+              max={jogLimits.max}
               step={JOG_VELOCITY_STEP_MM_MIN}
               sliderStep={JOG_VELOCITY_SLIDER_STEP_MM_MIN}
               unit="mm/min"

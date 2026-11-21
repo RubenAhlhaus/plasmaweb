@@ -1,4 +1,5 @@
 import threading
+import math
 import os
 import re
 import subprocess
@@ -252,6 +253,40 @@ def _first_ini_option(
 ) -> Optional[str]:
     values = scanned.get(section, {}).get(option, [])
     return values[0] if values else None
+
+
+#: ``[DISPLAY]`` speed and override limits, keyed by INI option -> runtime-config field.
+#: Velocities are machine units per second, overrides are factors (1.0 = 100 %).
+_DISPLAY_LIMIT_OPTIONS = {
+    "DEFAULT_LINEAR_VELOCITY": "default_linear_velocity",
+    "MIN_LINEAR_VELOCITY": "min_linear_velocity",
+    "MAX_LINEAR_VELOCITY": "max_linear_velocity",
+    "MAX_FEED_OVERRIDE": "max_feed_override",
+    "MIN_SPINDLE_OVERRIDE": "min_spindle_override",
+    "MAX_SPINDLE_OVERRIDE": "max_spindle_override",
+}
+
+
+def _read_display_limits(ini_path: str) -> Dict[str, float]:
+    """
+    Read the ``[DISPLAY]`` jog-speed and override limits (see ``_DISPLAY_LIMIT_OPTIONS``).
+
+    Options that are missing, not numbers, negative or non-finite are left out, so the
+    caller keeps its built-in fallback for them.
+    """
+    scanned = _scan_ini_options(ini_path, {"DISPLAY": set(_DISPLAY_LIMIT_OPTIONS)})
+    limits: Dict[str, float] = {}
+    for option, field in _DISPLAY_LIMIT_OPTIONS.items():
+        raw = _first_ini_option(scanned, "DISPLAY", option)
+        if raw is None:
+            continue
+        try:
+            value = float(raw)
+        except ValueError:
+            continue
+        if math.isfinite(value) and value >= 0:
+            limits[field] = value
+    return limits
 
 
 def _read_traj_coordinates_line_scan(ini_path: str) -> Optional[str]:
@@ -1259,6 +1294,9 @@ class LinuxCncGateway:
         if home_sequences:
             result["joint_home_sequences"] = home_sequences
             loaded_fields += 1
+        display_limits = _read_display_limits(ini_path)
+        result.update(display_limits)
+        loaded_fields += len(display_limits)
 
         if linuxcnc is not None:
             try:
@@ -1373,6 +1411,8 @@ class LinuxCncGateway:
         - kins_kinematics / kins_coordinates (optional, from [KINS]) — axis→joint mapping
         - joint_home_sequences (list of [JOINT_n] HOME_SEQUENCE, joint index = position)
         - display_lathe (bool, from [DISPLAY] LATHE)
+        - default/min/max_linear_velocity (machine units per second, from [DISPLAY])
+        - max_feed_override, min/max_spindle_override (factors, from [DISPLAY])
         - user_macros (list of {name, fileName, path} from [MACROS] + SUBROUTINE_PATH)
         - source
         - ini_path
@@ -1391,6 +1431,12 @@ class LinuxCncGateway:
                 "kins_coordinates": None,
                 "joint_home_sequences": [],
                 "display_lathe": False,
+                "default_linear_velocity": None,
+                "min_linear_velocity": None,
+                "max_linear_velocity": None,
+                "max_feed_override": None,
+                "min_spindle_override": None,
+                "max_spindle_override": None,
                 "user_macros": [],
                 "source": "default",
                 "ini_path": None,
@@ -3165,6 +3211,32 @@ class LinuxCncGateway:
     _MIN_RAPID_OVERRIDE = 0.0
     _MAX_RAPID_OVERRIDE = 1.0
 
+    def _override_bounds(self, kind: str) -> Tuple[float, float]:
+        """
+        (min, max) factor for the feed or spindle override.
+
+        Follows the INI's ``[DISPLAY] MAX_FEED_OVERRIDE`` / ``MIN_SPINDLE_OVERRIDE`` /
+        ``MAX_SPINDLE_OVERRIDE`` where set, and the built-in 0.01-2.0 otherwise. The floor
+        never drops below 0.01: a 0 % override is handled as a pause by the UI, not here.
+        """
+        low = self._MIN_FEED_SPINDLE_OVERRIDE
+        high = self._MAX_FEED_SPINDLE_OVERRIDE
+        try:
+            config = self.get_ini_runtime_config()
+        except Exception:
+            return low, high
+        if kind == "feed":
+            ini_max = config.get("max_feed_override")
+            ini_min = None
+        else:
+            ini_max = config.get("max_spindle_override")
+            ini_min = config.get("min_spindle_override")
+        if isinstance(ini_max, (int, float)) and ini_max > 0:
+            high = float(ini_max)
+        if isinstance(ini_min, (int, float)) and ini_min > low:
+            low = float(ini_min)
+        return min(low, high), high
+
     def set_feed_override(self, factor: float) -> GatewayCommandResult:
         """
         Feed override via linuxcnc.command.feedrate; 1.0 = 100%.
@@ -3185,10 +3257,8 @@ class LinuxCncGateway:
                 error_code="invalid_params",
                 error_message="feed override factor must be a number.",
             )
-        clamped = max(
-            self._MIN_FEED_SPINDLE_OVERRIDE,
-            min(raw, self._MAX_FEED_SPINDLE_OVERRIDE),
-        )
+        low, high = self._override_bounds("feed")
+        clamped = max(low, min(raw, high))
         with self._stat_lock:
             self._stat.poll()
             s = self._stat
@@ -3283,10 +3353,8 @@ class LinuxCncGateway:
                 error_code="invalid_params",
                 error_message="spindle override factor must be a number.",
             )
-        clamped = max(
-            self._MIN_FEED_SPINDLE_OVERRIDE,
-            min(raw, self._MAX_FEED_SPINDLE_OVERRIDE),
-        )
+        low, high = self._override_bounds("spindle")
+        clamped = max(low, min(raw, high))
         if spindle_index < 0:
             return GatewayCommandResult(
                 ok=False,
