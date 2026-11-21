@@ -6,6 +6,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.1.12] - 2026-11-21
+
+### Added
+
+- A torch pulse time setting on the plasma Parameters screen (0.1-10 s, default 1 s), stored as QtPlasmaC's `[GUI_OPTIONS] Torch pulse time`. The section heading is now "Interface".
+
+### Fixed
+
+- TORCH PULSE did nothing on LinuxCNC 2.9: the button never sent a pulse time, and `plasmac.torch-pulse-time` starts at 0. Each press now sends the saved time.
+
 ## [1.1.11] - 2026-11-21
 
 ### Security
