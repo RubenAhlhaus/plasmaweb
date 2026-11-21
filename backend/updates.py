@@ -32,8 +32,10 @@ GITHUB_REPO = "RubenAhlhaus/plasmaweb"
 LATEST_RELEASE_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 
 #: GitHub allows 60 unauthenticated API calls an hour per address, and a shop may have several
-#: machines behind one. Every open browser asks on load, so the answer is shared for a while.
-_CHECK_TTL_S = 6 * 60 * 60
+#: machines behind one. Every open browser asks on load, so the answer is shared for a while:
+#: 10 minutes keeps each machine to at most 6 calls an hour while a page reload still picks up
+#: a new release soon after it is published.
+_CHECK_TTL_S = 10 * 60
 _CHECK_TIMEOUT_S = 10.0
 _RELEASE_NOTES_MAX_CHARS = 4000
 _INSTALL_LOG_LINES = 200
