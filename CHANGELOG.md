@@ -6,6 +6,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.1.11] - 2026-11-21
+
+### Security
+
+- The same-origin check on `POST /api/update/install` and `/api/update/restart` could be passed by DNS rebinding (another site's domain pointed at the controller, so `Origin` and `Host` agree). The `Host` must now also name the controller: an IP address, `localhost`, its own hostname (also with `.local`), or a name in the new `PLASMAWEB_ALLOWED_HOSTS`.
+
+### Fixed
+
+- `plasmaweb-update` gave up on a dropped connection ("Recv failure: Connection reset by peer"): curl's `--retry` skips that error. It now passes `--retry-all-errors` where curl supports it.
+
 ## [1.1.10] - 2026-11-21
 
 ### Security
