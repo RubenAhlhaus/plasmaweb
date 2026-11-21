@@ -17,13 +17,15 @@ copy_release_tree() {
   if [[ "$(readlink -f "$source_dir")" == "$(readlink -f "$dest_dir")" ]]; then
     return 0
   fi
+  # Copy without the source's owner and group (no -o/-g): run as root, the copies are then
+  # root's, which the passwordless-sudo rules require, whoever owned the release files.
   if command -v rsync >/dev/null 2>&1; then
-    rsync -a --delete "${items[@]/#/${source_dir}/}" "${dest_dir}/"
+    rsync -rlpt --delete "${items[@]/#/${source_dir}/}" "${dest_dir}/"
   else
     # The LinuxCNC ISO ships without rsync.
     for item in "${items[@]}"; do
       rm -rf "${dest_dir:?}/${item}"
-      cp -a "${source_dir}/${item}" "${dest_dir}/"
+      cp -R -P --preserve=mode,timestamps "${source_dir}/${item}" "${dest_dir}/"
     done
   fi
   mkdir -p "${dest_dir}/docs" "${dest_dir}/scripts"

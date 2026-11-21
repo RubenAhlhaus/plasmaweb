@@ -138,15 +138,22 @@ path_is_root_controlled() {
   done
 }
 
-# A release tarball records its build machine's file owner (GitHub's runner is uid 1001), and
-# tar, rsync -a and cp -a all keep it when root installs. path_is_root_controlled then refuses
-# the helpers, so the GUI can neither shut down nor update. When root installs into a
-# root-owned prefix, hand the tree to root and drop group/other write.
-secure_install_tree() {
+# A release tarball can record its build machine's file owner (GitHub's runner is uid 1001;
+# releases before 1.1.6 did), and an earlier install may have kept it. Before copying a
+# release over the install, hand the release's own paths there to root so whoever owned them
+# loses write access; copy_release_tree then replaces their contents from the release without
+# carrying its owner over. Only paths this run overwrites are touched: changing the owner of
+# anything else would make files root's that someone else could have edited.
+release_paths_to_root() {
   [[ "$(id -u)" -eq 0 && -d "$PREFIX" ]] || return 0
-  [[ "$(stat -c %u "$PREFIX" 2>/dev/null)" == 0 ]] || return 0
-  chown -R root:root "$PREFIX"
-  chmod -R go-w "$PREFIX"
+  [[ "$(readlink -f "$SOURCE_DIR")" != "$(readlink -f "$PREFIX")" ]] || return 0
+  local item
+  for item in bin backend dist install.sh uninstall.sh resources docs scripts VERSION; do
+    if [[ -e "${PREFIX}/${item}" || -L "${PREFIX}/${item}" ]]; then
+      chown -hR root:root "${PREFIX}/${item}"
+      chmod -R go-w "${PREFIX}/${item}"
+    fi
+  done
 }
 
 install_shutdown_permissions() {
@@ -188,7 +195,8 @@ install_shutdown_permissions() {
 
   if ! path_is_root_controlled "$helper"; then
     echo "error: ${helper} or a directory above it is not root-owned or is writable by others;" >&2
-    echo "  refusing to grant passwordless sudo for it. Install to a root-owned prefix such as /opt/plasmaweb." >&2
+    echo "  refusing to grant passwordless sudo for it. Reinstall from a release as root" >&2
+    echo "  (sudo ./install.sh in the extracted tarball), which replaces the files as root-owned." >&2
     [[ "$strict" -eq 1 ]] && exit 1
     return 0
   fi
@@ -252,7 +260,8 @@ install_update_permissions() {
 
   if ! path_is_root_controlled "$helper"; then
     echo "error: ${helper} or a directory above it is not root-owned or is writable by others;" >&2
-    echo "  refusing to grant passwordless sudo for it. Install to a root-owned prefix such as /opt/plasmaweb." >&2
+    echo "  refusing to grant passwordless sudo for it. Reinstall from a release as root" >&2
+    echo "  (sudo ./install.sh in the extracted tarball), which replaces the files as root-owned." >&2
     [[ "$strict" -eq 1 ]] && exit 1
     return 0
   fi
@@ -279,7 +288,6 @@ install_update_permissions() {
 }
 
 if [[ "$SETUP_SHUTDOWN_ONLY" -eq 1 || "$SETUP_UPDATE_ONLY" -eq 1 ]]; then
-  secure_install_tree
   [[ "$SETUP_SHUTDOWN_ONLY" -eq 1 ]] && install_shutdown_permissions 1
   [[ "$SETUP_UPDATE_ONLY" -eq 1 ]] && install_update_permissions 1
   exit 0
@@ -331,13 +339,13 @@ if [[ "$LINK_GLOBAL" -eq 1 && -n "$BIN_DIR" && "$BIN_DIR" == "/usr/local/bin" &&
   exit 1
 fi
 
+release_paths_to_root
 copy_release_tree "$SOURCE_DIR" "$PREFIX"
 # The release this install came from: the backend reads it to know whether GitHub has a newer one.
 if [[ -f "${SOURCE_DIR}/VERSION" && "$(readlink -f "$SOURCE_DIR")" != "$(readlink -f "$PREFIX")" ]]; then
   cp "${SOURCE_DIR}/VERSION" "${PREFIX}/VERSION"
 fi
 write_production_config "${PREFIX}/dist" "$PRODUCTION_CONFIG"
-secure_install_tree
 
 VENV="${PREFIX}/venv"
 if [[ "$RECREATE_VENV" -eq 1 && -d "$VENV" ]]; then
